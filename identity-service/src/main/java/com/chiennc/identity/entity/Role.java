@@ -22,6 +22,7 @@ public class Role {
 
     String description;
 
+    /// jpa biểu diễn mối quan hệ nhiều nhiều dưới db
     @ManyToMany
     Set<Permission> permissions;
 }

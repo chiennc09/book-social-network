@@ -148,12 +148,13 @@ public class AuthenticationService {
     }
 
     private SignedJWT verifyToken(String token) throws JOSEException, ParseException {
+        /// Khởi tạo JWSVerifier để xác minh chữ ký
         JWSVerifier verifier = new MACVerifier(signerKey.getBytes());
-
+        /// Phân tích chuỗi token thành đối tượng SignedJWT
         SignedJWT signedJWT = SignedJWT.parse(token);
 
         Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
-
+        /// Xác minh chữ ký của JWT
         var verified = signedJWT.verify(verifier);
 
         if (!(verified && expiryTime.after(new Date()))) throw new AppException(ErrorCode.UNAUTHENTICATED);
@@ -169,9 +170,10 @@ public class AuthenticationService {
 
         if (!CollectionUtils.isEmpty(user.getRoles()))
             user.getRoles().forEach(role -> {
+                /// claim scope 'ROLE_' để phân biệt role vs permission
                 stringJoiner.add("ROLE_" + role.getName());
                 if (!CollectionUtils.isEmpty(role.getPermissions()))
-                    role.getPermissions().forEach(permission -> stringJoiner.add(permission.getName()));
+                    role.getPermissions().forEach(permission -> stringJoiner.add(permission.getName())); ///permission thì ko
             });
 
         return stringJoiner.toString();
