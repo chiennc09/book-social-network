@@ -1,4 +1,4 @@
-package com.chiennc.identity.configuration;
+package com.chiennc.profile.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
-        "/users/registration", "/auth/token", "/auth/introspect", "/auth/logout", "/auth/refresh"
+
     };
 
     private final CustomJwtDecoder customJwtDecoder;
@@ -36,8 +36,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated());
 
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer /// cho phép truyền decoder tùy biến
-                        /// Authentication token qua ResourceServer
-                        /// Giải mã token thông qua CustomJwtDecoder
+                /// Authentication token qua ResourceServer
+                /// Giải mã token thông qua CustomJwtDecoder
                         .decoder(customJwtDecoder)
                         /// Custom GrantedAuthority (mặc định là 'SCOPE_' )
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))
@@ -58,10 +58,5 @@ public class SecurityConfig {
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
 
         return jwtAuthenticationConverter;
-    }
-
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(10);
     }
 }

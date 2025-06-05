@@ -4,6 +4,7 @@ import java.text.ParseException;
 import java.util.Objects;
 import javax.crypto.spec.SecretKeySpec;
 
+import com.nimbusds.jwt.SignedJWT;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -31,7 +32,7 @@ public class CustomJwtDecoder implements JwtDecoder {
 
     @Override
     public Jwt decode(String token) throws JwtException {
-        /// Check hiệu lực token
+        /// Check verify token bằng introspect tự tạo
         try {
             var response = authenticationService.introspect(
                     IntrospectRequest.builder().token(token).build());
@@ -42,12 +43,34 @@ public class CustomJwtDecoder implements JwtDecoder {
         }
 
         if (Objects.isNull(nimbusJwtDecoder)) {
+            /// tạo đối tượng secretKeySpec với chữ ký + loại mã để cbi giải mã(cái này java bắt chứ ko để làm gì)
             SecretKeySpec secretKeySpec = new SecretKeySpec(signerKey.getBytes(), "HS512");
+            /// đối tượng nimbusJwtDecoder chứa khóa + quyết định thuật toán giải mã
             nimbusJwtDecoder = NimbusJwtDecoder.withSecretKey(secretKeySpec)
                     .macAlgorithm(MacAlgorithm.HS512)
                     .build();
         }
-
+        /// Thực hiện giải mã và trả về đối tượng jwt các thông tin claim...
         return nimbusJwtDecoder.decode(token);
     }
+
+    /// Vì đã verify token ở gateway nên xuống service chỉ cần lấy đối tượng jwt
+    /*
+    @Override
+    public Jwt decode(String token) throws JwtException {
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(token);
+
+            return new Jwt(token,
+                    signedJWT.getJWTClaimsSet().getIssueTime().toInstant(),
+                    signedJWT.getJWTClaimsSet().getExpirationTime().toInstant(),
+                    signedJWT.getHeader().toJSONObject(),
+                    signedJWT.getJWTClaimsSet().getClaims()
+            );
+
+        } catch (ParseException e) {
+            throw new JwtException("Invalid token");
+        }
+    }
+     */
 }
