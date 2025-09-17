@@ -14,5 +14,11 @@ spring:
       #group join mới sẽ bắt đc tất cả message cũ
       group-id: notification-group
       auto-offset-reset: earliest
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+notification:
+  email:
+    brevo-url: https://api.brevo.com
+    brevo-apikey: "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"
