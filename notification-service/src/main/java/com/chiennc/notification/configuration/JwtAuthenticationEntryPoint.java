@@ -1,7 +1,7 @@
-package com.chiennc.profile.configuration;
+package com.chiennc.notification.configuration;
 
-import com.chiennc.profile.dto.ApiResponse;
-import com.chiennc.profile.exception.ErrorCode;
+import com.chiennc.notification.dto.ApiResponse;
+import com.chiennc.notification.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

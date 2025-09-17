@@ -1,4 +1,4 @@
-package com.chiennc.profile.exception;
+package com.chiennc.notification.exception;
 
 public class AppException extends RuntimeException {
 

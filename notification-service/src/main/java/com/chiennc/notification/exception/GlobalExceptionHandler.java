@@ -1,6 +1,6 @@
-package com.chiennc.profile.exception;
+package com.chiennc.notification.exception;
 
-import com.chiennc.profile.dto.ApiResponse;
+import com.chiennc.notification.dto.ApiResponse;
 import jakarta.validation.ConstraintViolation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

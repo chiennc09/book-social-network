@@ -1,4 +1,4 @@
-package com.chiennc.profile.configuration;
+package com.chiennc.notification.configuration;
 
 import com.nimbusds.jwt.SignedJWT;
 import org.springframework.security.oauth2.jwt.Jwt;
