@@ -21,33 +21,41 @@ export default function PostPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate("/login");
-    } else {
-      loadPosts(page);
-    }
-  }, [navigate, page]);
+  let ignore = false; // 1. Khai báo cờ
 
-  const loadPosts = (page: number) => {
-    console.log(`loading posts for page ${page}`);
+  if (!isAuthenticated()) {
+    navigate("/login");
+  } else {
     setLoading(true);
     getMyPosts(page)
       .then((response: GetPostsResponse) => {
-        setTotalPages(response.result.totalPages);
-        setPosts((prevPosts) => [...prevPosts, ...response.result.data]);
-        setHasMore(response.result.data.length > 0);
-        console.log("loaded posts:", response.result);
+        // 3. Chỉ cập nhật state nếu cờ chưa bị set là true
+        if (!ignore) {
+          setTotalPages(response.result.totalPages);
+          setPosts((prevPosts) => [...prevPosts, ...response.result.data]);
+          setHasMore(response.result.data.length > 0);
+        }
       })
       .catch((error: any) => {
-        if (error.response?.status === 401) {
-          logOut();
-          navigate("/login");
+        if (!ignore) {
+          if (error.response?.status === 401) {
+            logOut();
+            navigate("/login");
+          }
         }
       })
       .finally(() => {
-        setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       });
+  }
+
+  // 2. Cleanup function: sẽ chạy khi component unmount
+  return () => {
+    ignore = true;
   };
+}, [navigate, page]);
 
   useEffect(() => {
     if (!hasMore) return;

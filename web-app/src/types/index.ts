@@ -37,6 +37,7 @@ export interface PostData {
   content: string,
   userId: string,
   username: string,
+  created: string,
   createdDate: string,
   modifiedDate: string,
   [key: string]: unknown;

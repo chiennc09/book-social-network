@@ -44,7 +44,7 @@ const Post = forwardRef<HTMLDivElement, PostProps>(({ post }, ref) => {
                 fontWeight: 400,
               }}
             >
-              {post.createdDate}
+              {post.created}
             </Typography>
           </Box>
           <Typography
