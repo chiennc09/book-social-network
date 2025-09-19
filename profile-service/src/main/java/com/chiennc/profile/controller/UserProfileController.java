@@ -31,7 +31,7 @@ public class UserProfileController {
     @GetMapping("/users/{profileId}")
     ApiResponse<UserProfileResponse> getProfile(@PathVariable String profileId) {
         return ApiResponse.<UserProfileResponse>builder()
-                .result(userProfileService.getProfile(profileId))
+                .result(userProfileService.getByUserId(profileId))
                 .build();
     }
 
