@@ -10,5 +10,5 @@ interface MyInfoResponse {
 
 export const getMyInfo = () => {
   // AxiosResponse<MyInfoResponse> -> kiểu dữ liệu cho toàn bộ response trả về
-  return axiosClient.get<MyInfoResponse>('/users/me');
+  return axiosClient.get<MyInfoResponse>('/profile/users/my-profile');
 };

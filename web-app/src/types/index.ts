@@ -4,17 +4,40 @@
 export interface UserDetails {
   id: string;
   username: string;
+  email: string;
   firstName: string;
   lastName: string;
-  dob: string; // Giữ là string cho đơn giản, hoặc có thể dùng Date
+  dob: string;
+  city: string;
 }
 
 // Dữ liệu trả về từ API đăng nhập
 export interface LoginResponse {
   code: number;
-  // Giả sử API trả về thêm thông tin user
   result: {
     token: string;
     expiryTime: Date;
   };
+}
+
+export interface GetPostsResponse {
+  code: number;
+  result: {
+    currentPage: number,
+        totalPages: number,
+        pageSize: number,
+        totalElements: number,
+        data: PostData[],
+  };
+}
+
+// Kiểu cho dữ liệu Post
+export interface PostData {
+  id: string,
+  content: string,
+  userId: string,
+  username: string,
+  createdDate: string,
+  modifiedDate: string,
+  [key: string]: unknown;
 }

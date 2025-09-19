@@ -5,7 +5,7 @@ const TOKEN_KEY = 'accessToken';
 
 // Hàm đăng nhập
 export const logIn = async (username: string, password: string): Promise<LoginResponse> => {
-  const response = await axiosClient.post<LoginResponse>('/auth/token', { username, password });
+  const response = await axiosClient.post<LoginResponse>('/identity/auth/token', { username, password });
   if (response.data && response.data?.result?.token) {
     localStorage.setItem(TOKEN_KEY, response.data.result.token);
   }

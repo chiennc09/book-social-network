@@ -1,12 +1,12 @@
-// src/pages/HomePage.tsx
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Card, CircularProgress, Typography } from "@mui/material";
 import { getMyInfo } from "../services/userService";
-import { isAuthenticated } from "../services/authService"; // Sửa lại đường dẫn import cho đúng
+import { isAuthenticated } from "../services/authService";
 import type { UserDetails } from "../types";
 
-export default function HomePage() {
+export default function ProfilePage() {
   const navigate = useNavigate();
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
 

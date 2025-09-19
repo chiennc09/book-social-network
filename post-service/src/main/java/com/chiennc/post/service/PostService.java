@@ -1,5 +1,6 @@
 package com.chiennc.post.service;
 
+import com.chiennc.post.dto.PageResponse;
 import com.chiennc.post.dto.request.PostRequest;
 import com.chiennc.post.dto.response.PostResponse;
 import com.chiennc.post.entity.Post;
@@ -8,6 +9,9 @@ import com.chiennc.post.repository.PostRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -38,12 +42,22 @@ public class PostService {
         return postMapper.toPostResponse(post);
     }
 
-    public List<PostResponse> getMyPosts(){
+    public PageResponse<PostResponse> getMyPosts(int page, int size){
 
-        return postRepository.findAllByUserId(getUserIdByToken())
-                .stream()
-                .map(postMapper::toPostResponse)
-                .toList();
+        /// lấy theo ngày mới nhất
+        Sort sort = Sort.by("createdDate").descending();
+
+        /// Pageable bắt đầu từ 0
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        var pageData = postRepository.findAllByUserId(getUserIdByToken(), pageable);
+
+        return PageResponse.<PostResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(pageData.getContent().stream().map(postMapper::toPostResponse).toList())
+                .build();
     }
 
     public String getUserIdByToken(){

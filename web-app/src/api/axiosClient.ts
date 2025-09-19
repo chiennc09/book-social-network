@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const axiosClient = axios.create({
-  baseURL: 'http://localhost:8888/identity', 
+  baseURL: 'http://localhost:8888', 
   headers: {
     'Content-Type': 'application/json',
   },

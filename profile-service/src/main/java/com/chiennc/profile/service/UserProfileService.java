@@ -3,11 +3,16 @@ package com.chiennc.profile.service;
 import com.chiennc.profile.dto.request.ProfileCreationRequest;
 import com.chiennc.profile.dto.response.UserProfileResponse;
 import com.chiennc.profile.entity.UserProfile;
+import com.chiennc.profile.exception.AppException;
+import com.chiennc.profile.exception.ErrorCode;
 import com.chiennc.profile.mapper.UserProfileMapper;
 import com.chiennc.profile.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -38,5 +43,19 @@ public class UserProfileService {
                 userProfileRepository.findById(id).orElseThrow(() -> new RuntimeException("Profile not found"));
 
         return userProfileMapper.toUserProfileResponse(userProfile);
+    }
+
+    public UserProfileResponse getMyProfile() {
+        var profile = userProfileRepository.findByUserId(getUserIdByToken())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        return userProfileMapper.toUserProfileResponse(profile);
+    }
+
+    private String getUserIdByToken(){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        String userId = jwt.getClaim("userId");
+        return userId;
     }
 }

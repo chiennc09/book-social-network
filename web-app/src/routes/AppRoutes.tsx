@@ -3,6 +3,8 @@ import LoginPage from "../pages/LoginPage";
 import HomePage from "../pages/HomePage";
 import Scene from "../components/layout/Scene";
 import { isAuthenticated } from "../services/authService";
+import ProfilePage from "../pages/ProfilePage";
+import MyPostsPage from "../pages/MyPostsPage";
 
 //Loader để bảo vệ các route
 const protectedLoader = () => {
@@ -35,5 +37,13 @@ export const router = createBrowserRouter([
       //   element: <ProfilePage />,
       // },
     ],
+  },
+  {
+    path: "/my-profile",
+    element: <ProfilePage />,
+  },
+  {
+    path: "/my-posts",
+    element: <MyPostsPage />,
   },
 ]);

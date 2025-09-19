@@ -13,6 +13,7 @@ import MailIcon from "@mui/icons-material/Mail";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import MoreIcon from "@mui/icons-material/MoreVert";
 import { logOut } from "../../services/authService";
+import { useNavigate } from "react-router-dom";
 
 // ... (Các styled components Search, SearchIconWrapper, StyledInputBase giữ nguyên)
 const Search = styled("div")(({ theme }) => ({
@@ -61,6 +62,7 @@ export default function Header() {
 
   const isMenuOpen = Boolean(anchorEl);
   const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
+  const navigate = useNavigate();
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -82,7 +84,15 @@ export default function Header() {
   const handleLogout = () => {
     handleMenuClose();
     logOut();
-    window.location.href = "/login";
+    navigate("/login");
+  };
+
+  const handleMyProfile = () => {
+    navigate("/my-profile");
+  };
+
+  const handleMyPosts = () => {
+    navigate("/my-posts");
   };
 
   const menuId = "primary-search-account-menu";
@@ -96,7 +106,8 @@ export default function Header() {
       open={isMenuOpen}
       onClose={handleMenuClose}
     >
-      <MenuItem onClick={handleMenuClose}>Profile</MenuItem>
+      <MenuItem onClick={handleMyProfile}>Profile</MenuItem>
+      <MenuItem onClick={handleMyPosts}>My Posts</MenuItem>
       <MenuItem onClick={handleMenuClose}>Settings</MenuItem>
       <MenuItem onClick={handleLogout}>Log Out</MenuItem>
     </Menu>
