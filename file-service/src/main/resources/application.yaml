@@ -8,3 +8,8 @@ spring:
   data:
     mongodb:
       uri: mongodb://root:root@localhost:27017/file-service?authSource=admin
+
+app:
+  file:
+    storage-dir: E:/Project/book-social-network/upload
+    download-prefix: http://localhost:8888/file/media/

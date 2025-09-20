@@ -1,5 +1,15 @@
 package com.chiennc.file.service;
 
+import com.chiennc.file.dto.response.FileResponse;
+import com.chiennc.file.mapper.FileMgmtMapper;
+import com.chiennc.file.repository.FileMgmtRepository;
+import com.chiennc.file.repository.FileRepository;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,25 +23,35 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class FileService {
-    public Object uploadFile(MultipartFile file) throws IOException {
-        /// Xác định path folder lưu file
-        Path folder = Paths.get("E:/Project/book-social-network/upload");
+    FileRepository fileRepository;
+    FileMgmtRepository fileMgmtRepository;
 
-        /// Lấy tên định dạng file (Đuôi)
-        String fileExtension = StringUtils
-                .getFilenameExtension(file.getOriginalFilename());
+    FileMgmtMapper fileMgmtMapper;
 
-        String fileName = Objects.isNull(fileExtension)
-                ? UUID.randomUUID().toString()
-                : UUID.randomUUID() + "." + fileExtension;
+    public FileResponse uploadFile(MultipartFile file) throws IOException {
+        // Store file
+        var fileInfo = fileRepository.store(file);
 
-        /// Lấy đường dẫn hoàn chỉnh file mong muốn
-        Path filePath = folder.resolve(fileName).normalize().toAbsolutePath();
+        // Create file management info
+        var fileMgmt = fileMgmtMapper.toFileMgmt(fileInfo);
 
-        /// Convert file từ người dùng => file mong muốn
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        fileMgmt.setOwnerId(getUserIdByToken());
 
-        return null;
+        fileMgmt = fileMgmtRepository.save(fileMgmt);
+
+        return FileResponse.builder()
+                .originalFileName(file.getOriginalFilename())
+                .url(fileInfo.getUrl())
+                .build();
+    }
+
+    public String getUserIdByToken(){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        String userId = jwt.getClaim("userId");
+        return userId;
     }
 }
