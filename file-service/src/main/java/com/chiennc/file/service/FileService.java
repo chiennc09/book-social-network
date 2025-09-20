@@ -1,6 +1,9 @@
 package com.chiennc.file.service;
 
+import com.chiennc.file.dto.response.FileData;
 import com.chiennc.file.dto.response.FileResponse;
+import com.chiennc.file.exception.AppException;
+import com.chiennc.file.exception.ErrorCode;
 import com.chiennc.file.mapper.FileMgmtMapper;
 import com.chiennc.file.repository.FileMgmtRepository;
 import com.chiennc.file.repository.FileRepository;
@@ -32,10 +35,10 @@ public class FileService {
     FileMgmtMapper fileMgmtMapper;
 
     public FileResponse uploadFile(MultipartFile file) throws IOException {
-        // Store file
+        /// Store file
         var fileInfo = fileRepository.store(file);
 
-        // Create file management info
+        /// Create file management info
         var fileMgmt = fileMgmtMapper.toFileMgmt(fileInfo);
 
         fileMgmt.setOwnerId(getUserIdByToken());
@@ -46,6 +49,18 @@ public class FileService {
                 .originalFileName(file.getOriginalFilename())
                 .url(fileInfo.getUrl())
                 .build();
+    }
+
+    public FileData download(String fileName) throws IOException {
+        /// Tìm theo tên file => map thành FileMgmt
+        var fileMgmt = fileMgmtRepository.findById(fileName).orElseThrow(
+                () -> new AppException(ErrorCode.FILE_NOT_FOUND));
+
+        /// resource - 1 dạng dữ liệu data
+        var resource = fileRepository.read(fileMgmt);
+
+        /// Return dạng record - bao gồm content type + resource
+        return new FileData(fileMgmt.getContentType(), resource);
     }
 
     public String getUserIdByToken(){
