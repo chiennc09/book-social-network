@@ -4,13 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.neo4j.core.schema.GeneratedValue;
-import org.springframework.data.neo4j.core.schema.Id;
-import org.springframework.data.neo4j.core.schema.Node;
-import org.springframework.data.neo4j.core.schema.Property;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.neo4j.core.schema.*;
 import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 @Data
 @Builder
@@ -19,12 +18,10 @@ import java.time.LocalDate;
 @Node("user_profile")
 public class UserProfile {
     @Id
-    @GeneratedValue(generatorClass = UUIDStringGenerator.class)
-    private String id;
-
     @Property("userId")
     private String userId;
-
+    @Version
+    private Long version;
     private String username;
     private String email;
 
@@ -32,5 +29,15 @@ public class UserProfile {
     private String lastName;
     private LocalDate dob;
     private String city;
+    private String avatar;      // [cite: 4]
+    private String bio;         // [cite: 5]
+    private String readingLevel;      // [cite: 6]
+
+    // Định nghĩa các mối quan hệ [cite: 64, 66]
+    @Relationship(type = "FOLLOWS", direction = Relationship.Direction.OUTGOING)
+    private Set<UserProfile> following;
+
+    @Relationship(type = "FRIEND", direction = Relationship.Direction.OUTGOING)
+    private Set<UserProfile> friends;
 
 }
