@@ -1,0 +1,15 @@
+server:
+  port: 8085
+  servlet:
+    context-path: /book
+spring:
+  application:
+    name: book-service
+  data:
+    mongodb:
+      uri: mongodb://root:root@localhost:27017/book-service?authSource=admin
+
+app:
+  services:
+    profile:
+      url: http://localhost:8085/book
