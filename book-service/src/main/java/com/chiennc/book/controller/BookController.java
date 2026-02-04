@@ -4,11 +4,18 @@ import com.chiennc.book.dto.ApiResponse;
 import com.chiennc.book.dto.request.BookRequest;
 import com.chiennc.book.dto.response.BookResponse;
 import com.chiennc.book.service.BookService;
+import com.chiennc.book.service.FileStorageService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
 
 import java.util.List;
 
@@ -17,6 +24,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class BookController {
     BookService bookService;
+    FileStorageService fileStorageService;
 
     // 1. Quản lý sách
     @PostMapping("/create")
@@ -53,11 +61,31 @@ public class BookController {
     // 3. Chức năng Đọc sách (Trả về link file + Lịch sử đọc cũ)
     @GetMapping("/{id}/read")
     ApiResponse<BookResponse> readBook(@PathVariable String id) {
-        // Lưu ý: Trong thực tế userId sẽ lấy từ JWT token (SecurityContextHolder)
         return ApiResponse.<BookResponse>builder()
                 .result(bookService.getBookToRead(id))
                 .build();
     }
+    @GetMapping("/files/{subDir}/{filename:.+}")
+    public ResponseEntity<Resource> getFile(@PathVariable String subDir, @PathVariable String filename, HttpServletRequest request) {
+        Resource resource = fileStorageService.load(filename, subDir);
+
+        // Tự động xác định Content Type (PDF, Image, etc.)
+        String contentType = null;
+        try {
+            contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+        } catch (IOException ex) {
+            // fallback
+        }
+        if(contentType == null) {
+            contentType = "application/octet-stream";
+        }
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                .body(resource);
+    }
+
 
     // 4. Lưu tiến trình đọc (Gọi lên khi User lật trang)
     @PostMapping("/{id}/progress")

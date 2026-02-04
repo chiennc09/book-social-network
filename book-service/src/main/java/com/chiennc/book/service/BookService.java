@@ -19,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -74,11 +75,36 @@ public class BookService {
 
     public BookResponse getBookToRead(String bookId) {
         String userId = getUserId();
-
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
 
+        // Map sang response
         BookResponse response = bookMapper.toBookResponse(book);
+
+        // QUAN TRỌNG: Chuyển tên file thành URL đầy đủ để Frontend gọi
+        if (book.getPdfPath() != null) {
+            String pdfUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/files/pdfs/")
+                    .path(book.getPdfPath())
+                    .toUriString();
+            response.setPdfPath(pdfUrl);
+        }
+
+        if (book.getCoverImage() != null) {
+            String coverUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/files/covers/")
+                    .path(book.getCoverImage())
+                    .toUriString();
+            response.setCoverImage(coverUrl);
+        }
+
+        if (book.getEpubPath() != null) {
+            String epubUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/files/epubs/")
+                    .path(book.getEpubPath())
+                    .toUriString();
+            response.setEpubPath(epubUrl);
+        }
 
         // Lấy lịch sử đọc cũ (nếu có)
         historyRepository.findByUserIdAndBookId(userId, bookId).ifPresent(history -> {
