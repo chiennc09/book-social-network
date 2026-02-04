@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
 import java.util.List;
 
 @Data
@@ -21,9 +20,13 @@ public class BookResponse {
     String description;
     String category;
     String coverImage;
-    String language;
-    int publishedYear;
+    String pdfPath;
+    String epubPath;
+    boolean isPublic;
+    int totalViews;
     int totalPages;
-    String content;
-    // Thêm rating trung bình nếu cần sau này [cite: 43]
+    double averageRating;
+    //  2 trường này để phục vụ chức năng Resume Reading
+    String lastPosition;
+    double progressPercent;
 }

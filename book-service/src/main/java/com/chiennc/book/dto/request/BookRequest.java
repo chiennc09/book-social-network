@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
 import java.util.List;
 
 @Data
@@ -19,9 +18,6 @@ public class BookRequest {
     List<String> authors;
     String description;
     String category;
-    String coverImage;
-    String language;
-    int publishedYear;
+    boolean isPublic;
     int totalPages;
-    String content;
 }

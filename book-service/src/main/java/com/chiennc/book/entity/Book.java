@@ -4,8 +4,6 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.MongoId;
-
 import java.util.List;
 
 @Document(collection = "books")
@@ -22,14 +20,16 @@ public class Book {
     String description;
     String category;
     String coverImage;
-    String language;
-    int publishedYear;
-    int totalPages;
 
-    // Phần nội dung để đọc
-    String contentUrl;      // Link file PDF/EPUB (Cloudinary/MinIO)
-    String webReaderLink; // Link đọc online của Google (rất quan trọng)
-    String downloadUrl;
-    List<Chapter> chapters; // Hoặc lưu theo từng chương nếu là sách chữ
+    // Đường dẫn file thực tế trong server
+    String pdfPath;
+    String epubPath;
+
     boolean isPublic;
+    String ownerId;
+
+    @Builder.Default
+    int totalViews = 0;
+    int totalPages;
+    double averageRating;
 }
