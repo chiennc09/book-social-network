@@ -7,6 +7,7 @@ import com.chiennc.profile.exception.AppException;
 import com.chiennc.profile.exception.ErrorCode;
 import com.chiennc.profile.mapper.UserProfileMapper;
 import com.chiennc.profile.repository.UserProfileRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -47,10 +48,79 @@ public class UserProfileService {
     }
 
     public UserProfileResponse getMyProfile() {
-        var profile = userProfileRepository.findByUserId(getUserIdByToken())
+        var userId = getUserIdByToken();
+        var profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        return userProfileMapper.toUserProfileResponse(profile);
+        UserProfileResponse response = userProfileMapper.toUserProfileResponse(profile);
+
+        // Nạp thống kê từ Repository [cite: 7, 10]
+        response.setFollowerCount(userProfileRepository.countFollowers(userId));
+        response.setFriendCount(userProfileRepository.countFriends(userId));
+
+        // Các thông số này sau này sẽ gọi qua FeignClient tới service khác [cite: 8, 9]
+        response.setPostCount(0);
+        response.setBooksReadCount(0);
+
+        return response;
+    }
+
+    /* ================= FOLLOW ================= */
+
+    public void follow(String toUserId) {
+        userProfileRepository.followUser(getUserIdByToken(), toUserId);
+    }
+
+    public void unfollow(String toUserId) {
+        userProfileRepository.unfollowUser(getUserIdByToken(), toUserId);
+    }
+
+    /* ================= FRIEND ================= */
+
+    public void sendFriendRequest(String toUserId) {
+        userProfileRepository.sendFriendRequest(getUserIdByToken(), toUserId);
+    }
+
+//    public void cancelFriendRequest(String toUserId) {
+//        userProfileRepository.cancelFriendRequest(getUserIdByToken(), toUserId);
+//    }
+
+    public void acceptFriend(String toUserId) {
+        userProfileRepository.acceptFriend(getUserIdByToken(), toUserId);
+    }
+
+    public void removeFriend(String toUserId) {
+        userProfileRepository.removeFriend(getUserIdByToken(), toUserId);
+    }
+
+    public List<UserProfileResponse> getIncomingRequests() {
+        String userId = getUserIdByToken();
+        return userProfileRepository.getIncomingFriendRequests(userId)
+                .stream()
+                .map(userProfileMapper::toUserProfileResponse)
+                .toList();
+    }
+
+    public List<UserProfileResponse> getOutgoingRequests() {
+        String userId = getUserIdByToken();
+        return userProfileRepository.getOutgoingFriendRequests(userId)
+                .stream()
+                .map(userProfileMapper::toUserProfileResponse)
+                .toList();
+    }
+
+    /* ================= COUNT ================= */
+
+    public Long countFollowers(String userId) {
+        return userProfileRepository.countFollowers(userId);
+    }
+
+    public Long countFollowing(String userId) {
+        return userProfileRepository.countFollowing(userId);
+    }
+
+    public Long countFriends(String userId) {
+        return userProfileRepository.countFriends(userId);
     }
 
     private String getUserIdByToken(){

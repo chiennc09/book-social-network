@@ -12,7 +12,6 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserProfileResponse {
-    private String id;
     private String userId;
     private String username;
     private String email;

@@ -42,4 +42,94 @@ public class UserProfileController {
                 .build();
     }
 
+    /* ================= FOLLOW ================= */
+
+    @PostMapping("/follow")
+    public ApiResponse<?> follow(
+            @RequestParam String toUserId
+    ) {
+        userProfileService.follow(toUserId);
+        return ApiResponse.builder()
+                .message("Follow success")
+                .build();
+    }
+
+    @DeleteMapping("/unfollow")
+    public ApiResponse<?> unfollow(
+            @RequestParam String toUserId
+    ) {
+        userProfileService.unfollow(toUserId);
+        return ApiResponse.builder()
+                .message("Unfollow success")
+                .build();
+    }
+
+    /* ================= FRIEND ================= */
+
+    @PostMapping("/friend/request")
+    public ApiResponse<?> sendFriendRequest(
+            @RequestParam String toUserId
+    ) {
+        userProfileService.sendFriendRequest(toUserId);
+        return ApiResponse.builder()
+                .message("Friend request sent")
+                .build();
+    }
+
+    @PostMapping("/friend/accept")
+    public ApiResponse<?> acceptFriend(
+            @RequestParam String toUserId
+    ) {
+        userProfileService.acceptFriend(toUserId);
+        return ApiResponse.builder()
+                .message("Friend accepted")
+                .build();
+    }
+
+    @DeleteMapping("/friend/remove")
+    public ApiResponse<?> removeFriend(
+            @RequestParam String toUserId
+    ) {
+        userProfileService.removeFriend(toUserId);
+        return ApiResponse.builder()
+                .message("Friend removed")
+                .build();
+    }
+
+    @GetMapping("/friend/requests/incoming")
+    public ApiResponse<List<UserProfileResponse>> getIncomingRequests() {
+        return ApiResponse.<List<UserProfileResponse>>builder()
+                .result(userProfileService.getIncomingRequests())
+                .build();
+    }
+
+    @GetMapping("/friend/requests/outgoing")
+    public ApiResponse<List<UserProfileResponse>> getOutgoingRequests() {
+        return ApiResponse.<List<UserProfileResponse>>builder()
+                .result(userProfileService.getOutgoingRequests())
+                .build();
+    }
+
+    /* ================= COUNT ================= */
+
+    @GetMapping("/{userId}/followers")
+    public ApiResponse<?> countFollowers(@PathVariable String userId) {
+        return ApiResponse.builder()
+                .result(userProfileService.countFollowers(userId))
+                .build();
+    }
+
+    @GetMapping("/{userId}/following")
+    public ApiResponse<?> countFollowing(@PathVariable String userId) {
+        return ApiResponse.builder()
+                .result(userProfileService.countFollowing(userId))
+                .build();
+    }
+
+    @GetMapping("/{userId}/friends")
+    public ApiResponse<?> countFriends(@PathVariable String userId) {
+        return ApiResponse.builder()
+                .result(userProfileService.countFriends(userId))
+                .build();
+    }
 }

@@ -13,6 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
         url = "${app.services.profile}",
         configuration = { AuthenticationRequestInterceptor.class }) /// Inject config lấy token vào header
 public interface ProfileClient {
-    @PostMapping(value = "/users", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/internal/users", produces = MediaType.APPLICATION_JSON_VALUE)
     ApiResponse<UserProfileResponse> createProfile(@RequestBody ProfileCreationRequest request);
 }
