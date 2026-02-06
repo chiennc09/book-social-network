@@ -1,5 +1,6 @@
 package com.chiennc.book.controller;
 
+import com.chiennc.book.constant.ReadStatus;
 import com.chiennc.book.dto.ApiResponse;
 import com.chiennc.book.dto.request.BookRequest;
 import com.chiennc.book.dto.response.BookResponse;
@@ -95,4 +96,19 @@ public class BookController {
         bookService.updateProgress(id, position, percent);
         return ApiResponse.<Void>builder().message("Progress saved").build();
     }
+    // API 1: Quản lý tủ sách (Thêm/Sửa trạng thái)
+    @PutMapping("/{id}/shelf")
+    ApiResponse<String> updateShelf(@PathVariable String id, @RequestParam ReadStatus status) {
+        bookService.updateShelfStatus(id, status);
+        return ApiResponse.<String>builder().message("Shelf updated").build();
+    }
+
+    // API 2: Lấy sách theo trạng thái (Đang đọc/Đã đọc/Muốn đọc)
+    @GetMapping("/shelf")
+    ApiResponse<List<BookResponse>> getBookshelf(@RequestParam ReadStatus status) {
+        return ApiResponse.<List<BookResponse>>builder()
+                .result(bookService.getBookshelf(status))
+                .build();
+    }
+
 }

@@ -2,6 +2,7 @@ package com.chiennc.profile.service;
 
 import com.chiennc.profile.dto.request.ProfileCreationRequest;
 import com.chiennc.profile.dto.response.UserProfileResponse;
+import com.chiennc.profile.entity.Badge;
 import com.chiennc.profile.entity.UserProfile;
 import com.chiennc.profile.exception.AppException;
 import com.chiennc.profile.exception.ErrorCode;
@@ -17,6 +18,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -128,5 +130,13 @@ public class UserProfileService {
         Jwt jwt = (Jwt) authentication.getPrincipal();
         String userId = jwt.getClaim("userId");
         return userId;
+    }
+
+    public Set<Badge> getBadgesByUserId(String userId) {
+        UserProfile user = userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Trả về tập danh sách huy hiệu
+        return user.getBadges();
     }
 }
