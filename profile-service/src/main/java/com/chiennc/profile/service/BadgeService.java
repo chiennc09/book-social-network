@@ -7,10 +7,10 @@ import com.chiennc.profile.exception.ErrorCode;
 import com.chiennc.profile.repository.BadgeRepository;
 import com.chiennc.profile.repository.UserProfileRepository;
 import jakarta.annotation.PostConstruct;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -36,7 +36,7 @@ public class BadgeService {
     }
 
     // Hàm này được gọi khi BookService báo sang: "User này vừa đọc xong sách"
-    @Transactional
+    @Transactional("transactionManager")
     public void checkAndAwardBadges(String userId) {
         UserProfile user = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
