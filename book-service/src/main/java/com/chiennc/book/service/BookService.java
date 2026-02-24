@@ -17,6 +17,8 @@ import com.chiennc.event.dto.BookCompletedEvent;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -79,6 +81,10 @@ public class BookService {
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
     }
 
+    @NonFinal
+    @Value("${app.base-url}")
+    String baseUrl;
+
     public BookResponse getBookToRead(String bookId) {
         String userId = getUserId();
         Book book = bookRepository.findById(bookId)
@@ -89,27 +95,15 @@ public class BookService {
 
         // QUAN TRỌNG: Chuyển tên file thành URL đầy đủ để Frontend gọi
         if (book.getPdfPath() != null) {
-            String pdfUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/files/pdfs/")
-                    .path(book.getPdfPath())
-                    .toUriString();
-            response.setPdfPath(pdfUrl);
+            response.setPdfPath(baseUrl + "/books/files/pdfs/" + book.getPdfPath());
         }
 
         if (book.getCoverImage() != null) {
-            String coverUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/files/covers/")
-                    .path(book.getCoverImage())
-                    .toUriString();
-            response.setCoverImage(coverUrl);
+            response.setCoverImage(baseUrl + "/books/files/covers/" + book.getCoverImage());
         }
 
         if (book.getEpubPath() != null) {
-            String epubUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/files/epubs/")
-                    .path(book.getEpubPath())
-                    .toUriString();
-            response.setEpubPath(epubUrl);
+            response.setEpubPath(baseUrl + "/books/files/epubs/" + book.getEpubPath());
         }
 
         // Lấy lịch sử đọc cũ (nếu có)

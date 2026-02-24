@@ -22,4 +22,5 @@ spring:
 app:
   services:
     profile:
-      url: http://localhost:8081/profile
+      url: http://localhost:8091/profile
+  base-url: http://10.0.2.2:8085
