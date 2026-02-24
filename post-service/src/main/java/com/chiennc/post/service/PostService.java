@@ -7,7 +7,14 @@ import com.chiennc.post.dto.response.UserProfileResponse;
 import com.chiennc.post.entity.Post;
 import com.chiennc.post.mapper.PostMapper;
 import com.chiennc.post.repository.PostRepository;
+import com.chiennc.post.repository.PostCommentRepository;
+import com.chiennc.post.repository.PostLikeRepository;
 import com.chiennc.post.repository.httpclient.ProfileClient;
+import com.chiennc.post.dto.request.CommentRequest;
+import com.chiennc.post.dto.response.CommentResponse;
+import com.chiennc.post.entity.PostLike;
+import com.chiennc.post.entity.PostComment;
+import com.chiennc.post.mapper.CommentMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -22,6 +29,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 @Slf4j
@@ -29,7 +37,10 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostService {
     PostRepository postRepository;
+    PostLikeRepository postLikeRepository;
+    PostCommentRepository postCommentRepository;
     PostMapper postMapper;
+    CommentMapper commentMapper;
     DateTimeFormatter dateTimeFormatter;
     ProfileClient profileClient;
 
@@ -38,6 +49,9 @@ public class PostService {
 
         Post post = Post.builder()
                 .content(request.getContent())
+                .bookId(request.getBookId())
+                .isRepost(request.getIsRepost())
+                .originalPostId(request.getOriginalPostId())
                 .userId(getUserIdByToken())
                 .username(authentication.getName())
                 .createdDate(Instant.now())
@@ -66,12 +80,7 @@ public class PostService {
 
         String username = userProfile != null ? userProfile.getUsername() : null;
 
-        var postList = pageData.getContent().stream().map(post -> {
-            var postResponse = postMapper.toPostResponse(post);
-            postResponse.setCreated(dateTimeFormatter.format(post.getCreatedDate()));
-            postResponse.setUsername(username);
-            return postResponse;
-        }).toList();
+        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, username)).toList();
 
         return PageResponse.<PostResponse>builder()
                 .currentPage(page)
@@ -79,6 +88,140 @@ public class PostService {
                 .totalPages(pageData.getTotalPages())
                 .totalElements(pageData.getTotalElements())
                 .data(postList)
+                .build();
+    }
+
+    private PostResponse enrichPostResponse(Post post, String username) {
+        PostResponse response = postMapper.toPostResponse(post);
+        response.setCreated(dateTimeFormatter.format(post.getCreatedDate()));
+        if (username != null) {
+            response.setUsername(username);
+        }
+        response.setLikeCount(postLikeRepository.countByPostId(post.getId()));
+        response.setCommentCount(postCommentRepository.countByPostId(post.getId()));
+        response.setLiked(postLikeRepository.existsByPostIdAndUserId(post.getId(), getUserIdByToken()));
+        return response;
+    }
+
+    public PageResponse<PostResponse> getAllPosts(int page, int size) {
+        Sort sort = Sort.by("createdDate").descending();
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        var pageData = postRepository.findAll(pageable);
+
+        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, post.getUsername())).toList();
+
+        return PageResponse.<PostResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(postList)
+                .build();
+    }
+
+    public PageResponse<PostResponse> getFeed(int page, int size) {
+        String currentUserId = getUserIdByToken();
+        List<String> userIds = new ArrayList<>();
+        userIds.add(currentUserId);
+
+        try {
+            var friendsResult = profileClient.getFriendIds(currentUserId).getResult();
+            if (friendsResult != null) {
+                userIds.addAll(friendsResult);
+            }
+        } catch (Exception e) {
+            log.error("Error while getting friend ids", e);
+        }
+
+        Sort sort = Sort.by("createdDate").descending();
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        var pageData = postRepository.findByUserIdIn(userIds, pageable);
+
+        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, post.getUsername())).toList();
+
+        return PageResponse.<PostResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(postList)
+                .build();
+    }
+
+    public void likePost(String postId) {
+        String userId = getUserIdByToken();
+        if (postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
+            return;
+        }
+        PostLike postLike = PostLike.builder()
+                .postId(postId)
+                .userId(userId)
+                .createdDate(Instant.now())
+                .build();
+        postLikeRepository.save(postLike);
+    }
+
+    public void unlikePost(String postId) {
+        String userId = getUserIdByToken();
+        postLikeRepository.deleteByPostIdAndUserId(postId, userId);
+    }
+
+    public CommentResponse addComment(String postId, CommentRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        PostComment comment = PostComment.builder()
+                .postId(postId)
+                .userId(getUserIdByToken())
+                .username(authentication.getName())
+                .content(request.getContent())
+                .parentId(request.getParentId())
+                .createdDate(Instant.now())
+                .modifiedDate(Instant.now())
+                .build();
+        comment = postCommentRepository.save(comment);
+        CommentResponse response = commentMapper.toCommentResponse(comment);
+        response.setCreated(dateTimeFormatter.format(comment.getCreatedDate()));
+        return response;
+    }
+
+    public PageResponse<CommentResponse> getComments(String postId, int page, int size) {
+        Sort sort = Sort.by("createdDate").ascending();
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        var pageData = postCommentRepository.findByPostIdAndParentIdIsNull(postId, pageable);
+
+        var commentList = pageData.getContent().stream().map(comment -> {
+            CommentResponse response = commentMapper.toCommentResponse(comment);
+            response.setCreated(dateTimeFormatter.format(comment.getCreatedDate()));
+            response.setReplyCount(postCommentRepository.countByParentId(comment.getId()));
+            return response;
+        }).toList();
+
+        return PageResponse.<CommentResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(commentList)
+                .build();
+    }
+
+    public PageResponse<CommentResponse> getReplies(String commentId, int page, int size) {
+        Sort sort = Sort.by("createdDate").ascending();
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        var pageData = postCommentRepository.findByParentId(commentId, pageable);
+
+        var commentList = pageData.getContent().stream().map(comment -> {
+            CommentResponse response = commentMapper.toCommentResponse(comment);
+            response.setCreated(dateTimeFormatter.format(comment.getCreatedDate()));
+            response.setReplyCount(postCommentRepository.countByParentId(comment.getId()));
+            return response;
+        }).toList();
+
+        return PageResponse.<CommentResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(commentList)
                 .build();
     }
 

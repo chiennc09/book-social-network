@@ -1,13 +1,15 @@
 package com.chiennc.profile.controller;
 
+import java.util.List;
+
+import org.springframework.web.bind.annotation.*;
+
 import com.chiennc.profile.dto.ApiResponse;
 import com.chiennc.profile.dto.request.ProfileCreationRequest;
 import com.chiennc.profile.dto.response.UserProfileResponse;
 import com.chiennc.profile.service.UserProfileService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
@@ -45,55 +47,35 @@ public class UserProfileController {
     /* ================= FOLLOW ================= */
 
     @PostMapping("/follow")
-    public ApiResponse<?> follow(
-            @RequestParam String toUserId
-    ) {
+    public ApiResponse<?> follow(@RequestParam String toUserId) {
         userProfileService.follow(toUserId);
-        return ApiResponse.builder()
-                .message("Follow success")
-                .build();
+        return ApiResponse.builder().message("Follow success").build();
     }
 
     @DeleteMapping("/unfollow")
-    public ApiResponse<?> unfollow(
-            @RequestParam String toUserId
-    ) {
+    public ApiResponse<?> unfollow(@RequestParam String toUserId) {
         userProfileService.unfollow(toUserId);
-        return ApiResponse.builder()
-                .message("Unfollow success")
-                .build();
+        return ApiResponse.builder().message("Unfollow success").build();
     }
 
     /* ================= FRIEND ================= */
 
     @PostMapping("/friend/request")
-    public ApiResponse<?> sendFriendRequest(
-            @RequestParam String toUserId
-    ) {
+    public ApiResponse<?> sendFriendRequest(@RequestParam String toUserId) {
         userProfileService.sendFriendRequest(toUserId);
-        return ApiResponse.builder()
-                .message("Friend request sent")
-                .build();
+        return ApiResponse.builder().message("Friend request sent").build();
     }
 
     @PostMapping("/friend/accept")
-    public ApiResponse<?> acceptFriend(
-            @RequestParam String toUserId
-    ) {
+    public ApiResponse<?> acceptFriend(@RequestParam String toUserId) {
         userProfileService.acceptFriend(toUserId);
-        return ApiResponse.builder()
-                .message("Friend accepted")
-                .build();
+        return ApiResponse.builder().message("Friend accepted").build();
     }
 
     @DeleteMapping("/friend/remove")
-    public ApiResponse<?> removeFriend(
-            @RequestParam String toUserId
-    ) {
+    public ApiResponse<?> removeFriend(@RequestParam String toUserId) {
         userProfileService.removeFriend(toUserId);
-        return ApiResponse.builder()
-                .message("Friend removed")
-                .build();
+        return ApiResponse.builder().message("Friend removed").build();
     }
 
     @GetMapping("/friend/requests/incoming")

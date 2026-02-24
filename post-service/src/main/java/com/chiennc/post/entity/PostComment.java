@@ -13,17 +13,17 @@ import java.time.Instant;
 @Getter
 @Setter
 @Builder
-@Document(value = "post")
+@Document(value = "post_comment")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Post {
+public class PostComment {
     @MongoId
     String id;
+    String postId;
     String userId;
     String username;
     String content;
-    String bookId;
-    Boolean isRepost;
-    String originalPostId;
+    String parentId;
+    long replyCount;
     Instant createdDate;
     Instant modifiedDate;
 }

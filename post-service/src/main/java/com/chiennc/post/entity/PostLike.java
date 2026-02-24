@@ -13,17 +13,12 @@ import java.time.Instant;
 @Getter
 @Setter
 @Builder
-@Document(value = "post")
+@Document(value = "post_like")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Post {
+public class PostLike {
     @MongoId
     String id;
+    String postId;
     String userId;
-    String username;
-    String content;
-    String bookId;
-    Boolean isRepost;
-    String originalPostId;
     Instant createdDate;
-    Instant modifiedDate;
 }

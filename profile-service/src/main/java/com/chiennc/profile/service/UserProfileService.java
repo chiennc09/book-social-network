@@ -1,5 +1,14 @@
 package com.chiennc.profile.service;
 
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Service;
+
 import com.chiennc.profile.dto.request.ProfileCreationRequest;
 import com.chiennc.profile.dto.response.UserProfileResponse;
 import com.chiennc.profile.entity.Badge;
@@ -8,17 +17,9 @@ import com.chiennc.profile.exception.AppException;
 import com.chiennc.profile.exception.ErrorCode;
 import com.chiennc.profile.mapper.UserProfileMapper;
 import com.chiennc.profile.repository.UserProfileRepository;
-import jakarta.transaction.Transactional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Set;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -27,7 +28,7 @@ public class UserProfileService {
     private final UserProfileRepository userProfileRepository;
     private final UserProfileMapper userProfileMapper;
 
-    public UserProfileResponse createProfile(ProfileCreationRequest request){
+    public UserProfileResponse createProfile(ProfileCreationRequest request) {
         UserProfile userProfile = userProfileMapper.toUserProfile(request);
         userProfile = userProfileRepository.save(userProfile);
 
@@ -42,16 +43,17 @@ public class UserProfileService {
     }
 
     public UserProfileResponse getByUserId(String userId) {
-        UserProfile userProfile =
-                userProfileRepository.findByUserId(userId)
-                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        UserProfile userProfile = userProfileRepository
+                .findByUserId(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         return userProfileMapper.toUserProfileResponse(userProfile);
     }
 
     public UserProfileResponse getMyProfile() {
         var userId = getUserIdByToken();
-        var profile = userProfileRepository.findByUserId(userId)
+        var profile = userProfileRepository
+                .findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         UserProfileResponse response = userProfileMapper.toUserProfileResponse(profile);
@@ -83,9 +85,9 @@ public class UserProfileService {
         userProfileRepository.sendFriendRequest(getUserIdByToken(), toUserId);
     }
 
-//    public void cancelFriendRequest(String toUserId) {
-//        userProfileRepository.cancelFriendRequest(getUserIdByToken(), toUserId);
-//    }
+    //    public void cancelFriendRequest(String toUserId) {
+    //        userProfileRepository.cancelFriendRequest(getUserIdByToken(), toUserId);
+    //    }
 
     public void acceptFriend(String toUserId) {
         userProfileRepository.acceptFriend(getUserIdByToken(), toUserId);
@@ -97,16 +99,14 @@ public class UserProfileService {
 
     public List<UserProfileResponse> getIncomingRequests() {
         String userId = getUserIdByToken();
-        return userProfileRepository.getIncomingFriendRequests(userId)
-                .stream()
+        return userProfileRepository.getIncomingFriendRequests(userId).stream()
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
     }
 
     public List<UserProfileResponse> getOutgoingRequests() {
         String userId = getUserIdByToken();
-        return userProfileRepository.getOutgoingFriendRequests(userId)
-                .stream()
+        return userProfileRepository.getOutgoingFriendRequests(userId).stream()
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
     }
@@ -125,7 +125,7 @@ public class UserProfileService {
         return userProfileRepository.countFriends(userId);
     }
 
-    private String getUserIdByToken(){
+    private String getUserIdByToken() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Jwt jwt = (Jwt) authentication.getPrincipal();
         String userId = jwt.getClaim("userId");
@@ -133,10 +133,15 @@ public class UserProfileService {
     }
 
     public Set<Badge> getBadgesByUserId(String userId) {
-        UserProfile user = userProfileRepository.findByUserId(userId)
+        UserProfile user = userProfileRepository
+                .findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Trả về tập danh sách huy hiệu
         return user.getBadges();
+    }
+
+    public List<String> getFriendIds(String userId) {
+        return userProfileRepository.getFriendIds(userId);
     }
 }

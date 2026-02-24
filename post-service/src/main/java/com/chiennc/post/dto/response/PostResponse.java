@@ -19,6 +19,12 @@ public class PostResponse {
     String content;
     String userId;
     String username;
+    String bookId;
+    Boolean isRepost;
+    String originalPostId;
+    long likeCount;
+    long commentCount;
+    boolean isLiked;
     String created;
     Instant createdDate;
     Instant modifiedDate;

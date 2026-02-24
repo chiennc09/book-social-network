@@ -1,4 +1,4 @@
-package com.chiennc.post.dto.request;
+package com.chiennc.post.dto.response;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -7,14 +7,22 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+import java.time.Instant;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class PostRequest {
+public class CommentResponse {
+    String id;
+    String postId;
+    String userId;
+    String username;
     String content;
-    String bookId;
-    Boolean isRepost;
-    String originalPostId;
+    String parentId;
+    long replyCount;
+    String created;
+    Instant createdDate;
+    Instant modifiedDate;
 }

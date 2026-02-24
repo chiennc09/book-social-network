@@ -11,8 +11,6 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -34,6 +32,71 @@ public class PostController {
     ){
         return ApiResponse.<PageResponse<PostResponse>>builder()
                 .result(postService.getMyPosts(page, size))
+                .build();
+    }
+
+    @GetMapping("/all")
+    ApiResponse<PageResponse<PostResponse>> getAllPosts(
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size
+    ){
+        return ApiResponse.<PageResponse<PostResponse>>builder()
+                .result(postService.getAllPosts(page, size))
+                .build();
+    }
+
+    @GetMapping("/feed")
+    ApiResponse<PageResponse<PostResponse>> getFeed(
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size
+    ){
+        return ApiResponse.<PageResponse<PostResponse>>builder()
+                .result(postService.getFeed(page, size))
+                .build();
+    }
+
+    @PostMapping("/{postId}/like")
+    ApiResponse<Void> likePost(@PathVariable String postId){
+        postService.likePost(postId);
+        return ApiResponse.<Void>builder().message("Post liked successfully").build();
+    }
+
+    @DeleteMapping("/{postId}/like")
+    ApiResponse<Void> unlikePost(@PathVariable String postId){
+        postService.unlikePost(postId);
+        return ApiResponse.<Void>builder().message("Post unliked successfully").build();
+    }
+
+    @PostMapping("/{postId}/comments")
+    ApiResponse<com.chiennc.post.dto.response.CommentResponse> addComment(
+            @PathVariable String postId,
+            @RequestBody com.chiennc.post.dto.request.CommentRequest request
+    ){
+        return ApiResponse.<com.chiennc.post.dto.response.CommentResponse>builder()
+                .result(postService.addComment(postId, request))
+                .build();
+    }
+
+    @GetMapping("/{postId}/comments")
+    ApiResponse<PageResponse<com.chiennc.post.dto.response.CommentResponse>> getComments(
+            @PathVariable String postId,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size
+    ){
+        return ApiResponse.<PageResponse<com.chiennc.post.dto.response.CommentResponse>>builder()
+                .result(postService.getComments(postId, page, size))
+                .build();
+    }
+
+    @GetMapping("/{postId}/comments/{commentId}/replies")
+    ApiResponse<PageResponse<com.chiennc.post.dto.response.CommentResponse>> getReplies(
+            @PathVariable String postId,
+            @PathVariable String commentId,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size
+    ){
+        return ApiResponse.<PageResponse<com.chiennc.post.dto.response.CommentResponse>>builder()
+                .result(postService.getReplies(commentId, page, size))
                 .build();
     }
 }

@@ -1,16 +1,18 @@
 package com.chiennc.profile.controller;
 
-import com.chiennc.profile.dto.ApiResponse;
-import com.chiennc.profile.entity.Badge;
-import com.chiennc.profile.service.BadgeService;
-import com.chiennc.profile.service.UserProfileService;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.Set;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Set;
+import com.chiennc.profile.dto.ApiResponse;
+import com.chiennc.profile.entity.Badge;
+import com.chiennc.profile.service.BadgeService;
+import com.chiennc.profile.service.UserProfileService;
+
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
