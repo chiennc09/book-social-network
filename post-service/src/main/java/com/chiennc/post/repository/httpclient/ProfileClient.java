@@ -10,4 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface ProfileClient {
     @GetMapping("/internal/users/{userId}")
     ApiResponse<UserProfileResponse> getProfile(@PathVariable String userId);
+
+    @GetMapping("/internal/users/{userId}/friends")
+    ApiResponse<java.util.List<String>> getFriendIds(@PathVariable String userId);
 }

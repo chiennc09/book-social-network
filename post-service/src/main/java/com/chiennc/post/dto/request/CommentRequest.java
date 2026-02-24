@@ -12,9 +12,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class PostRequest {
+public class CommentRequest {
     String content;
-    String bookId;
-    Boolean isRepost;
-    String originalPostId;
+    String parentId;
 }

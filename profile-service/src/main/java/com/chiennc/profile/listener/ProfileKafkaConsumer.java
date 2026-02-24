@@ -1,11 +1,13 @@
 package com.chiennc.profile.listener;
 
-import com.chiennc.event.dto.BookCompletedEvent;
-import com.chiennc.profile.service.BadgeService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+
+import com.chiennc.event.dto.BookCompletedEvent;
+import com.chiennc.profile.service.BadgeService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @RequiredArgsConstructor
