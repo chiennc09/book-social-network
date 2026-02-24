@@ -13,8 +13,14 @@ spring:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
+  kafka:
+    bootstrap-servers: localhost:9094
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 app:
   services:
     profile:
-      url: http://localhost:8081/profile
+      url: http://localhost:8091/profile
+  base-url: http://10.0.2.2:8085

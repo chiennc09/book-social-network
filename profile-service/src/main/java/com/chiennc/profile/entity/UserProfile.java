@@ -40,4 +40,8 @@ public class UserProfile {
     @Relationship(type = "FRIEND", direction = Relationship.Direction.OUTGOING)
     private Set<UserProfile> friends;
 
+    @Relationship(type = "HAS_BADGE", direction = Relationship.Direction.OUTGOING)
+    private Set<Badge> badges;
+
+    private Long totalBooksRead = 0L;
 }

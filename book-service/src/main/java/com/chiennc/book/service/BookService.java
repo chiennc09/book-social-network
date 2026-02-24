@@ -1,5 +1,6 @@
 package com.chiennc.book.service;
 
+import com.chiennc.book.constant.ReadStatus;
 import com.chiennc.book.dto.request.BookRequest;
 import com.chiennc.book.dto.response.BookResponse;
 import com.chiennc.book.entity.Book;
@@ -12,9 +13,13 @@ import com.chiennc.book.exception.AppException;
 import com.chiennc.book.exception.ErrorCode;
 //import com.chiennc.book.repository.httpclient.ExternalBookClient;
 import com.chiennc.book.repository.ReadHistoryRepository;
+import com.chiennc.event.dto.BookCompletedEvent;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
@@ -34,6 +39,9 @@ public class BookService {
     BookMapper bookMapper;
     FileStorageService fileStorageService;
     BookRankingRepository rankingRepository;
+    KafkaTemplate<String, Object> kafkaTemplate;
+    // CONSTANT: Topic name
+    private static final String BOOK_COMPLETED_TOPIC = "book-completed";
 
     public BookResponse createBook(BookRequest request) {
         Book book = bookMapper.toBook(request);
@@ -73,6 +81,10 @@ public class BookService {
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
     }
 
+    @NonFinal
+    @Value("${app.base-url}")
+    String baseUrl;
+
     public BookResponse getBookToRead(String bookId) {
         String userId = getUserId();
         Book book = bookRepository.findById(bookId)
@@ -83,27 +95,15 @@ public class BookService {
 
         // QUAN TRỌNG: Chuyển tên file thành URL đầy đủ để Frontend gọi
         if (book.getPdfPath() != null) {
-            String pdfUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/files/pdfs/")
-                    .path(book.getPdfPath())
-                    .toUriString();
-            response.setPdfPath(pdfUrl);
+            response.setPdfPath(baseUrl + "/books/files/pdfs/" + book.getPdfPath());
         }
 
         if (book.getCoverImage() != null) {
-            String coverUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/files/covers/")
-                    .path(book.getCoverImage())
-                    .toUriString();
-            response.setCoverImage(coverUrl);
+            response.setCoverImage(baseUrl + "/books/files/covers/" + book.getCoverImage());
         }
 
         if (book.getEpubPath() != null) {
-            String epubUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/files/epubs/")
-                    .path(book.getEpubPath())
-                    .toUriString();
-            response.setEpubPath(epubUrl);
+            response.setEpubPath(baseUrl + "/books/files/epubs/" + book.getEpubPath());
         }
 
         // Lấy lịch sử đọc cũ (nếu có)
@@ -122,20 +122,20 @@ public class BookService {
         return response;
     }
 
-    // API cho client gọi lên khi lật trang/đọc tiếp
-    public void updateProgress(String bookId, String position, double percent) {
-        String userId = getUserId();
-
-        ReadHistory history = historyRepository.findByUserIdAndBookId(userId, bookId)
-                .orElse(ReadHistory.builder().userId(userId).bookId(bookId).build());
-
-        history.setLastPosition(position);
-        history.setProgressPercent(percent);
-        history.setLastReadAt(LocalDateTime.now());
-        historyRepository.save(history);
-
-        // (Tương lai) Chỗ này có thể trigger event update ReadingGoal (số trang đã đọc)
-    }
+//    // API cho client gọi lên khi lật trang/đọc tiếp
+//    public void updateProgress(String bookId, String position, double percent) {
+//        String userId = getUserId();
+//
+//        ReadHistory history = historyRepository.findByUserIdAndBookId(userId, bookId)
+//                .orElse(ReadHistory.builder().userId(userId).bookId(bookId).build());
+//
+//        history.setLastPosition(position);
+//        history.setProgressPercent(percent);
+//        history.setLastReadAt(LocalDateTime.now());
+//        historyRepository.save(history);
+//
+//        // (Tương lai) Chỗ này có thể trigger event update ReadingGoal (số trang đã đọc)
+//    }
 
     // Logic Ranking: Tự động tạo bản ghi mới cho ngày hôm nay nếu chưa có
     private void increaseRankingCount(String bookId) {
@@ -145,6 +145,83 @@ public class BookService {
 
         ranking.setViewCount(ranking.getViewCount() + 1);
         rankingRepository.save(ranking);
+    }
+
+    /// 1. API: Thêm vào tủ / Đổi trạng thái (Manual)
+    public void updateShelfStatus(String bookId, ReadStatus status) {
+        String userId = getUserId();
+        ReadHistory history = historyRepository.findByUserIdAndBookId(userId, bookId)
+                .orElse(ReadHistory.builder().userId(userId).bookId(bookId).build());
+
+        // Logic logic: Nếu chuyển sang READ thì coi như xong 100%
+        if (status == ReadStatus.READ) {
+            history.setProgressPercent(100.0);
+            history.setCompletedAt(LocalDateTime.now());
+
+            // Bắn event Kafka
+            kafkaTemplate.send(BOOK_COMPLETED_TOPIC, new BookCompletedEvent(userId, bookId, LocalDateTime.now()));
+        }
+
+        history.setStatus(status);
+        historyRepository.save(history);
+    }
+
+    // 2. Refactor: Update Progress (Auto logic)
+    public void updateProgress(String bookId, String position, double percent) {
+        String userId = getUserId();
+        ReadHistory history = historyRepository.findByUserIdAndBookId(userId, bookId)
+                .orElse(ReadHistory.builder()
+                        .userId(userId)
+                        .bookId(bookId)
+                        .status(ReadStatus.READING) // Mặc định là đang đọc
+                        .build());
+
+        // Logic check lùi:
+        // Nếu user đã ĐỌC XONG (READ) mà mở lại trang cũ -> Không update trạng thái về READING, chỉ update position để lần sau mở lại đúng chỗ đó.
+        if (history.getStatus() == ReadStatus.READ) {
+            history.setLastPosition(position);
+            historyRepository.save(history);
+            return;
+        }
+
+        history.setLastPosition(position);
+        history.setProgressPercent(percent);
+        history.setLastReadAt(LocalDateTime.now());
+
+        // Logic hoàn thành tự động: > 95% coi như xong
+        if (percent >= 95.0) {
+            history.setStatus(ReadStatus.READ);
+            history.setCompletedAt(LocalDateTime.now());
+            history.setProgressPercent(100.0); // Làm tròn 100%
+
+            // Bắn event Kafka sang Profile Service
+            kafkaTemplate.send(BOOK_COMPLETED_TOPIC, new BookCompletedEvent(userId, bookId, LocalDateTime.now()));
+        } else {
+            // Đảm bảo trạng thái là READING nếu chưa xong
+            if (history.getStatus() == null || history.getStatus() == ReadStatus.WANT_TO_READ) {
+                history.setStatus(ReadStatus.READING);
+            }
+        }
+
+        historyRepository.save(history);
+    }
+
+    // 3. API: Lấy tủ sách
+    public List<BookResponse> getBookshelf(ReadStatus status) {
+        String userId = getUserId();
+        // Cần viết thêm method này trong Interface ReadHistoryRepository
+        List<ReadHistory> histories = historyRepository.findAllByUserIdAndStatus(userId, status);
+
+        return histories.stream().map(h -> {
+            // Lấy thông tin sách gốc
+            var bookParams = bookRepository.findById(h.getBookId()).orElseThrow();
+            var response = bookMapper.toBookResponse(bookParams);
+
+            // Override thông tin cá nhân hóa
+            response.setLastPosition(h.getLastPosition());
+            response.setProgressPercent(h.getProgressPercent());
+            return response;
+        }).toList();
     }
 
     private String getUserId() {

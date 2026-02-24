@@ -3,6 +3,7 @@ package com.chiennc.profile.controller;
 import com.chiennc.profile.dto.ApiResponse;
 import com.chiennc.profile.dto.request.ProfileCreationRequest;
 import com.chiennc.profile.dto.response.UserProfileResponse;
+import com.chiennc.profile.service.BadgeService;
 import com.chiennc.profile.service.UserProfileService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class InternalUserProfileController {
     UserProfileService userProfileService;
+    BadgeService badgeService;
 
     @PostMapping("/internal/users")
     ApiResponse<UserProfileResponse> createProfile(@RequestBody ProfileCreationRequest request) {
@@ -31,5 +33,11 @@ public class InternalUserProfileController {
         return ApiResponse.<UserProfileResponse>builder()
                 .result(userProfileService.getByUserId(userId))
                 .build();
+    }
+
+    @PostMapping("/internal/users/{userId}/increment-book-count")
+    ApiResponse<Void> incrementBookCount(@PathVariable String userId) {
+        badgeService.checkAndAwardBadges(userId);
+        return ApiResponse.<Void>builder().message("Updated").build();
     }
 }
