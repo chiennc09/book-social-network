@@ -166,6 +166,20 @@ public class PostService {
         postLikeRepository.deleteByPostIdAndUserId(postId, userId);
     }
 
+    public void deletePost(String postId) {
+        String userId = getUserIdByToken();
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
+        
+        if (!post.getUserId().equals(userId)) {
+            throw new RuntimeException("You are not authorized to delete this post");
+        }
+        
+        postCommentRepository.deleteByPostId(postId);
+        postLikeRepository.deleteByPostId(postId);
+        postRepository.deleteById(postId);
+    }
+
     public CommentResponse addComment(String postId, CommentRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         PostComment comment = PostComment.builder()
