@@ -43,6 +43,7 @@ export const feedService = {
             username: item.username,
             displayName: item.username, 
             avatar: `https://ui-avatars.com/api/?name=${item.username}&background=random`,
+            badges: item.badges || item.user?.badges || [],
           },
           content: item.content,
           book: bookObj,

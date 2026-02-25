@@ -106,6 +106,16 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
           <Text style={styles.displayName}>{post.user.displayName}</Text>
           <View style={styles.headerInfo}>
              <Text style={styles.username}>{post.user.username}</Text>
+             {post.user.badges && post.user.badges.length > 0 && (
+                <View style={styles.feedBadge}>
+                   {post.user.badges[0].iconUrl ? (
+                      <Image source={{uri: post.user.badges[0].iconUrl}} style={styles.feedBadgeIcon} />
+                   ) : (
+                      <Icon name="award" size={10} color="#FFD700" />
+                   )}
+                   <Text style={styles.feedBadgeText}>{post.user.badges[0].name}</Text>
+                </View>
+             )}
              <Text style={styles.dot}>•</Text>
              <Text style={styles.timestamp}>{post.timestamp}</Text>
           </View>
@@ -192,6 +202,9 @@ const styles = StyleSheet.create({
   displayName: { color: COLORS.text, fontWeight: 'bold', fontSize: 15 },
   headerInfo: { flexDirection: 'row', flex: 1, marginLeft: 6 },
   username: { color: COLORS.textSecondary, fontSize: 14 },
+  feedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,215,0,0.1)', borderRadius: 8, paddingHorizontal: 4, paddingVertical: 1, marginLeft: 6 },
+  feedBadgeIcon: { width: 10, height: 10, marginRight: 2 },
+  feedBadgeText: { color: '#FFD700', fontSize: 10, fontWeight: 'bold', marginLeft: 2 },
   dot: { color: COLORS.textSecondary, marginHorizontal: 4 },
   timestamp: { color: COLORS.textSecondary, fontSize: 14 },
   moreBtn: { padding: 4 },

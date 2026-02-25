@@ -1,47 +1,49 @@
-import { UserProfile } from "../types/user";
+import { UserProfile, Badge } from "../types/user";
+import { profileApi } from '../api/profileApi';
 
 export const userService = {
   async getProfile(): Promise<UserProfile> {
-    // --- REAL API (Uncomment later) ---
-    // const res = await userApi.getProfile();
-    // return {
-    //   id: res.id,
-    //   username: res.username,
-    //   displayName: res.displayName,
-    //   avatar: res.avatar,
-    //   bio: res.bio ?? '',
-    //   link: res.link ?? '',
-    //   isPrivate: res.isPrivate ?? false,
-    //   followersCount: res.followersCount ?? 0,
-    // };
+    try {
+      // 1. Fetch user profile
+      const profileRes: any = await profileApi.getMyProfile();
+      const profileData = profileRes.result || profileRes.data?.result || profileRes.data || profileRes;
+      
+      // 2. Fetch user badges using their explicit ID
+      let userBadges: Badge[] = [];
+      try {
+         if (profileData.id) {
+           const badgeRes: any = await profileApi.getUserBadges(profileData.id);
+           userBadges = badgeRes.result || badgeRes.data?.result || [];
+         }
+      } catch (e) {
+         console.warn("Could not fetch user badges", e);
+      }
 
-    // --- FAKE DATA (Simulate Network Request) ---
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: '123',
-          username: '_chie.nc',
-          displayName: 'Chien Pham',
-          avatar: 'https://picsum.photos/500/300',
-          bio: 'Hehe',
-          link: 'https://github.com/chiennc09',
-          isPrivate: false,
-          followersCount: 15,
-        });
-      }, 500); // Giả lập độ trễ mạng 0.5s
-    });
+      return {
+        id: profileData.id,
+        username: profileData.username,
+        displayName: profileData.displayName || profileData.username,
+        avatar: profileData.avatar || `https://ui-avatars.com/api/?name=${profileData.username || 'User'}`,
+        bio: profileData.bio || '',
+        link: profileData.link || '',
+        isPrivate: profileData.isPrivate || false,
+        followersCount: profileData.followersCount || 0,
+        totalBooksRead: profileData.totalBooksRead || 0,
+        badges: userBadges
+      };
+    } catch (error) {
+       console.error("Failed to fetch profile from API", error);
+       throw error;
+    }
   },
 
   async updateProfile(payload: Partial<UserProfile>) {
-    // --- REAL API (Uncomment later) ---
-    // return userApi.updateProfile(payload);
-
-    // --- FAKE DATA ---
-    console.log('Mock API Update Profile:', payload);
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true });
-      }, 1000);
-    });
+     try {
+       const res: any = await profileApi.updateProfile(payload);
+       return res.data || res;
+     } catch (e) {
+       console.error("Failed to update profile", e);
+       throw e;
+     }
   },
 };

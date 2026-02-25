@@ -91,4 +91,13 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
 		RETURN f.userId
 	""")
     List<String> getFriendIds(String userId);
+
+    /* ================= LEADERBOARD ================= */
+    @Query("""
+		MATCH (u:user_profile)
+		RETURN u
+		ORDER BY u.totalBooksRead DESC
+		LIMIT $limit
+	""")
+    List<UserProfile> getLeaderboard(int limit);
 }

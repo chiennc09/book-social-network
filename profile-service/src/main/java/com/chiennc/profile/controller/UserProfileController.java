@@ -44,6 +44,13 @@ public class UserProfileController {
                 .build();
     }
 
+    @GetMapping("/users/leaderboard")
+    ApiResponse<List<UserProfileResponse>> getLeaderboard(@RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.<List<UserProfileResponse>>builder()
+                .result(userProfileService.getLeaderboard(limit))
+                .build();
+    }
+
     /* ================= FOLLOW ================= */
 
     @PostMapping("/follow")

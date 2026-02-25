@@ -5,6 +5,7 @@ export interface UserProfile {
   bio: string;
   avatarUrl: string;
   followersCount: number;
+  badges?: any[];
 }
 
 export interface Book {
@@ -39,6 +40,7 @@ export interface Post {
     username: string;
     displayName: string;
     avatar: string;
+    badges?: any[];
   };
   content: string;
   book?: Book; // Trường này bắt buộc hoặc optional tùy logic (ở đây để optional để tránh lỗi data cũ)

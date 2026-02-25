@@ -125,7 +125,7 @@ const LibraryScreen = ({ navigation }: any) => {
     <View style={styles.footerContainer}>
       <Text style={styles.footerTitle}>Hoạt động</Text>
       <View style={styles.footerRow}>
-        <TouchableOpacity style={styles.footerCard} onPress={() => Alert.alert('Thông báo', 'Tính năng Thử thách sắp ra mắt')}>
+        <TouchableOpacity style={styles.footerCard} onPress={() => navigation.navigate('Challenge')}>
            <View style={[styles.iconBox, { backgroundColor: '#FF6B6B' }]}>
               <Icon name="target" size={24} color="white" />
            </View>

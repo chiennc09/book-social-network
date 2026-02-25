@@ -23,4 +23,5 @@ export type RootStackParamList = {
   CommentScreen: { postId: string };
   BookDetail: undefined;
   Reader: { bookId: string; url: string; lastPosition?: string };
+  Challenge: undefined;
 };

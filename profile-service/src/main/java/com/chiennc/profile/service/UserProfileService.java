@@ -30,6 +30,13 @@ public class UserProfileService {
 
     public UserProfileResponse createProfile(ProfileCreationRequest request) {
         UserProfile userProfile = userProfileMapper.toUserProfile(request);
+        
+        // Gán Avatar mặc định dựa trên username nếu người dùng chưa cung cấp
+        if (userProfile.getAvatar() == null || userProfile.getAvatar().trim().isEmpty()) {
+            String defaultAvatarUrl = "https://ui-avatars.com/api/?name=" + request.getUsername() + "&background=random";
+            userProfile.setAvatar(defaultAvatarUrl);
+        }
+
         userProfile = userProfileRepository.save(userProfile);
 
         return userProfileMapper.toUserProfileResponse(userProfile);
@@ -143,5 +150,13 @@ public class UserProfileService {
 
     public List<String> getFriendIds(String userId) {
         return userProfileRepository.getFriendIds(userId);
+    }
+
+    /* ================= LEADERBOARD ================= */
+    public List<UserProfileResponse> getLeaderboard(int limit) {
+        List<UserProfile> topUsers = userProfileRepository.getLeaderboard(limit);
+        return topUsers.stream()
+                .map(userProfileMapper::toUserProfileResponse)
+                .toList();
     }
 }

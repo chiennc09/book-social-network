@@ -28,4 +28,8 @@ public class UserProfileResponse {
     private long postCount;
     private long followerCount;
     private long friendCount;
+
+    // Badges
+    private java.util.Set<com.chiennc.profile.entity.Badge> badges;
+    private Long totalBooksRead;
 }

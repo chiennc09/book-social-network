@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, ActivityIndicator, Animated } from 'react-native';
 import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { userService } from '../../services/user.service'; // Import service
@@ -14,6 +14,18 @@ const ProfileScreen = ({ navigation }: any) => {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'posts' | 'reposts'>('posts');
+  
+  // Animation cho Rank Badge
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
+      ])
+    ).start();
+  }, [pulseAnim]);
   
   // Pagination State
   const [page, setPage] = useState(1);
@@ -112,6 +124,21 @@ const ProfileScreen = ({ navigation }: any) => {
             <View style={styles.usernameRow}>
                <Text style={styles.username}>{user?.username}</Text>
                <View style={styles.badge}><Text style={styles.badgeText}>reads.net</Text></View>
+               
+               {/* Render Badges with Animation */}
+               {user?.badges && user.badges.length > 0 && user.badges.map((b, index) => (
+                  <Animated.View 
+                     key={b.code || index} 
+                     style={[styles.rankBadge, { transform: [{ scale: pulseAnim }] }]}
+                  >
+                     {b.iconUrl ? (
+                         <Image source={{uri: b.iconUrl}} style={styles.badgeIcon} />
+                     ) : (
+                         <Icon name="award" size={14} color="#FFD700" style={{marginRight: 4}} />
+                     )}
+                     <Text style={styles.rankBadgeText}>{b.name}</Text>
+                  </Animated.View>
+               ))}
             </View>
             {/* Hiển thị Bio */}
             {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
@@ -188,6 +215,9 @@ const styles = StyleSheet.create({
   username: { color: COLORS.text, fontSize: 14 },
   badge: { backgroundColor: '#1E1E1E', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 5 },
   badgeText: { color: '#777', fontSize: 11 },
+  rankBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 215, 0, 0.1)', borderWidth: 1, borderColor: '#FFD700', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  badgeIcon: { width: 14, height: 14, marginRight: 4, resizeMode: 'contain' },
+  rankBadgeText: { color: '#FFD700', fontSize: 11, fontWeight: 'bold' },
   bio: { color: COLORS.text, fontSize: 14, marginTop: 8, lineHeight: 20 },
   avatar: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#333' },
   followers: { color: COLORS.textSecondary, marginLeft: SPACING.l, marginTop: SPACING.s, fontSize: 14 },
