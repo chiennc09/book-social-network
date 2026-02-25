@@ -61,6 +61,12 @@ public class PostController {
         return ApiResponse.<Void>builder().message("Post liked successfully").build();
     }
 
+    @DeleteMapping("/{postId}")
+    ApiResponse<Void> deletePost(@PathVariable String postId){
+        postService.deletePost(postId);
+        return ApiResponse.<Void>builder().message("Post deleted successfully").build();
+    }
+
     @DeleteMapping("/{postId}/like")
     ApiResponse<Void> unlikePost(@PathVariable String postId){
         postService.unlikePost(postId);
