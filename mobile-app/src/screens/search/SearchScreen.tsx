@@ -208,7 +208,7 @@ const SearchScreen = ({ navigation }: any) => {
                   <View style={{flexDirection:'row', alignItems:'center', marginTop: 4}}>
                      <Icon name="star" size={12} color="#FFD700" />
                      <Text style={{color:'#777', fontSize:12, marginLeft:4}}>
-                        {(item as any).ratingAverage || 'Chưa có'} đánh giá
+                        {item.averageRating && item.averageRating > 0 ? item.averageRating.toFixed(1) : 'Chưa có đánh giá'}
                      </Text>
                   </View>
                </View>

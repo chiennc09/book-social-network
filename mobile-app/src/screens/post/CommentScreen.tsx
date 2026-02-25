@@ -35,52 +35,62 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick }: { item: any, lev
   };
 
   return (
-    <View style={[styles.commentItem, level > 0 && { marginLeft: 45, marginTop: 10, paddingLeft: 0 }]}>
-      <Image source={{ uri: item.userAvatar || `https://ui-avatars.com/api/?name=${item.username}&background=random` }} style={[styles.avatar, level > 0 && { width: 30, height: 30, borderRadius: 15 }]} />
+    <View style={[styles.commentItemRow, level > 0 && { paddingTop: 10 }]}>
+      {/* Left Column - Avatar & Line */}
+      <View style={styles.leftCol}>
+        <Image 
+           source={{ uri: item.userAvatar || `https://ui-avatars.com/api/?name=${item.username}&background=random` }} 
+           style={[styles.avatar, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
+        />
+        {/* Draw vertical line for level 0 if it has replies */}
+        {level === 0 && item.replyCount > 0 && (
+           <View style={styles.verticalLine} />
+        )}
+      </View>
       
-      <View style={styles.commentContentWrapper}>
-         <View style={styles.commentContent}>
-            <View style={styles.commentHeader}>
-               <Text style={styles.username}>{item.username}</Text>
-               <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                 <Text style={styles.timestamp}>{item.created || 'Vừa xong'}</Text>
-                 <Icon name="more-horizontal" size={16} color={COLORS.textSecondary} style={{marginLeft: 10}} />
-               </View>
-            </View>
-            <Text style={styles.text}>{item.content}</Text>
-            
-            <View style={styles.commentActions}>
-               <TouchableOpacity style={styles.actionBtn}>
-                  <Icon name="heart" size={16} color={COLORS.textSecondary} />
-                  <Text style={styles.actionText}>0</Text>
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.actionBtn} onPress={() => onReplyClick(item.username, currentRootId!)}>
-                  <Icon name="message-circle" size={16} color={COLORS.textSecondary} />
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.actionBtn}>
-                  <Icon name="repeat" size={16} color={COLORS.textSecondary} />
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.actionBtn}>
-                  <Icon name="send" size={16} color={COLORS.textSecondary} />
-               </TouchableOpacity>
+      {/* Right Column - Content & Nested Replies */}
+      <View style={styles.rightCol}>
+         <View style={styles.commentHeader}>
+            <Text style={styles.username}>{item.username} {item.userId === rootId && <Text style={{color: COLORS.textSecondary, fontWeight: 'normal'}}>• Tác giả</Text>}</Text>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              <Text style={styles.timestamp}>{item.created || 'Vừa xong'}</Text>
+              <Icon name="more-horizontal" size={16} color={COLORS.textSecondary} style={{marginLeft: 10}} />
             </View>
          </View>
+         <Text style={styles.text}>{item.content}</Text>
+         
+         <View style={styles.commentActions}>
+            <TouchableOpacity style={styles.actionBtn}>
+               <Icon name="heart" size={16} color={COLORS.textSecondary} />
+               <Text style={styles.actionText}>0</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => onReplyClick(item.username, currentRootId!)}>
+               <Icon name="message-circle" size={16} color={COLORS.textSecondary} />
+               {item.replyCount > 0 && level > 0 ? <Text style={styles.actionText}>{item.replyCount}</Text> : null}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn}>
+               <Icon name="repeat" size={16} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn}>
+               <Icon name="send" size={16} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+         </View>
 
-         {/* Nút hiển thị phản hồi */}
+         {/* Nút hiển thị phản hồi for Root Comment */}
          {item.replyCount > 0 && level === 0 && (
            <TouchableOpacity style={styles.showRepliesBtn} onPress={fetchReplies}>
-             <View style={styles.replyLine} />
+             <View style={styles.replyHorizontalLine} />
              {loadingReplies ? (
                <ActivityIndicator size="small" color={COLORS.textSecondary} />
              ) : (
                <Text style={styles.showRepliesText}>
-                 {showReplies ? 'Ẩn phản hồi' : `Hiển thị ${item.replyCount} phản hồi`}
+                 {showReplies ? 'Ẩn phản hồi' : `Hiển thị phản hồi`}
                </Text>
              )}
            </TouchableOpacity>
          )}
 
-         {/* Hiển thị list replies đệ quy cấp 1 (Tất cả reply của reply đều là c1) */}
+         {/* Render Replies inside Right Column to indent them automatically */}
          {showReplies && replies.map((reply: any) => (
             <CommentItem key={reply.id} item={reply} level={1} rootId={currentRootId} onReplyClick={onReplyClick} />
          ))}
@@ -96,6 +106,7 @@ const CommentScreen = ({ route, navigation }: any) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(post?.commentsCount || 0);
+  const [replyParentId, setReplyParentId] = useState<string | null>(null);
 
   // Redux auth user for display
   const { user } = useSelector((state: RootState) => state.auth);
@@ -124,8 +135,10 @@ const CommentScreen = ({ route, navigation }: any) => {
     setLocalCommentsCount(newCount);
     
     try {
-      await postApi.addComment(postId, { content: inputText.trim() });
+      const parentIdToSubmit = replyParentId && inputText.includes('@') ? replyParentId : undefined;
+      await postApi.addComment(postId, { content: inputText.trim(), parentId: parentIdToSubmit });
       setInputText('');
+      setReplyParentId(null);
       
       // Update FeedItem in background
       eventEmitter.emit(EventNames.POST_UPDATED, { id: postId, commentsCount: newCount });
@@ -139,8 +152,9 @@ const CommentScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const handleReplyClick = (username: string) => {
+  const handleReplyClick = (username: string, parentId: string) => {
      setInputText(`@${username} `);
+     setReplyParentId(parentId);
   };
 
   return (
@@ -221,10 +235,12 @@ const styles = StyleSheet.create({
   filterText: { color: COLORS.text, fontWeight: 'bold' },
   filterAction: { color: COLORS.textSecondary },
 
-  commentItem: { flexDirection: 'row', paddingHorizontal: SPACING.m, paddingTop: SPACING.m },
-  avatar: { width: 36, height: 36, borderRadius: 18, marginRight: 12 },
-  commentContentWrapper: { flex: 1 },
-  commentContent: { flex: 1 },
+  commentItemRow: { flexDirection: 'row', paddingHorizontal: SPACING.m, paddingTop: SPACING.m },
+  leftCol: { alignItems: 'center', marginRight: 12, width: 36 },
+  avatar: { width: 36, height: 36, borderRadius: 18 },
+  verticalLine: { width: 1.5, flex: 1, backgroundColor: '#333', marginTop: 8, marginBottom: -SPACING.m },
+  
+  rightCol: { flex: 1 },
   commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
   username: { color: COLORS.text, fontWeight: 'bold', fontSize: 13 },
   timestamp: { color: COLORS.textSecondary, fontSize: 12 },
@@ -234,8 +250,9 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionText: { color: COLORS.textSecondary, fontSize: 12 },
 
-  showRepliesBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginLeft: 0 },
-  replyLine: { width: 24, height: 1, backgroundColor: '#333', marginRight: 8 },
+  // Đường gạch ngang nhỏ cho text "Hiển thị phản hồi"
+  showRepliesBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginLeft: -35 }, 
+  replyHorizontalLine: { width: 24, height: 1.5, backgroundColor: '#333', marginRight: 8, marginLeft: 20, borderBottomLeftRadius: 5 },
   showRepliesText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '500' },
   
   emptyText: { color: COLORS.textSecondary, textAlign: 'center', marginTop: 20 },

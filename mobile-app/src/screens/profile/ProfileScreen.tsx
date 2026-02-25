@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { userService } from '../../services/user.service'; // Import service
@@ -14,28 +14,47 @@ const ProfileScreen = ({ navigation }: any) => {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'posts' | 'reposts'>('posts');
+  
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Hàm fetch data tách riêng để tái sử dụng
-  const fetchProfile = async () => {
+  const fetchProfile = async (pageNum = 1) => {
     try {
-      // setLoading(true); // Nếu muốn hiện loading mỗi lần quay lại
       const [userData, postsData] = await Promise.all([
-         userService.getProfile(),
-         feedService.getMyPosts()
+         pageNum === 1 ? userService.getProfile() : Promise.resolve(user),
+         feedService.getMyPosts(pageNum, 10)
       ]);
-      setUser(userData);
-      setPosts(postsData);
+      
+      if (pageNum === 1) {
+         if (userData) setUser(userData);
+         setPosts(postsData);
+      } else {
+         setPosts(prev => {
+            const newPosts = postsData.filter((item: any) => !prev.some(p => p.id === item.id));
+            return [...prev, ...newPosts];
+         });
+      }
+      setHasMore(postsData.length === 10);
+      
     } catch (error) {
       console.error('Failed to fetch profile', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
-  // Gọi API khi màn hình được focus (vừa vào hoặc back từ EditProfile về)
+  // Gọi API khi màn hình được focus
   useFocusEffect(
-    React.useCallback(() => {
-      fetchProfile();
+    useCallback(() => {
+      setPage(1);
+      setHasMore(true);
+      fetchProfile(1);
     }, [])
   );
 
@@ -55,11 +74,26 @@ const ProfileScreen = ({ navigation }: any) => {
     );
   }
 
+  const loadMore = () => {
+    if (!loadingMore && hasMore && !loading && !refreshing) {
+       setLoadingMore(true);
+       const nextPage = page + 1;
+       setPage(nextPage);
+       fetchProfile(nextPage);
+    }
+  };
+
+  const onRefresh = () => {
+     setRefreshing(true);
+     setPage(1);
+     setHasMore(true);
+     fetchProfile(1);
+  };
+
   const displayedPosts = posts.filter(p => activeTab === 'posts' ? !p.isRepost : p.isRepost);
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
+  const renderHeader = () => (
+    <View style={{ marginBottom: 10 }}>
         {/* Header */}
         <View style={styles.header}>
           <Icon name="globe" size={24} color={COLORS.text} />
@@ -116,18 +150,27 @@ const ProfileScreen = ({ navigation }: any) => {
              <Text style={activeTab === 'reposts' ? styles.activeTabText : styles.tabText}>Đăng lại</Text>
            </TouchableOpacity>
         </View>
-        
-        {displayedPosts.length > 0 ? (
-          displayedPosts.map(post => (
-             <FeedItem key={post.id} post={post} />
-          ))
-        ) : (
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <FlatList
+        data={displayedPosts}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <FeedItem post={item} />}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={
           <View style={styles.feedPlaceholder}>
               <Text style={styles.placeholderText}>Chưa có bài đăng nào.</Text>
           </View>
-        )}
-
-      </ScrollView>
+        }
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={COLORS.text} /> : null}
+      />
     </SafeAreaView>
   );
 };

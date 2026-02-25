@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, ActivityIndicator, Modal, FlatList } from 'react-native';
 import { COLORS, SPACING } from '../../constants/theme';
-import Icon from 'react-native-vector-icons/Feather';
 import { postApi } from '../../api/postApi';
-import { searchService } from '../../services/search.service';
+import { bookApi } from '../../api/bookApi';
+import Icon from 'react-native-vector-icons/Feather';
 import { Book } from '../../types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
@@ -40,9 +40,23 @@ const NewThreadScreen = ({ navigation }: any) => {
     setSearchQuery(text);
     if (text.length > 2) {
        setSearching(true);
-       try {
-         const res = await searchService.searchBooks(text, 'title');
-         setBookResults(res);
+      try {
+         const res: any = await bookApi.search(text);
+         const dataList = res.data?.result || res.result?.data || res.result || [];
+         setBookResults(dataList.map((item: any) => {
+             let coverUrl = item.coverImage || item.coverUrl;
+             if (coverUrl && !coverUrl.startsWith('http')) {
+                coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+             }
+             return {
+                 id: item.id,
+                 title: item.title,
+                 authors: item.authors,
+                 author: item.authors?.[0] || 'Unknown',
+                 coverUrl: coverUrl,
+                 averageRating: item.averageRating || 0,
+             };
+         }));
        } catch(e) {}
        setSearching(false);
     } else {
@@ -144,9 +158,15 @@ const NewThreadScreen = ({ navigation }: any) => {
                       }}
                     >
                       <Image source={{ uri: item.coverUrl || item.coverImage }} style={styles.bookResultCover} />
-                      <View>
-                        <Text style={styles.bookResultTitle}>{item.title}</Text>
+                      <View style={{flex: 1}}>
+                        <Text style={styles.bookResultTitle} numberOfLines={1}>{item.title}</Text>
                         <Text style={styles.bookResultAuthor}>{item.author || (item.authors ? item.authors[0] : 'Unknown')}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                          <Icon name="star" size={14} color="#FFD700" />
+                          <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginLeft: 4 }}>
+                            {item.averageRating && item.averageRating > 0 ? item.averageRating.toFixed(1) : 'Chưa có đánh giá'}
+                          </Text>
+                        </View>
                       </View>
                     </TouchableOpacity>
                   )}
