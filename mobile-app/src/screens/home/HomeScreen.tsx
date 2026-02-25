@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { feedService } from '../../services/feed.service';
 import FeedItem from '../../components/feed/FeedItem';
 import { userService } from '../../services/user.service'; // Lấy info user hiện tại
+import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 const HomeScreen = ({ route, navigation }: any) => {
   const filterParam = route.params?.filter || 'foryou'; // Nhận từ Drawer
@@ -13,32 +14,57 @@ const HomeScreen = ({ route, navigation }: any) => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   
   // Animation cho nút FAB
   const scrollY = useRef(new Animated.Value(0)).current;
   const [showFAB, setShowFAB] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current; // Opacity 0 ban đầu
 
-  const fetchFeed = async () => {
+  const fetchFeed = async (pageNum = 1) => {
     try {
       const [feedData, userData] = await Promise.all([
-        feedService.getFeed(filterParam),
-        userService.getProfile() // Lấy avatar user để hiện ở ô input
+        feedService.getFeed(filterParam, pageNum, 10),
+        pageNum === 1 ? userService.getProfile() : Promise.resolve(currentUser)
       ]);
-      setPosts(feedData);
-      setCurrentUser(userData);
+      
+      if (pageNum === 1) {
+         setPosts(feedData);
+         if (userData) setCurrentUser(userData);
+      } else {
+         // Filter out duplicates just in case
+         setPosts(prev => {
+            const newPosts = feedData.filter((item: any) => !prev.some(p => p.id === item.id));
+            return [...prev, ...newPosts];
+         });
+      }
+      
+      setHasMore(feedData.length === 10);
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
     setLoading(true);
-    fetchFeed();
+    setPage(1);
+    setHasMore(true);
+    fetchFeed(1);
   }, [filterParam]); // Gọi lại khi filter Params từ drawer thay đổi
+
+  // Lắng nghe xoá bài
+  useEffect(() => {
+     const sub = eventEmitter.on(EventNames.POST_DELETED, (data: any) => {
+         setPosts(prev => prev.filter(p => p.id !== data.id));
+     });
+     return () => sub.remove();
+  }, []);
 
   // Xử lý hiệu ứng hiện/ẩn FAB khi cuộn
   const handleScroll = (event: any) => {
@@ -58,7 +84,18 @@ const HomeScreen = ({ route, navigation }: any) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchFeed();
+    setPage(1);
+    setHasMore(true);
+    fetchFeed(1);
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore && !loading && !refreshing) {
+       setLoadingMore(true);
+       const nextPage = page + 1;
+       setPage(nextPage);
+       fetchFeed(nextPage);
+    }
   };
 
   // 1. Header Navigation (Logo, Menu) - Giữ nguyên
@@ -115,6 +152,10 @@ const HomeScreen = ({ route, navigation }: any) => {
               
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.text} />}
               contentContainerStyle={{ paddingBottom: 80 }}
+              
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={COLORS.text} /> : null}
               
               // Lắng nghe sự kiện cuộn
               onScroll={handleScroll}

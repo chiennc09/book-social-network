@@ -7,6 +7,7 @@ import { feedService } from '../../services/feed.service';
 import FeedItem from '../../components/feed/FeedItem';
 import { useFocusEffect } from '@react-navigation/native'; // Để reload lại data khi quay lại màn hình
 import { UserProfile } from '../../types/user';
+import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 const ProfileScreen = ({ navigation }: any) => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -37,6 +38,14 @@ const ProfileScreen = ({ navigation }: any) => {
       fetchProfile();
     }, [])
   );
+
+  // Lắng nghe xoá bài
+  useEffect(() => {
+     const sub = eventEmitter.on(EventNames.POST_DELETED, (data: any) => {
+         setPosts(prev => prev.filter(p => p.id !== data.id));
+     });
+     return () => sub.remove();
+  }, []);
 
   if (loading) {
     return (

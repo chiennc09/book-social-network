@@ -57,5 +57,9 @@ export const postApi = {
     return axiosClient.get(`${BASE_URL}/${postId}/comments/${commentId}/replies`, {
         params: { page, size }
     });
+  },
+
+  deletePost: (postId: string) => {
+    return axiosClient.delete(`${BASE_URL}/${postId}`);
   }
 };

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, ActivityIndicator, Dimensions, Alert } from 'react-native';
 import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { libraryService, LibraryBook } from '../../services/library.service';
+import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +22,21 @@ const LibraryScreen = ({ navigation }: any) => {
     };
     fetchBooks();
   }, [activeTab]);
+
+  // Nhận tín hiệu update tiến trình realtime
+  useEffect(() => {
+     const subscription = eventEmitter.on(EventNames.BOOK_PROGRESS_UPDATED, (data: any) => {
+        setBooks(prevBooks => 
+            prevBooks.map(book => {
+               if (book.id === data.bookId) {
+                  return { ...book, progress: data.progressPercent };
+               }
+               return book;
+            })
+        );
+     });
+     return () => subscription.remove();
+  }, []);
 
   // --- COMPONENTS CON ---
 
@@ -109,7 +125,7 @@ const LibraryScreen = ({ navigation }: any) => {
     <View style={styles.footerContainer}>
       <Text style={styles.footerTitle}>Hoạt động</Text>
       <View style={styles.footerRow}>
-        <TouchableOpacity style={styles.footerCard} onPress={() => alert('Tính năng Thử thách sắp ra mắt')}>
+        <TouchableOpacity style={styles.footerCard} onPress={() => Alert.alert('Thông báo', 'Tính năng Thử thách sắp ra mắt')}>
            <View style={[styles.iconBox, { backgroundColor: '#FF6B6B' }]}>
               <Icon name="target" size={24} color="white" />
            </View>
@@ -119,7 +135,7 @@ const LibraryScreen = ({ navigation }: any) => {
            </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.footerCard} onPress={() => alert('Tính năng Thống kê sắp ra mắt')}>
+        <TouchableOpacity style={styles.footerCard} onPress={() => Alert.alert('Thông báo', 'Tính năng Thống kê sắp ra mắt')}>
            <View style={[styles.iconBox, { backgroundColor: '#4ECDC4' }]}>
               <Icon name="bar-chart-2" size={24} color="white" />
            </View>

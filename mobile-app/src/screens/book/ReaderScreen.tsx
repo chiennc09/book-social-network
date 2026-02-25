@@ -6,6 +6,7 @@ import { COLORS } from '../../constants/theme';
 import { bookApi } from '../../api/bookApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 const ReaderScreen = ({ route, navigation }: any) => {
   const { bookId, url, lastPosition } = route.params || {};
@@ -158,6 +159,8 @@ const ReaderScreen = ({ route, navigation }: any) => {
        try {
            // Gửi tiến trình mới nhất lên server
            await bookApi.updateProgress(bookId, currentPosition.current, progressPercent);
+           // Emit sự kiện cập nhật Library ngay lập tức
+           eventEmitter.emit(EventNames.BOOK_PROGRESS_UPDATED, { bookId, progressPercent });
        } catch (error) {
            console.error("Lỗi khi lưu tiến trình", error);
        }

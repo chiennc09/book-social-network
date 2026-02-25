@@ -80,7 +80,7 @@ export const searchService = {
          totalPage: item.totalPages || 0,
          currentPage: 0,
          description: item.description,
-         ratingAverage: item.averageRating,
+         averageRating: item.averageRating || 0,
       }));
     } catch (error) {
       console.error('Error searching books:', error);

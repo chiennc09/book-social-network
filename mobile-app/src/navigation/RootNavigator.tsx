@@ -48,13 +48,13 @@ const RootNavigator = () => {
            // Stack Main
            <Stack.Group>
              <Stack.Screen name="Main" component={BottomTabNavigator} />
+             <Stack.Screen name="CommentScreen" component={CommentScreen} />
            </Stack.Group>
         )}
 
         <Stack.Group screenOptions={{ presentation: 'modal', animation: 'slide_from_bottom' }}>
            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
            <Stack.Screen name="NewThread" component={NewThreadScreen} />
-           <Stack.Screen name="CommentScreen" component={CommentScreen} />
            <Stack.Screen name="BookDetail" component={BookDetailScreen} />
            <Stack.Screen name="Reader" component={ReaderScreen} options={{ presentation: 'fullScreenModal' }} />
         </Stack.Group>

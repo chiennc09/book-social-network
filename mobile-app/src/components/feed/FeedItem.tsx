@@ -1,21 +1,43 @@
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING } from '../../constants/theme';
 import { Post } from '../../types';
 import { feedService } from '../../services/feed.service';
+import { postApi } from '../../api/postApi';
+import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../redux/store';
 
 const { width } = Dimensions.get('window');
 
 interface FeedItemProps {
   post: Post;
+  isDetail?: boolean;
 }
 
-const FeedItem = ({ post }: FeedItemProps) => {
+const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
   const navigation = useNavigation<any>();
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [likesCount, setLikesCount] = useState(post.likesCount || 0);
+  const [commentsCount, setCommentsCount] = useState(post.commentsCount || 0);
+  const [repostsCount, setRepostsCount] = useState(post.repostsCount || 0);
+  const [hasReposted, setHasReposted] = useState(false); // Valid chỉ 1 lần
+
+  const { user: currentUser } = useSelector((state: RootState) => state.auth);
+
+  React.useEffect(() => {
+     const subscription = eventEmitter.on(EventNames.POST_UPDATED, (updatedPost: any) => {
+        if (updatedPost.id === post.id) {
+           if (updatedPost.likesCount !== undefined) setLikesCount(updatedPost.likesCount);
+           if (updatedPost.isLiked !== undefined) setIsLiked(updatedPost.isLiked);
+           if (updatedPost.commentsCount !== undefined) setCommentsCount(updatedPost.commentsCount);
+           if (updatedPost.repostsCount !== undefined) setRepostsCount(updatedPost.repostsCount);
+        }
+     });
+     return () => subscription.remove();
+  }, [post.id]);
 
   const handleLike = async () => {
     const originallyLiked = isLiked;
@@ -27,9 +49,43 @@ const FeedItem = ({ post }: FeedItemProps) => {
       } else {
         await feedService.likePost(post.id);
       }
+      eventEmitter.emit(EventNames.POST_UPDATED, { id: post.id, isLiked: !originallyLiked, likesCount: originallyLiked ? likesCount - 1 : likesCount + 1 });
     } catch (e) {
       setIsLiked(originallyLiked);
       setLikesCount(originallyLiked ? likesCount + 1 : likesCount - 1);
+    }
+  };
+
+  const handleRepost = async () => {
+    if (hasReposted) return; // Chặn spam đăng lại
+
+    // Tối ưu UI (Optimistic Update)
+    const originalCount = repostsCount;
+    setRepostsCount(originalCount + 1);
+    setHasReposted(true);
+    eventEmitter.emit(EventNames.POST_UPDATED, { id: post.id, repostsCount: originalCount + 1 });
+    try {
+       await postApi.createPost({ content: '', isRepost: true, originalPostId: post.id });
+    } catch (e) {
+       console.error("Repost failed", e);
+       setRepostsCount(originalCount);
+       setHasReposted(false);
+       eventEmitter.emit(EventNames.POST_UPDATED, { id: post.id, repostsCount: originalCount });
+    }
+  };
+
+  const handleMoreOptions = () => {
+    // Chỉ chủ bài post mới được xoá
+    if (post.user.id === (currentUser as any)?.id) {
+       Alert.alert("Tùy chọn", "Bạn muốn làm gì với bài viết này?", [
+         { text: "Hủy", style: "cancel" },
+         { text: "Xóa bài viết", style: "destructive", onPress: async () => {
+            try {
+               await postApi.deletePost(post.id);
+               eventEmitter.emit(EventNames.POST_DELETED, { id: post.id });
+            } catch(e) { console.error("Lỗi xóa bài", e); }
+         }}
+       ]);
     }
   };
 
@@ -53,7 +109,7 @@ const FeedItem = ({ post }: FeedItemProps) => {
              <Text style={styles.dot}>•</Text>
              <Text style={styles.timestamp}>{post.timestamp}</Text>
           </View>
-          <TouchableOpacity style={styles.moreBtn}>
+          <TouchableOpacity style={styles.moreBtn} onPress={handleMoreOptions}>
             <Icon name="more-horizontal" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -73,7 +129,7 @@ const FeedItem = ({ post }: FeedItemProps) => {
               <Text style={styles.bookAuthor}>{post.book?.author || (post.book.authors ? post.book.authors[0] : 'Unknown')}</Text>
               <View style={styles.ratingBadge}>
                  <Icon name="star" size={10} color="#FFD700" />
-                 <Text style={styles.ratingText}>{post.book.averageRating || 4.5}</Text>
+                 <Text style={styles.ratingText}>{post.book.averageRating || 0}</Text>
               </View>
             </View>
             <Icon name="chevron-right" size={20} color={COLORS.textSecondary} />
@@ -94,14 +150,19 @@ const FeedItem = ({ post }: FeedItemProps) => {
             <Text style={[styles.actionText, isLiked && { color: 'red' }]}>{likesCount}</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('CommentScreen', { postId: post.id })}>
+          <TouchableOpacity 
+             style={styles.actionBtn} 
+             onPress={() => {
+                if (!isDetail) navigation.navigate('CommentScreen', { postId: post.id, post: post });
+             }}
+          >
             <Icon name="message-circle" size={20} color={COLORS.text} />
-            <Text style={styles.actionText}>{post.commentsCount}</Text>
+            <Text style={styles.actionText}>{commentsCount}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn}>
-            <Icon name="repeat" size={20} color={COLORS.text} />
-            <Text style={styles.actionText}>{post.repostsCount}</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleRepost} disabled={hasReposted}>
+            <Icon name="repeat" size={20} color={hasReposted ? COLORS.primary : COLORS.text} />
+            <Text style={[styles.actionText, hasReposted && { color: COLORS.primary }]}>{repostsCount}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtn}>
