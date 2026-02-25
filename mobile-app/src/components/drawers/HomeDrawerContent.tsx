@@ -37,8 +37,9 @@ const HomeDrawerContent = ({ navigation }: any) => {
               style={[styles.item, activeId === item.id && styles.activeItem]}
               onPress={() => {
                 setActiveId(item.id);
-                navigation.closeDrawer();
-                // Logic filter feed here...
+                navigation.navigate('HomeFeed', { filter: item.id });
+                // Đợi navigate rồi mới close cho mượt
+                setTimeout(() => navigation.closeDrawer(), 100);
               }}
             >
               <Text style={[styles.itemText, activeId === item.id && styles.activeText]}>

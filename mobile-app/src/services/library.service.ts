@@ -28,16 +28,22 @@ export const libraryService = {
       const dataList = resp.result || [];
 
       // Map to LibraryBook UI interface
-      return dataList.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        author: item.authors?.[0] || 'Unknown',
-        coverUrl: item.coverImage,
-        status: status,
-        progress: item.progressPercent || 0,
-        totalPage: item.totalPages || 0,
-        currentPage: 0, // Fallback if no specific page concept
-      }));
+      return dataList.map((item: any) => {
+        let coverUrl = item.coverImage;
+        if (coverUrl && !coverUrl.startsWith('http')) {
+           coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+        }
+        return {
+          id: item.id,
+          title: item.title,
+          author: item.authors?.[0] || 'Unknown',
+          coverUrl: coverUrl,
+          status: status,
+          progress: item.progressPercent || 0,
+          totalPage: item.totalPages || 0,
+          currentPage: 0, // Fallback if no specific page concept
+        };
+      });
     } catch (error) {
       console.error('Error fetching library books:', error);
       throw error;

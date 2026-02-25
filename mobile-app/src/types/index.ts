@@ -47,4 +47,6 @@ export interface Post {
   commentsCount: number;
   repostsCount: number;
   timestamp: string; // VD: "2 giờ", "1 ngày"
+  isLiked?: boolean;
+  isRepost?: boolean;
 }

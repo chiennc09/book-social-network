@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING } from '../../constants/theme';
 import { Post } from '../../types';
+import { feedService } from '../../services/feed.service';
 
 const { width } = Dimensions.get('window');
 
@@ -11,12 +13,32 @@ interface FeedItemProps {
 }
 
 const FeedItem = ({ post }: FeedItemProps) => {
+  const navigation = useNavigation<any>();
+  const [isLiked, setIsLiked] = useState(post.isLiked || false);
+  const [likesCount, setLikesCount] = useState(post.likesCount || 0);
+
+  const handleLike = async () => {
+    const originallyLiked = isLiked;
+    setIsLiked(!isLiked);
+    setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
+    try {
+      if (isLiked) {
+        await feedService.unlikePost(post.id);
+      } else {
+        await feedService.likePost(post.id);
+      }
+    } catch (e) {
+      setIsLiked(originallyLiked);
+      setLikesCount(originallyLiked ? likesCount + 1 : likesCount - 1);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* 1. Avatar (Cột trái) */}
       <View style={styles.leftColumn}>
         <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
-        {/* Đường nối thread nếu cần (giống Threads) */}
+        {/* Đường nối thread nếu cần */}
         <View style={styles.threadLine} /> 
       </View>
 
@@ -41,36 +63,38 @@ const FeedItem = ({ post }: FeedItemProps) => {
 
         {/* --- BOOK TAGGING CARD --- */}
         {post.book && (
-          <TouchableOpacity style={styles.bookCard}>
-            <Image source={{ uri: post.book.coverUrl }} style={styles.bookCover} />
+          <TouchableOpacity 
+             style={styles.bookCard}
+             onPress={() => navigation.navigate('BookDetail', { bookId: post.book?.id })}
+          >
+            <Image source={{ uri: post.book.coverUrl || post.book.coverImage }} style={styles.bookCover} />
             <View style={styles.bookInfo}>
               <Text style={styles.bookTitle} numberOfLines={1}>{post.book.title}</Text>
-              <Text style={styles.bookAuthor}>{post.book.author}</Text>
+              <Text style={styles.bookAuthor}>{post.book?.author || (post.book.authors ? post.book.authors[0] : 'Unknown')}</Text>
               <View style={styles.ratingBadge}>
                  <Icon name="star" size={10} color="#FFD700" />
-                 <Text style={styles.ratingText}>4.5</Text>
+                 <Text style={styles.ratingText}>{post.book.averageRating || 4.5}</Text>
               </View>
             </View>
             <Icon name="chevron-right" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
         )}
 
-        {/* Ảnh bài đăng (nếu có) - Hiển thị dạng Grid hoặc Slide */}
+        {/* Ảnh bài đăng (nếu có) */}
         {post.images && post.images.length > 0 && (
           <View style={styles.imageContainer}>
-             {/* Demo hiển thị 1 ảnh đầu tiên scroll ngang */}
              <Image source={{ uri: post.images[0] }} style={styles.postImage} />
           </View>
         )}
 
         {/* Action Buttons */}
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Icon name="heart" size={20} color={COLORS.text} />
-            <Text style={styles.actionText}>{post.likesCount}</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
+            <Icon name="heart" size={20} color={isLiked ? "red" : COLORS.text} />
+            <Text style={[styles.actionText, isLiked && { color: 'red' }]}>{likesCount}</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('CommentScreen', { postId: post.id })}>
             <Icon name="message-circle" size={20} color={COLORS.text} />
             <Text style={styles.actionText}>{post.commentsCount}</Text>
           </TouchableOpacity>

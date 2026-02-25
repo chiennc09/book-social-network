@@ -99,21 +99,24 @@ const ReaderScreen = ({ route, navigation }: any) => {
                             window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "Locations error: " + err.toString() }));
                         });
 
-                        // Swipe handler
+                        // Swipe handler using rendition hooks
                         var xDown = null;
-                        document.addEventListener('touchstart', function(evt) { xDown = evt.touches[0].clientX; }, false);
-                        document.addEventListener('touchend', function(evt) {
-                            if (!xDown) return;
-                            var xUp = evt.changedTouches[0].clientX;
+                        rendition.on("touchstart", function(event) {
+                            xDown = event.changedTouches[0].clientX;
+                        });
+                        rendition.on("touchend", function(event) {
+                            if (xDown === null) return;
+                            var xUp = event.changedTouches[0].clientX;
                             var xDiff = xDown - xUp;
                             if (xDiff > 50) rendition.next(); 
                             else if (xDiff < -50) rendition.prev(); 
                             else {
+                                 // Click/Tap navigation
                                  if (xUp < window.innerWidth * 0.3) rendition.prev();
                                  else if (xUp > window.innerWidth * 0.7) rendition.next();
                             }
                             xDown = null;
-                        }, false);
+                        });
                     }).catch(function(err) {
                         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "Book open error: " + err.toString() }));
                     });

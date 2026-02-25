@@ -6,7 +6,9 @@ import { feedService } from '../../services/feed.service';
 import FeedItem from '../../components/feed/FeedItem';
 import { userService } from '../../services/user.service'; // Lấy info user hiện tại
 
-const HomeScreen = ({ navigation }: any) => {
+const HomeScreen = ({ route, navigation }: any) => {
+  const filterParam = route.params?.filter || 'foryou'; // Nhận từ Drawer
+
   const [posts, setPosts] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +22,7 @@ const HomeScreen = ({ navigation }: any) => {
   const fetchFeed = async () => {
     try {
       const [feedData, userData] = await Promise.all([
-        feedService.getFeed(),
+        feedService.getFeed(filterParam),
         userService.getProfile() // Lấy avatar user để hiện ở ô input
       ]);
       setPosts(feedData);
@@ -34,8 +36,9 @@ const HomeScreen = ({ navigation }: any) => {
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchFeed();
-  }, []);
+  }, [filterParam]); // Gọi lại khi filter Params từ drawer thay đổi
 
   // Xử lý hiệu ứng hiện/ẩn FAB khi cuộn
   const handleScroll = (event: any) => {

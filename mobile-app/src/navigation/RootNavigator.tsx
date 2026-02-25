@@ -9,6 +9,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import BottomTabNavigator from './BottomTabNavigator';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import NewThreadScreen from '../screens/post/NewThreadScreen';
+import CommentScreen from '../screens/post/CommentScreen';
 import BookDetailScreen from '../screens/book/BookDetailScreen';
 import ReaderScreen from '../screens/book/ReaderScreen';
 
@@ -53,6 +54,7 @@ const RootNavigator = () => {
         <Stack.Group screenOptions={{ presentation: 'modal', animation: 'slide_from_bottom' }}>
            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
            <Stack.Screen name="NewThread" component={NewThreadScreen} />
+           <Stack.Screen name="CommentScreen" component={CommentScreen} />
            <Stack.Screen name="BookDetail" component={BookDetailScreen} />
            <Stack.Screen name="Reader" component={ReaderScreen} options={{ presentation: 'fullScreenModal' }} />
         </Stack.Group>

@@ -20,6 +20,7 @@ export type RootStackParamList = {
   // Các màn hình Modal hoặc Fullscreen khác
   EditProfile: undefined;
   NewThread: undefined;
+  CommentScreen: { postId: string };
   BookDetail: undefined;
   Reader: { bookId: string; url: string; lastPosition?: string };
 };

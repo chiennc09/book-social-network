@@ -2,20 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
-import { userService} from '../../services/user.service'; // Import service
+import { userService } from '../../services/user.service'; // Import service
+import { feedService } from '../../services/feed.service';
+import FeedItem from '../../components/feed/FeedItem';
 import { useFocusEffect } from '@react-navigation/native'; // Để reload lại data khi quay lại màn hình
 import { UserProfile } from '../../types/user';
 
 const ProfileScreen = ({ navigation }: any) => {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'posts' | 'reposts'>('posts');
 
   // Hàm fetch data tách riêng để tái sử dụng
   const fetchProfile = async () => {
     try {
       // setLoading(true); // Nếu muốn hiện loading mỗi lần quay lại
-      const data = await userService.getProfile();
-      setUser(data);
+      const [userData, postsData] = await Promise.all([
+         userService.getProfile(),
+         feedService.getMyPosts()
+      ]);
+      setUser(userData);
+      setPosts(postsData);
     } catch (error) {
       console.error('Failed to fetch profile', error);
     } finally {
@@ -37,6 +45,8 @@ const ProfileScreen = ({ navigation }: any) => {
       </View>
     );
   }
+
+  const displayedPosts = posts.filter(p => activeTab === 'posts' ? !p.isRepost : p.isRepost);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -82,19 +92,31 @@ const ProfileScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
 
-        {/* Tabs & Content (Giữ nguyên) */}
+        {/* Tabs & Content */}
         <View style={styles.tabs}>
-           <View style={[styles.tabItem, styles.activeTab]}>
-             <Text style={styles.activeTabText}>Bài viết</Text>
-           </View>
-           <View style={styles.tabItem}>
-             <Text style={styles.tabText}>Đăng lại</Text>
-           </View>
+           <TouchableOpacity 
+             style={[styles.tabItem, activeTab === 'posts' && styles.activeTab]}
+             onPress={() => setActiveTab('posts')}
+           >
+             <Text style={activeTab === 'posts' ? styles.activeTabText : styles.tabText}>Bài viết</Text>
+           </TouchableOpacity>
+           <TouchableOpacity 
+             style={[styles.tabItem, activeTab === 'reposts' && styles.activeTab]}
+             onPress={() => setActiveTab('reposts')}
+           >
+             <Text style={activeTab === 'reposts' ? styles.activeTabText : styles.tabText}>Đăng lại</Text>
+           </TouchableOpacity>
         </View>
         
-        <View style={styles.feedPlaceholder}>
-            <Text style={styles.placeholderText}>Chưa có bài đăng nào.</Text>
-        </View>
+        {displayedPosts.length > 0 ? (
+          displayedPosts.map(post => (
+             <FeedItem key={post.id} post={post} />
+          ))
+        ) : (
+          <View style={styles.feedPlaceholder}>
+              <Text style={styles.placeholderText}>Chưa có bài đăng nào.</Text>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
