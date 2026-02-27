@@ -39,7 +39,7 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick }: { item: any, lev
       {/* Left Column - Avatar & Line */}
       <View style={styles.leftCol}>
         <Image 
-           source={{ uri: item.userAvatar || `https://ui-avatars.com/api/?name=${item.username}&background=random` }} 
+           source={{ uri: item.userAvatar || `https://ui-avatars.com/api/?name=${item.username || 'User'}&background=random` }} 
            style={[styles.avatar, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
         />
         {/* Draw vertical line for level 0 if it has replies */}
@@ -200,7 +200,7 @@ const CommentScreen = ({ route, navigation }: any) => {
       {/* Input luôn ở dưới */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
          <View style={styles.inputContainer}>
-            <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.inputAvatar} />
+            <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || `https://ui-avatars.com/api/?name=${(user as any)?.username || 'User'}&background=random` }} style={styles.inputAvatar} />
             <TextInput
                style={styles.input}
                placeholder={`Thêm câu trả lời...`}

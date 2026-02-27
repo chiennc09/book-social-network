@@ -143,7 +143,7 @@ const ProfileScreen = ({ navigation }: any) => {
             {/* Hiển thị Bio */}
             {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
           </View>
-          <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+          <Image source={{ uri: user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || 'User'}&background=random` }} style={styles.avatar} />
         </View>
 
         <Text style={styles.followers}>{user?.followersCount} người theo dõi</Text>

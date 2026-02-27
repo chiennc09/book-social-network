@@ -129,13 +129,18 @@ const SearchScreen = ({ navigation }: any) => {
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.bookCardHorizontal}>
-            <Image source={{ uri: item.coverUrl }} style={styles.bookCover} />
+        renderItem={({ item }) => {
+          let coverUrl = item.coverUrl;
+          if (coverUrl && !coverUrl.startsWith('http')) {
+             coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+          }
+          return (
+          <TouchableOpacity style={styles.bookCardHorizontal} onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}>
+            <Image source={{ uri: coverUrl || 'https://via.placeholder.com/100x150.png?text=No+Cover' }} style={styles.bookCover} />
             <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
             <Text style={styles.bookAuthor} numberOfLines={1}>{item.author}</Text>
           </TouchableOpacity>
-        )}
+        )}}
         contentContainerStyle={{ paddingHorizontal: SPACING.m }}
       />
 
@@ -151,13 +156,18 @@ const SearchScreen = ({ navigation }: any) => {
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id + 'new'}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.bookCardHorizontal}>
-            <Image source={{ uri: item.coverUrl }} style={styles.bookCover} />
+        renderItem={({ item }) => {
+          let coverUrl = item.coverUrl;
+          if (coverUrl && !coverUrl.startsWith('http')) {
+             coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+          }
+          return (
+          <TouchableOpacity style={styles.bookCardHorizontal} onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}>
+            <Image source={{ uri: coverUrl || 'https://via.placeholder.com/100x150.png?text=No+Cover' }} style={styles.bookCover} />
             <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
             <Text style={styles.bookAuthor} numberOfLines={1}>{item.author}</Text>
           </TouchableOpacity>
-        )}
+        )}}
         contentContainerStyle={{ paddingHorizontal: SPACING.m, paddingBottom: 40 }}
       />
     </ScrollView>
@@ -196,12 +206,17 @@ const SearchScreen = ({ navigation }: any) => {
           data={searchResults}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: SPACING.m, paddingBottom: 50 }}
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            let coverUrl = item.coverUrl;
+            if (coverUrl && !coverUrl.startsWith('http')) {
+               coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+            }
+            return (
             <TouchableOpacity 
               style={styles.resultItem}
               onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
             >
-               <Image source={{ uri: item.coverUrl }} style={styles.resultCover} />
+               <Image source={{ uri: coverUrl || 'https://via.placeholder.com/50x75.png?text=No+Cover' }} style={styles.resultCover} />
                <View style={styles.resultInfo}>
                   <Text style={styles.resultTitle}>{item.title}</Text>
                   <Text style={styles.resultAuthor}>bởi {item.author}</Text>
@@ -217,7 +232,7 @@ const SearchScreen = ({ navigation }: any) => {
                    <Icon name="plus-circle" size={24} color={COLORS.textSecondary} />
                </TouchableOpacity>
             </TouchableOpacity>
-          )}
+          )}}
           ListEmptyComponent={
              <View style={{ alignItems: 'center', marginTop: 40 }}>
                 <Text style={{ color: '#555' }}>Không tìm thấy sách nào.</Text>

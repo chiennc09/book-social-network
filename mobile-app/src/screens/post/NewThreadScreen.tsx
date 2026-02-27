@@ -7,6 +7,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { Book } from '../../types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 const NewThreadScreen = ({ navigation }: any) => {
   const [content, setContent] = useState('');
@@ -25,10 +26,11 @@ const NewThreadScreen = ({ navigation }: any) => {
     if (!content.trim()) return;
     setLoading(true);
     try {
-      await postApi.createPost({
+      const resp = await postApi.createPost({
         content,
         bookId: selectedBook?.id,
       });
+      eventEmitter.emit(EventNames.POST_CREATED, resp);
       navigation.goBack();
     } catch (error) {
        console.error(error);

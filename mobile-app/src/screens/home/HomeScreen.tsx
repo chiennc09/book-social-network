@@ -58,13 +58,53 @@ const HomeScreen = ({ route, navigation }: any) => {
     fetchFeed(1);
   }, [filterParam]); // Gọi lại khi filter Params từ drawer thay đổi
 
-  // Lắng nghe xoá bài
+  // Lắng nghe tạo/xoá bài
   useEffect(() => {
-     const sub = eventEmitter.on(EventNames.POST_DELETED, (data: any) => {
+     const subDelete = eventEmitter.on(EventNames.POST_DELETED, (data: any) => {
          setPosts(prev => prev.filter(p => p.id !== data.id));
      });
-     return () => sub.remove();
-  }, []);
+     
+     const subCreate = eventEmitter.on(EventNames.POST_CREATED, async (data: any) => {
+         // Data trả về từ createPost (response.result hoặc data trực tiếp tùy Cấu trúc API, giả sử data chính là bài post)
+         // Map the post similar to feedService mapping
+         const item = data.result || data;
+         
+         // Đợi xíu lấy Book info nếu có (Optimistic UI không nhất thiết, nhưng có thì đẹp)
+         let bookObj = undefined;
+         if (item.bookId) {
+            try {
+               const { bookService } = require('../../services/book.service');
+               bookObj = await bookService.getBookDetails(item.bookId);
+            } catch(e) {}
+         }
+         
+         const newPost = {
+            id: item.id,
+            user: {
+              id: item.userId,
+              username: item.username,
+              displayName: item.username, 
+              avatar: currentUser?.avatar || `https://ui-avatars.com/api/?name=${item.username}&background=random`,
+              badges: currentUser?.badges || [],
+            },
+            content: item.content,
+            book: bookObj,
+            likesCount: 0,
+            commentsCount: 0,
+            repostsCount: item.isRepost ? 1 : 0, 
+            timestamp: 'Vừa xong',
+            isLiked: false,
+            isRepost: item.isRepost || false,
+         };
+         
+         setPosts(prev => [newPost, ...prev]);
+     });
+
+     return () => {
+         subDelete.remove();
+         subCreate.remove();
+     }
+  }, [currentUser]);
 
   // Xử lý hiệu ứng hiện/ẩn FAB khi cuộn
   const handleScroll = (event: any) => {
@@ -117,7 +157,7 @@ const HomeScreen = ({ route, navigation }: any) => {
     return (
       <View style={styles.inputHeaderContainer}>
         <View style={styles.inputRow}>
-           <Image source={{ uri: currentUser.avatar }} style={styles.avatarSmall} />
+           <Image source={{ uri: currentUser.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.avatarSmall} />
            <TouchableOpacity 
               style={styles.fakeInput}
               onPress={() => navigation.navigate('NewThread')} // Mở modal

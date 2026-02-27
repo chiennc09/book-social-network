@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface ReadHistoryRepository extends MongoRepository<ReadHistory, String> {
     // Tìm lịch sử đọc của 1 user với 1 cuốn sách cụ thể
-    Optional<ReadHistory> findByUserIdAndBookId(String userId, String bookId);
+    Optional<ReadHistory> findFirstByUserIdAndBookIdOrderByLastReadAtDesc(String userId, String bookId);
 
     List<ReadHistory> findAllByUserIdAndStatus(String userId, ReadStatus status);
 }

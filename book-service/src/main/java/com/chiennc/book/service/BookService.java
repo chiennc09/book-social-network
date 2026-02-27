@@ -11,6 +11,7 @@ import com.chiennc.book.repository.BookRankingRepository;
 import com.chiennc.book.repository.BookRepository;
 import com.chiennc.book.exception.AppException;
 import com.chiennc.book.exception.ErrorCode;
+import com.chiennc.book.utils.TextUtils;
 //import com.chiennc.book.repository.httpclient.ExternalBookClient;
 import com.chiennc.book.repository.ReadHistoryRepository;
 import com.chiennc.event.dto.BookCompletedEvent;
@@ -67,7 +68,8 @@ public class BookService {
     }
 
     public List<BookResponse> search(String q) {
-        return bookRepository.findByTitleContainingIgnoreCaseOrAuthorsContainingIgnoreCase(q, q).stream()
+        String regex = TextUtils.toFuzzyRegex(q);
+        return bookRepository.searchByRegex(regex).stream()
                 .map(bookMapper::toBookResponse).toList();
     }
 
@@ -107,7 +109,7 @@ public class BookService {
         }
 
         // Lấy lịch sử đọc cũ (nếu có)
-        historyRepository.findByUserIdAndBookId(userId, bookId).ifPresent(history -> {
+        historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId).ifPresent(history -> {
             response.setLastPosition(history.getLastPosition());
             response.setProgressPercent(history.getProgressPercent());
         });
@@ -140,7 +142,7 @@ public class BookService {
     // Logic Ranking: Tự động tạo bản ghi mới cho ngày hôm nay nếu chưa có
     private void increaseRankingCount(String bookId) {
         LocalDate today = LocalDate.now();
-        BookRanking ranking = rankingRepository.findByBookIdAndDate(bookId, today)
+        BookRanking ranking = rankingRepository.findFirstByBookIdAndDate(bookId, today)
                 .orElse(BookRanking.builder().bookId(bookId).date(today).build());
 
         ranking.setViewCount(ranking.getViewCount() + 1);
@@ -150,7 +152,7 @@ public class BookService {
     /// 1. API: Thêm vào tủ / Đổi trạng thái (Manual)
     public void updateShelfStatus(String bookId, ReadStatus status) {
         String userId = getUserId();
-        ReadHistory history = historyRepository.findByUserIdAndBookId(userId, bookId)
+        ReadHistory history = historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId)
                 .orElse(ReadHistory.builder().userId(userId).bookId(bookId).build());
 
         // Logic logic: Nếu chuyển sang READ thì coi như xong 100%
@@ -169,7 +171,7 @@ public class BookService {
     // 2. Refactor: Update Progress (Auto logic)
     public void updateProgress(String bookId, String position, double percent) {
         String userId = getUserId();
-        ReadHistory history = historyRepository.findByUserIdAndBookId(userId, bookId)
+        ReadHistory history = historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId)
                 .orElse(ReadHistory.builder()
                         .userId(userId)
                         .bookId(bookId)
