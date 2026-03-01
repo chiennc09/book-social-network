@@ -132,7 +132,7 @@ const SearchScreen = ({ navigation }: any) => {
         renderItem={({ item }) => {
           let coverUrl = item.coverUrl;
           if (coverUrl && !coverUrl.startsWith('http')) {
-             coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+             coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
           }
           return (
           <TouchableOpacity style={styles.bookCardHorizontal} onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}>
@@ -159,7 +159,7 @@ const SearchScreen = ({ navigation }: any) => {
         renderItem={({ item }) => {
           let coverUrl = item.coverUrl;
           if (coverUrl && !coverUrl.startsWith('http')) {
-             coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+             coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
           }
           return (
           <TouchableOpacity style={styles.bookCardHorizontal} onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}>
@@ -209,7 +209,7 @@ const SearchScreen = ({ navigation }: any) => {
           renderItem={({ item }) => {
             let coverUrl = item.coverUrl;
             if (coverUrl && !coverUrl.startsWith('http')) {
-               coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+               coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
             }
             return (
             <TouchableOpacity 

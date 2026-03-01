@@ -25,7 +25,7 @@ const ReaderScreen = ({ route, navigation }: any) => {
   // Xử lý URL (Thêm prefix nếu chỉ là tên file)
   let loadUrl = url || '';
   if (loadUrl && !loadUrl.startsWith('http')) {
-     loadUrl = `http://10.0.2.2:8085/books/files/epubs/${loadUrl}`;
+     loadUrl = `http://10.0.2.2:8888/file/legacy/epubs/${loadUrl}`;
   }
   
   // Quan trọng: Mã hoá URI để xử lý các khoảng trắng (spaces) trong tên file
@@ -223,7 +223,7 @@ const ReaderScreen = ({ route, navigation }: any) => {
          <WebView
            ref={webViewRef}
            originWhitelist={['*', 'http://*', 'https://*', 'file://*']}
-           source={{ html: epubViewerHtml, baseUrl: 'http://10.0.2.2:8085' }} // Cần baseUrl để CORS
+           source={{ html: epubViewerHtml, baseUrl: 'http://10.0.2.2:8888' }} // Cần baseUrl để CORS
            style={styles.webview}
            onMessage={handleMessage}
            javaScriptEnabled={true}

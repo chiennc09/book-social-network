@@ -33,7 +33,7 @@ export const bookService = {
       // Xử lý URL ảnh bìa
       let coverUrl = data.coverImage;
       if (coverUrl && !coverUrl.startsWith('http')) {
-         coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+         coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
       }
 
       // Mapping từ BookResponse sang BookDetail để tương thích UI hiện tại

@@ -45,7 +45,8 @@ public class UserProfileController {
     }
 
     @PutMapping("/users/my-profile")
-    ApiResponse<UserProfileResponse> updateMyProfile(@RequestBody com.chiennc.profile.dto.request.ProfileUpdateRequest request) {
+    ApiResponse<UserProfileResponse> updateMyProfile(
+            @RequestBody com.chiennc.profile.dto.request.ProfileUpdateRequest request) {
         return ApiResponse.<UserProfileResponse>builder()
                 .result(userProfileService.updateMyProfile(request))
                 .build();

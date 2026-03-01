@@ -30,12 +30,6 @@ public class UserProfileService {
 
     public UserProfileResponse createProfile(ProfileCreationRequest request) {
         UserProfile userProfile = userProfileMapper.toUserProfile(request);
-        
-        // Gán Avatar mặc định dựa trên username nếu người dùng chưa cung cấp
-        if (userProfile.getAvatar() == null || userProfile.getAvatar().trim().isEmpty()) {
-            String defaultAvatarUrl = "http://10.0.2.2:8084/file/media/download/avatars/default-avatar.png";
-            userProfile.setAvatar(defaultAvatarUrl);
-        }
 
         userProfile = userProfileRepository.save(userProfile);
 

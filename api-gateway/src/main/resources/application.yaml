@@ -40,3 +40,9 @@ spring:
             - Path=/file/**
 #          filters:
 #            - StripPrefix=2
+        - id: book_service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/books/**
+        #   filters:
+        #      - StripPrefix=2

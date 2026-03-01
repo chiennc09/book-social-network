@@ -96,15 +96,27 @@ public class BookService {
 
         // QUAN TRỌNG: Chuyển tên file thành URL đầy đủ để Frontend gọi
         if (book.getPdfPath() != null) {
-            response.setPdfPath(baseUrl + "/books/files/pdfs/" + book.getPdfPath());
+            if (book.getPdfPath().startsWith("http")) {
+                response.setPdfPath(book.getPdfPath());
+            } else {
+                response.setPdfPath("http://10.0.2.2:8888/file/legacy/pdfs/" + book.getPdfPath());
+            }
         }
 
         if (book.getCoverImage() != null) {
-            response.setCoverImage(baseUrl + "/books/files/covers/" + book.getCoverImage());
+            if (book.getCoverImage().startsWith("http")) {
+                response.setCoverImage(book.getCoverImage());
+            } else {
+                response.setCoverImage("http://10.0.2.2:8888/file/legacy/covers/" + book.getCoverImage());
+            }
         }
 
         if (book.getEpubPath() != null) {
-            response.setEpubPath(baseUrl + "/books/files/epubs/" + book.getEpubPath());
+            if (book.getEpubPath().startsWith("http")) {
+                response.setEpubPath(book.getEpubPath());
+            } else {
+                response.setEpubPath("http://10.0.2.2:8888/file/legacy/epubs/" + book.getEpubPath());
+            }
         }
 
         // Lấy lịch sử đọc cũ (nếu có)

@@ -14,4 +14,4 @@ export const SPACING = {
   xl: 32,
 };
 
-export const DEFAULT_AVATAR = 'http://10.0.2.2:8888/file/media/download/avatars/default-avatar.png';
+export const DEFAULT_AVATAR = 'http://10.0.2.2:8888/file/media/download/avatars/default-avatar.jpg';

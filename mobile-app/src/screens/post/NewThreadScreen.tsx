@@ -48,7 +48,7 @@ const NewThreadScreen = ({ navigation }: any) => {
          setBookResults(dataList.map((item: any) => {
              let coverUrl = item.coverImage || item.coverUrl;
              if (coverUrl && !coverUrl.startsWith('http')) {
-                coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+                coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
              }
              return {
                  id: item.id,
