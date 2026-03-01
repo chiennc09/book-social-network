@@ -101,7 +101,7 @@ const ChallengeScreen = ({ navigation }: any) => {
     return (
       <View style={[styles.lbCard, isMe && styles.lbCardMe]}>
         <Text style={[styles.lbRank, { color: rankColor }]}>{index + 1}</Text>
-        <Image source={{ uri: item.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.lbAvatar} />
+        <Image source={{ uri: item.avatar || `https://ui-avatars.com/api/?name=${item.displayName || item.username || 'User'}&background=random` }} style={styles.lbAvatar} />
         
         <View style={styles.lbInfo}>
            <Text style={[styles.lbName, isMe && { color: '#FFD700' }]} numberOfLines={1}>{item.displayName || item.username}</Text>

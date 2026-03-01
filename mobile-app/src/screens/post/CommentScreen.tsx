@@ -166,7 +166,7 @@ const CommentScreen = ({ route, navigation }: any) => {
           <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-           <Text style={styles.headerTitle}>Thread</Text>
+           <Text style={styles.headerTitle}>Bài viết</Text>
         </View>
         <View style={styles.headerRight}>
           <Icon name="bell" size={20} color={COLORS.text} />

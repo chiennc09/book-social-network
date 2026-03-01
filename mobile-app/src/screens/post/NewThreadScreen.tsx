@@ -72,13 +72,13 @@ const NewThreadScreen = ({ navigation }: any) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Hủy</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thread mới</Text>
+        <Text style={styles.headerTitle}>Bài viết mới</Text>
         <View style={{ width: 30 }} /> 
       </View>
 
       <View style={styles.content}>
         <View style={styles.row}>
-           <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.avatar} />
+           <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || `https://ui-avatars.com/api/?name=${(user as any)?.displayName || user?.username || 'User'}&background=random` }} style={styles.avatar} />
            <View style={styles.inputContainer}>
               <Text style={styles.username}>{(user as any)?.displayName || user?.username}</Text>
               <TextInput 

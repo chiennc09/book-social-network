@@ -93,7 +93,7 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
     <View style={styles.container}>
       {/* 1. Avatar (Cột trái) */}
       <View style={styles.leftColumn}>
-        <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
+        <Image source={{ uri: post.user.avatar || `https://ui-avatars.com/api/?name=${post.user.displayName || post.user.username || 'User'}&background=random` }} style={styles.avatar} />
         {/* Đường nối thread nếu cần */}
         <View style={styles.threadLine} /> 
       </View>
