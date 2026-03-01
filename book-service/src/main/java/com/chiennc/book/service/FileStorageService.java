@@ -1,3 +1,4 @@
+/*
 package com.chiennc.book.service;
 
 import jakarta.annotation.PostConstruct;
@@ -13,7 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
 
-@Service
+// @Service
 public class FileStorageService {
     private final Path root = Paths.get("uploads");
 
@@ -57,3 +58,4 @@ public class FileStorageService {
         }
     }
 }
+*/

@@ -19,6 +19,7 @@ public class PostResponse {
     String content;
     String userId;
     String username;
+    String userAvatar;
     String bookId;
     Boolean isRepost;
     String originalPostId;

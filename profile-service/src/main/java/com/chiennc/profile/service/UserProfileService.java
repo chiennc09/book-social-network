@@ -33,7 +33,7 @@ public class UserProfileService {
         
         // Gán Avatar mặc định dựa trên username nếu người dùng chưa cung cấp
         if (userProfile.getAvatar() == null || userProfile.getAvatar().trim().isEmpty()) {
-            String defaultAvatarUrl = "https://ui-avatars.com/api/?name=" + request.getUsername() + "&background=random";
+            String defaultAvatarUrl = "http://10.0.2.2:8084/file/media/download/avatars/default-avatar.png";
             userProfile.setAvatar(defaultAvatarUrl);
         }
 
@@ -69,11 +69,25 @@ public class UserProfileService {
         response.setFollowerCount(userProfileRepository.countFollowers(userId));
         response.setFriendCount(userProfileRepository.countFriends(userId));
 
-        // Các thông số này sau này sẽ gọi qua FeignClient tới service khác [cite: 8, 9]
         response.setPostCount(0);
         response.setBooksReadCount(0);
 
         return response;
+    }
+
+    public UserProfileResponse updateMyProfile(com.chiennc.profile.dto.request.ProfileUpdateRequest request) {
+        var userId = getUserIdByToken();
+        var profile = userProfileRepository
+                .findByUserId(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (request.getBio() != null) profile.setBio(request.getBio());
+        //if (request.getLink() != null) profile.setLink(request.getLink());
+        if (request.getAvatar() != null) profile.setAvatar(request.getAvatar());
+        //if (request.getIsPrivate() != null) profile.setIsPrivate(request.getIsPrivate());
+
+        profile = userProfileRepository.save(profile);
+        return userProfileMapper.toUserProfileResponse(profile);
     }
 
     /* ================= FOLLOW ================= */

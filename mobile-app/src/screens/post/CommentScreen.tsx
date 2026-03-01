@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { COLORS, SPACING } from '../../constants/theme';
+import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { postApi } from '../../api/postApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
@@ -9,7 +9,7 @@ import FeedItem from '../../components/feed/FeedItem';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 // Sub-component cho mỗi Comment để có thể quản lý Replies riêng tư
-const CommentItem = ({ item, level = 0, rootId, onReplyClick }: { item: any, level?: number, rootId?: string, onReplyClick: (username: string, parentId: string) => void }) => {
+const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser }: { item: any, level?: number, rootId?: string, onReplyClick: (username: string, parentId: string) => void, authUser?: any }) => {
   const [replies, setReplies] = useState<any[]>([]);
   const [showReplies, setShowReplies] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(false);
@@ -39,7 +39,7 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick }: { item: any, lev
       {/* Left Column - Avatar & Line */}
       <View style={styles.leftCol}>
         <Image 
-           source={{ uri: item.userAvatar || `https://ui-avatars.com/api/?name=${item.username || 'User'}&background=random` }} 
+           source={{ uri: (authUser && item.userId === authUser.id && authUser.avatar) ? authUser.avatar : (item.userAvatar || DEFAULT_AVATAR) }} 
            style={[styles.avatar, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
         />
         {/* Draw vertical line for level 0 if it has replies */}
@@ -92,7 +92,7 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick }: { item: any, lev
 
          {/* Render Replies inside Right Column to indent them automatically */}
          {showReplies && replies.map((reply: any) => (
-            <CommentItem key={reply.id} item={reply} level={1} rootId={currentRootId} onReplyClick={onReplyClick} />
+            <CommentItem key={reply.id} item={reply} level={1} rootId={currentRootId} onReplyClick={onReplyClick} authUser={authUser} />
          ))}
       </View>
     </View>
@@ -180,7 +180,7 @@ const CommentScreen = ({ route, navigation }: any) => {
          <FlatList
            data={comments}
            keyExtractor={(item) => item.id}
-           renderItem={({ item }) => <CommentItem item={item} onReplyClick={handleReplyClick} />}
+           renderItem={({ item }) => <CommentItem item={item} onReplyClick={handleReplyClick} authUser={user} />}
            contentContainerStyle={{ paddingBottom: 80 }}
            ListHeaderComponent={() => (
              <>
@@ -200,7 +200,7 @@ const CommentScreen = ({ route, navigation }: any) => {
       {/* Input luôn ở dưới */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
          <View style={styles.inputContainer}>
-            <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || `https://ui-avatars.com/api/?name=${(user as any)?.username || 'User'}&background=random` }} style={styles.inputAvatar} />
+            <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || DEFAULT_AVATAR }} style={styles.inputAvatar} />
             <TextInput
                style={styles.input}
                placeholder={`Thêm câu trả lời...`}

@@ -26,9 +26,14 @@ public class FileRepository {
     @Value("${app.file.download-prefix}")
     String urlPrefix;
 
-    public FileInfo store(MultipartFile file) throws IOException {
+    public FileInfo store(MultipartFile file, String type) throws IOException {
         /// Xác định path folder lưu file
-        Path folder = Paths.get(storageDir);
+        Path baseFolder = Paths.get(storageDir);
+        Path folder = baseFolder.resolve(type);
+        
+        if (!Files.exists(folder)) {
+            Files.createDirectories(folder);
+        }
 
         /// Lấy tên định dạng file (Đuôi)
         String fileExtension = StringUtils
@@ -54,9 +59,11 @@ public class FileRepository {
                 .build();
     }
 
-    public Resource read(FileMgmt fileMgmt) throws IOException {
-        /// Đọc file from đĩa cứng - theo array byte
-        var data = Files.readAllBytes(Path.of(fileMgmt.getPath()));
-        return new ByteArrayResource(data);
+    public Resource read(FileMgmt fileMgmt) {
+        Path filePath = Path.of(fileMgmt.getPath());
+        if (!Files.exists(filePath)) {
+            throw new RuntimeException("File not found: " + fileMgmt.getPath());
+        }
+        return new org.springframework.core.io.FileSystemResource(filePath);
     }
 }

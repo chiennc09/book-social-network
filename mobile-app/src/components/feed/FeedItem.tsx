@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING } from '../../constants/theme';
+import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { Post } from '../../types';
 import { feedService } from '../../services/feed.service';
 import { postApi } from '../../api/postApi';
@@ -26,6 +26,13 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
   const [hasReposted, setHasReposted] = useState(false); // Valid chỉ 1 lần
 
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
+
+  // Tính toán Avatar: Nếu post này là của user đang đăng nhập, ưu tiên dùng Avatar trong Redux 
+  // (để cập nhật tức thời khi đổi ảnh)
+  const isMyPost = post.user.id === (currentUser as any)?.id;
+  const displayAvatar = isMyPost && (currentUser as any)?.avatar 
+       ? (currentUser as any).avatar 
+       : (post.user.avatar || DEFAULT_AVATAR);
 
   React.useEffect(() => {
      const subscription = eventEmitter.on(EventNames.POST_UPDATED, (updatedPost: any) => {
@@ -93,7 +100,7 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
     <View style={styles.container}>
       {/* 1. Avatar (Cột trái) */}
       <View style={styles.leftColumn}>
-        <Image source={{ uri: post.user.avatar || `https://ui-avatars.com/api/?name=${post.user.displayName || post.user.username || 'User'}&background=random` }} style={styles.avatar} />
+        <Image source={{ uri: displayAvatar }} style={styles.avatar} />
         {/* Đường nối thread nếu cần */}
         <View style={styles.threadLine} /> 
       </View>

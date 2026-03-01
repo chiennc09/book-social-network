@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, ActivityIndicator, Animated } from 'react-native';
-import { COLORS, SPACING } from '../../constants/theme';
+import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { userService } from '../../services/user.service'; // Import service
 import { feedService } from '../../services/feed.service';
@@ -8,12 +8,17 @@ import FeedItem from '../../components/feed/FeedItem';
 import { useFocusEffect } from '@react-navigation/native'; // Để reload lại data khi quay lại màn hình
 import { UserProfile } from '../../types/user';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../redux/store';
 
 const ProfileScreen = ({ navigation }: any) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'posts' | 'reposts'>('posts');
+  
+  // Dùng Redux user để cập nhật realtime ảnh đại diện
+  const { user: authUser } = useSelector((state: RootState) => state.auth);
   
   // Animation cho Rank Badge
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -143,7 +148,7 @@ const ProfileScreen = ({ navigation }: any) => {
             {/* Hiển thị Bio */}
             {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
           </View>
-          <Image source={{ uri: user?.avatar || `https://ui-avatars.com/api/?name=${user?.username || 'User'}&background=random` }} style={styles.avatar} />
+          <Image source={{ uri: (authUser as any)?.avatar || user?.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
         </View>
 
         <Text style={styles.followers}>{user?.followersCount} người theo dõi</Text>

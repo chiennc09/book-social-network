@@ -79,8 +79,9 @@ public class PostService {
         var pageData = postRepository.findAllByUserId(getUserIdByToken(), pageable);
 
         String username = userProfile != null ? userProfile.getUsername() : null;
+        String userAvatar = userProfile != null ? userProfile.getAvatar() : null;
 
-        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, username)).toList();
+        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, username, userAvatar)).toList();
 
         return PageResponse.<PostResponse>builder()
                 .currentPage(page)
@@ -91,11 +92,25 @@ public class PostService {
                 .build();
     }
 
-    private PostResponse enrichPostResponse(Post post, String username) {
+    private PostResponse enrichPostResponse(Post post, String username, String userAvatar) {
         PostResponse response = postMapper.toPostResponse(post);
         response.setCreated(dateTimeFormatter.format(post.getCreatedDate()));
         if (username != null) {
             response.setUsername(username);
+        }
+        if (userAvatar != null) {
+            response.setUserAvatar(userAvatar);
+        } else {
+            // fallback if not provided directly
+            try {
+                UserProfileResponse profile = profileClient.getProfile(post.getUserId()).getResult();
+                if (profile != null) {
+                    response.setUsername(profile.getUsername());
+                    response.setUserAvatar(profile.getAvatar());
+                }
+            } catch(Exception e) {
+                log.warn("Could not fetch profile for user {}", post.getUserId());
+            }
         }
         response.setLikeCount(postLikeRepository.countByPostId(post.getId()));
         response.setCommentCount(postCommentRepository.countByPostId(post.getId()));
@@ -108,7 +123,7 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, sort);
         var pageData = postRepository.findAll(pageable);
 
-        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, post.getUsername())).toList();
+        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, post.getUsername(), null)).toList();
 
         return PageResponse.<PostResponse>builder()
                 .currentPage(page)
@@ -137,7 +152,7 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, sort);
         var pageData = postRepository.findByUserIdIn(userIds, pageable);
 
-        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, post.getUsername())).toList();
+        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, post.getUsername(), null)).toList();
 
         return PageResponse.<PostResponse>builder()
                 .currentPage(page)
@@ -206,6 +221,17 @@ public class PostService {
             CommentResponse response = commentMapper.toCommentResponse(comment);
             response.setCreated(dateTimeFormatter.format(comment.getCreatedDate()));
             response.setReplyCount(postCommentRepository.countByParentId(comment.getId()));
+            
+            try {
+                UserProfileResponse profile = profileClient.getProfile(comment.getUserId()).getResult();
+                if (profile != null) {
+                    response.setUserAvatar(profile.getAvatar());
+                    response.setUsername(profile.getUsername());
+                }
+            } catch(Exception e) {
+                log.warn("Could not fetch profile for comment user {}", comment.getUserId());
+            }
+            
             return response;
         }).toList();
 
@@ -227,6 +253,17 @@ public class PostService {
             CommentResponse response = commentMapper.toCommentResponse(comment);
             response.setCreated(dateTimeFormatter.format(comment.getCreatedDate()));
             response.setReplyCount(postCommentRepository.countByParentId(comment.getId()));
+            
+            try {
+                UserProfileResponse profile = profileClient.getProfile(comment.getUserId()).getResult();
+                if (profile != null) {
+                    response.setUserAvatar(profile.getAvatar());
+                    response.setUsername(profile.getUsername());
+                }
+            } catch(Exception e) {
+                log.warn("Could not fetch profile for reply user {}", comment.getUserId());
+            }
+
             return response;
         }).toList();
 

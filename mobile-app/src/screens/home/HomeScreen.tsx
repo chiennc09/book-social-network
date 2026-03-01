@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Text, SafeAreaView, RefreshControl, Image, Animated } from 'react-native';
-import { COLORS, SPACING } from '../../constants/theme';
+import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { feedService } from '../../services/feed.service';
 import FeedItem from '../../components/feed/FeedItem';
 import { userService } from '../../services/user.service'; // Lấy info user hiện tại
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../redux/store';
 
 const HomeScreen = ({ route, navigation }: any) => {
   const filterParam = route.params?.filter || 'foryou'; // Nhận từ Drawer
@@ -13,6 +15,9 @@ const HomeScreen = ({ route, navigation }: any) => {
   const [posts, setPosts] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Lấy avatar hiện tại từ Redux để update realtime
+  const { user: authUser } = useSelector((state: RootState) => state.auth);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -84,7 +89,7 @@ const HomeScreen = ({ route, navigation }: any) => {
               id: item.userId,
               username: item.username,
               displayName: item.username, 
-              avatar: currentUser?.avatar || `https://ui-avatars.com/api/?name=${item.username}&background=random`,
+              avatar: currentUser?.avatar || DEFAULT_AVATAR,
               badges: currentUser?.badges || [],
             },
             content: item.content,
@@ -157,7 +162,7 @@ const HomeScreen = ({ route, navigation }: any) => {
     return (
       <View style={styles.inputHeaderContainer}>
         <View style={styles.inputRow}>
-           <Image source={{ uri: currentUser.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.avatarSmall} />
+           <Image source={{ uri: (authUser as any)?.avatar || currentUser.avatar || DEFAULT_AVATAR }} style={styles.avatarSmall} />
            <TouchableOpacity 
               style={styles.fakeInput}
               onPress={() => navigation.navigate('NewThread')} // Mở modal

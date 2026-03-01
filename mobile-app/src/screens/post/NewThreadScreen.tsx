@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, ActivityIndicator, Modal, FlatList } from 'react-native';
-import { COLORS, SPACING } from '../../constants/theme';
+import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { postApi } from '../../api/postApi';
 import { bookApi } from '../../api/bookApi';
 import Icon from 'react-native-vector-icons/Feather';
@@ -78,7 +78,7 @@ const NewThreadScreen = ({ navigation }: any) => {
 
       <View style={styles.content}>
         <View style={styles.row}>
-           <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || `https://ui-avatars.com/api/?name=${(user as any)?.displayName || user?.username || 'User'}&background=random` }} style={styles.avatar} />
+           <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
            <View style={styles.inputContainer}>
               <Text style={styles.username}>{(user as any)?.displayName || user?.username}</Text>
               <TextInput 

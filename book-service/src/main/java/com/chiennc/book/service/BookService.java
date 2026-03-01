@@ -38,7 +38,6 @@ public class BookService {
     BookRepository bookRepository;
     ReadHistoryRepository historyRepository;
     BookMapper bookMapper;
-    FileStorageService fileStorageService;
     BookRankingRepository rankingRepository;
     KafkaTemplate<String, Object> kafkaTemplate;
     // CONSTANT: Topic name
@@ -56,13 +55,13 @@ public class BookService {
         return bookMapper.toBookResponse(bookRepository.save(book));
     }
 
-    public void uploadFiles(String id, MultipartFile cover, MultipartFile pdf, MultipartFile epub) {
+    public void uploadFiles(String id, String coverUrl, String pdfUrl, String epubUrl) {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
 
-        if (cover != null) book.setCoverImage(fileStorageService.save(cover, "covers"));
-        if (pdf != null) book.setPdfPath(fileStorageService.save(pdf, "pdfs"));
-        if (epub != null) book.setEpubPath(fileStorageService.save(epub, "epubs"));
+        if (coverUrl != null) book.setCoverImage(coverUrl);
+        if (pdfUrl != null) book.setPdfPath(pdfUrl);
+        if (epubUrl != null) book.setEpubPath(epubUrl);
 
         bookRepository.save(book);
     }

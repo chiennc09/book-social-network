@@ -44,6 +44,13 @@ public class UserProfileController {
                 .build();
     }
 
+    @PutMapping("/users/my-profile")
+    ApiResponse<UserProfileResponse> updateMyProfile(@RequestBody com.chiennc.profile.dto.request.ProfileUpdateRequest request) {
+        return ApiResponse.<UserProfileResponse>builder()
+                .result(userProfileService.updateMyProfile(request))
+                .build();
+    }
+
     @GetMapping("/users/leaderboard")
     ApiResponse<List<UserProfileResponse>> getLeaderboard(@RequestParam(defaultValue = "20") int limit) {
         return ApiResponse.<List<UserProfileResponse>>builder()

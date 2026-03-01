@@ -1,6 +1,7 @@
 import { Post, Book } from '../types';
 import { postApi } from '../api/postApi';
 import { bookService } from './book.service';
+import { DEFAULT_AVATAR } from '../constants/theme';
 
 export const feedService = {
   async getFeed(filter: string = 'foryou', page: number = 1, size: number = 10): Promise<Post[]> {
@@ -42,7 +43,7 @@ export const feedService = {
             id: item.userId,
             username: item.username,
             displayName: item.username, 
-            avatar: `https://ui-avatars.com/api/?name=${item.username}&background=random`,
+            avatar: item.userAvatar || item.user?.avatar || DEFAULT_AVATAR,
             badges: item.badges || item.user?.badges || [],
           },
           content: item.content,

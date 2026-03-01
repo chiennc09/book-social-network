@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Image, ActivityIndicator, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { COLORS, SPACING } from '../../constants/theme';
+import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { profileApi } from '../../api/profileApi';
 import { Badge, UserProfile } from '../../types/user';
 import { userService } from '../../services/user.service';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../redux/store';
 
 const ChallengeScreen = ({ navigation }: any) => {
   const [activeTab, setActiveTab] = useState<'badges' | 'leaderboard'>('badges');
@@ -12,6 +14,9 @@ const ChallengeScreen = ({ navigation }: any) => {
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+
+  // Redux auth user để lấy ảnh avatar realtime
+  const { user: authUser } = useSelector((state: RootState) => state.auth);
 
   // Hiệu ứng scale nhấp nháy liên tục cho badge (Pulse effect)
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -101,7 +106,7 @@ const ChallengeScreen = ({ navigation }: any) => {
     return (
       <View style={[styles.lbCard, isMe && styles.lbCardMe]}>
         <Text style={[styles.lbRank, { color: rankColor }]}>{index + 1}</Text>
-        <Image source={{ uri: item.avatar || `https://ui-avatars.com/api/?name=${item.displayName || item.username || 'User'}&background=random` }} style={styles.lbAvatar} />
+        <Image source={{ uri: (isMe && (authUser as any)?.avatar) ? (authUser as any).avatar : (item.avatar || DEFAULT_AVATAR) }} style={styles.lbAvatar} />
         
         <View style={styles.lbInfo}>
            <Text style={[styles.lbName, isMe && { color: '#FFD700' }]} numberOfLines={1}>{item.displayName || item.username}</Text>
