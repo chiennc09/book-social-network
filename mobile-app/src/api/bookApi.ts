@@ -35,4 +35,18 @@ export const bookApi = {
   // Lấy danh sách sách trên kệ theo trạng thái
   getBookshelf: (status: ReadStatus) =>
     bookAxiosClient.get('/shelf', { params: { status } }),
+
+  // Yêu thích
+  favoriteBook: (id: string) =>
+    bookAxiosClient.post(`/${id}/favorite`),
+
+  unfavoriteBook: (id: string) =>
+    bookAxiosClient.delete(`/${id}/favorite`),
+
+  // Đánh giá
+  addReview: (id: string, rating: number, content: string) =>
+    bookAxiosClient.post(`/${id}/review`, { rating, content }),
+
+  getReviews: (id: string) =>
+    bookAxiosClient.get(`/${id}/reviews`),
 };

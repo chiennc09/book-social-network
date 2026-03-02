@@ -13,9 +13,16 @@ interface Props {
   onPressRead?: () => void;
   progressPercent?: number;
   totalPages?: number;
+  isFavorited?: boolean;
+  totalFavorites?: number;
+  onToggleFavorite?: () => void;
 }
 
-const ActionButtons = ({ currentStatus, onPressShelf, onPressDetail, onPressShare, onRate, userRating, onPressRead, progressPercent = 0, totalPages = 0 }: Props) => {
+const ActionButtons = ({ 
+  currentStatus, onPressShelf, onPressDetail, onPressShare, onRate, userRating, 
+  onPressRead, progressPercent = 0, totalPages = 0,
+  isFavorited = false, totalFavorites = 0, onToggleFavorite 
+}: Props) => {
   
   // Map trạng thái sang Label tiếng Việt
   const getStatusLabel = (status: string) => {
@@ -33,16 +40,28 @@ const ActionButtons = ({ currentStatus, onPressShelf, onPressDetail, onPressShar
   return (
     <View style={styles.container}>
       
-      {/* 1. Main Button: Chọn Kệ Sách (bên cạnh Nút Đọc sách) */}
+      {/* 1. Main Button: Chọn Kệ Sách (bên cạnh Nút Đọc sách & Yêu thích) */}
       <View style={{flexDirection: 'row', gap: 10, width: '100%'}}>
           <TouchableOpacity style={styles.mainBtn} onPress={onPressShelf}>
              <Text style={styles.mainBtnText}>{getStatusLabel(currentStatus)}</Text>
              <View style={styles.divider} />
              <Icon name="chevron-down" size={20} color="white" />
           </TouchableOpacity>
+
           {/* Nút Đọc sách kề bên */}
           <TouchableOpacity style={styles.readBtnSmall} onPress={onPressRead}>
              <Icon name="book-open" size={20} color="white" />
+          </TouchableOpacity>
+
+          {/* Nút Yêu thích (Tym) */}
+          <TouchableOpacity 
+             style={[styles.readBtnSmall, { backgroundColor: isFavorited ? '#ff4757' : '#2A2A2A', borderColor: '#444', borderWidth: isFavorited ? 0 : 1 }]} 
+             onPress={onToggleFavorite}
+          >
+             <Icon name="heart" size={20} color={isFavorited ? "white" : COLORS.text} />
+             <Text style={{ color: isFavorited ? "white" : COLORS.text, fontSize: 10, marginTop: 2, fontWeight: 'bold' }}>
+                 {totalFavorites > 0 ? totalFavorites : ''}
+             </Text>
           </TouchableOpacity>
       </View>
 

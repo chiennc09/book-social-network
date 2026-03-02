@@ -7,9 +7,10 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   initialRating: number;
+  onSubmit: (rating: number, text: string) => void;
 }
 
-const WriteReviewModal = ({ visible, onClose, initialRating }: Props) => {
+const WriteReviewModal = ({ visible, onClose, initialRating, onSubmit }: Props) => {
   const [rating, setRating] = useState(initialRating);
   const [text, setText] = useState('');
 
@@ -28,7 +29,7 @@ const WriteReviewModal = ({ visible, onClose, initialRating }: Props) => {
                         <Text style={styles.cancelText}>Hủy</Text>
                     </TouchableOpacity>
                     <Text style={styles.title}>Viết đánh giá</Text>
-                    <TouchableOpacity onPress={onClose} disabled={text.length === 0}>
+                    <TouchableOpacity onPress={() => { onSubmit(rating, text); onClose(); setText(''); }} disabled={text.length === 0}>
                         <Text style={[styles.submitText, { opacity: text.length > 0 ? 1 : 0.5 }]}>Đăng</Text>
                     </TouchableOpacity>
                 </View>

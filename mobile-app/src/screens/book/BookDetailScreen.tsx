@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, StatusBar, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Animated, StatusBar, ActivityIndicator, Text } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 import { COLORS } from '../../constants/theme';
 import { bookService, BookDetail } from '../../services/book.service';
+import { bookApi } from '../../api/bookApi';
 
 // Import Components
 import StickyHeader from '../../components/book/StickyHeader';
@@ -42,6 +44,7 @@ const BookDetailScreen = ({ route, navigation }: any) => {
       try {
         const data = await bookService.getBookDetails(bookId);
         setBook(data);
+        if (data.userRating) setUserRating(data.userRating);
       } catch (error) {
         console.error("Lỗi khi tải chi tiết sách", error);
       } finally {
@@ -58,6 +61,42 @@ const BookDetailScreen = ({ route, navigation }: any) => {
         </View>
     );
   }
+
+  const handleToggleFavorite = async () => {
+      if (!book) return;
+      const newIsFavorited = !book.isFavorited;
+      const offset = newIsFavorited ? 1 : -1;
+      
+      // Optimistic UI Update
+      setBook({ 
+         ...book, 
+         isFavorited: newIsFavorited, 
+         totalFavorites: Math.max(0, (book.totalFavorites || 0) + offset) 
+      });
+
+      try {
+         if (book.isFavorited) {
+             await bookApi.unfavoriteBook(book.id);
+         } else {
+             await bookApi.favoriteBook(book.id);
+         }
+      } catch (err) {
+         console.error("Lỗi khi thêm vào danh sách yêu thích", err);
+         setBook(book); // revert
+      }
+  };
+
+  const handleSubmitReview = async (rating: number, content: string) => {
+      if (!book) return;
+      try {
+          await bookApi.addReview(book.id, rating, content);
+          const data = await bookService.getBookDetails(bookId);
+          setBook(data);
+          setUserRating(data.userRating || rating);
+      } catch (err) {
+          console.error("Lỗi khi gửi đánh giá:", err);
+      }
+  };
 
   return (
     <View style={styles.container}>
@@ -83,11 +122,13 @@ const BookDetailScreen = ({ route, navigation }: any) => {
             userRating={userRating}
             progressPercent={book.progressPercent || book.progress || 0}
             totalPages={book.totalPages || book.totalPage || 0}
+            isFavorited={book.isFavorited}
+            totalFavorites={book.totalFavorites}
+            onToggleFavorite={handleToggleFavorite}
             onPressShelf={() => setShelfModalVisible(true)}
             onPressDetail={() => setDetailModalVisible(true)}
             onPressShare={() => console.log('Share')}
             onPressRead={() => {
-                // Kiểm tra loại file và chuyển hướng sang màn hình đọc (nếu có)
                 if (book.epubPath || book.pdfPath) {
                     const url = book.epubPath || book.pdfPath;
                     navigation.navigate('Reader', { bookId: book.id, url, lastPosition: book.lastPosition });
@@ -97,12 +138,20 @@ const BookDetailScreen = ({ route, navigation }: any) => {
             }}
             onRate={(star) => {
                 setUserRating(star);
-                setReviewModalVisible(true); // Bật modal viết review ngay
+                setReviewModalVisible(true);
             }}
         />
 
         {/* 4. Mô tả */}
         <DescriptionSection description={book.description} />
+
+        {/* --- View Count Thống kê hiển thị dưới Description --- */}
+        <View style={{ paddingHorizontal: 20, marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
+            <Icon name="eye" size={14} color={COLORS.textSecondary} />
+            <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginLeft: 6 }}>
+                {book.totalViews || 0} lượt xem sách
+            </Text>
+        </View>
 
         {/* 5. Đánh giá (Đã có component) */}
         <ReviewsSection reviews={book.reviews} ratingAverage={book.ratingAverage} />
@@ -156,6 +205,7 @@ const BookDetailScreen = ({ route, navigation }: any) => {
         visible={reviewModalVisible}
         onClose={() => setReviewModalVisible(false)}
         initialRating={userRating}
+        onSubmit={handleSubmitReview}
       />
       
     </View>

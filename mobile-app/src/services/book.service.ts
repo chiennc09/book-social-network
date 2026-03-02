@@ -21,14 +21,21 @@ export interface BookDetail extends Book {
   isbn: string;
   language: string;
   pages: number;
+  totalFavorites?: number;
+  isFavorited?: boolean;
+  userRating?: number;
   reviews: Review[];
 }
 
 export const bookService = {
   async getBookDetails(id: string): Promise<BookDetail> {
     try {
-      const resp: any = await bookApi.readBook(id);
-      const data = resp.result; // Dữ liệu từ ApiResponse.result
+      const [bookResp, reviewsResp] = await Promise.all([
+        bookApi.readBook(id),
+        bookApi.getReviews(id).catch(e => ({ result: [] as any[] }))
+      ]);
+      const data: any = (bookResp as any).result;
+      const reviewsData = (reviewsResp as any).result || [];
 
       // Xử lý URL ảnh bìa
       let coverUrl = data.coverImage;
@@ -59,16 +66,28 @@ export const bookService = {
         progressPercent: data.progressPercent,
         progress: data.progressPercent || 0, // fallback
         
+        // New fields
+        totalFavorites: data.totalFavorites || 0,
+        isFavorited: data.isFavorited || false,
+        userRating: data.userRating || 0,
+        ratingCount: data.ratingCount || reviewsData.length || 0,
+        
         // Dummy data for missing fields
         status: data.shelfStatus || 'none', // Sẽ cần API shelf để biết status
         currentPage: 0,
-        ratingCount: 0,
         publisher: 'N/A',
         publishDate: 'N/A',
         isbn: 'N/A',
         language: 'N/A',
         pages: data.totalPages,
-        reviews: [],
+        reviews: reviewsData.map((r: any) => ({
+             id: r.id,
+             user: { displayName: r.user?.displayName || 'Ẩn danh', avatar: r.user?.avatar },
+             rating: r.rating,
+             content: r.content,
+             date: r.createdAt,
+             likes: r.likes || 0
+        })),
       };
     } catch (error) {
       console.error('Error fetching book details:', error);

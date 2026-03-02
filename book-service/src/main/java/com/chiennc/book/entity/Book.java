@@ -32,4 +32,8 @@ public class Book {
     int totalViews = 0;
     int totalPages;
     double averageRating;
+    @Builder.Default
+    int ratingCount = 0;
+    @Builder.Default
+    int totalFavorites = 0;
 }

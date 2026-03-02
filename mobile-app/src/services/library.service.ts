@@ -42,6 +42,7 @@ export const libraryService = {
           progress: item.progressPercent || 0,
           totalPage: item.totalPages || 0,
           currentPage: 0, // Fallback if no specific page concept
+          rating: item.userRating || 0,
         };
       });
     } catch (error) {

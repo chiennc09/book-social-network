@@ -166,7 +166,7 @@ public class PostService {
     public void likePost(String postId) {
         String userId = getUserIdByToken();
         if (postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
-            return;
+            throw new RuntimeException("Post already liked");
         }
         PostLike postLike = PostLike.builder()
                 .postId(postId)
@@ -178,6 +178,9 @@ public class PostService {
 
     public void unlikePost(String postId) {
         String userId = getUserIdByToken();
+        if (!postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
+            throw new RuntimeException("Post not liked");
+        }
         postLikeRepository.deleteByPostIdAndUserId(postId, userId);
     }
 
