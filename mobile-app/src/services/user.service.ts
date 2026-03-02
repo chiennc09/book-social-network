@@ -1,5 +1,6 @@
 import { UserProfile, Badge } from "../types/user";
 import { profileApi } from '../api/profileApi';
+import { DEFAULT_AVATAR } from '../constants/theme';
 
 export const userService = {
   async getProfile(): Promise<UserProfile> {
@@ -23,7 +24,7 @@ export const userService = {
         id: profileData.id,
         username: profileData.username,
         displayName: profileData.displayName || profileData.username,
-        avatar: profileData.avatar || `https://ui-avatars.com/api/?name=${profileData.username || 'User'}`,
+        avatar: profileData.avatar || DEFAULT_AVATAR,
         bio: profileData.bio || '',
         link: profileData.link || '',
         isPrivate: profileData.isPrivate || false,

@@ -60,6 +60,11 @@ const authSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
+    updateUserAvatar: (state, action: PayloadAction<string>) => {
+      if (state.user) {
+         (state.user as any).avatar = action.payload;
+      }
+    },
   },
   extraReducers: (builder) => {
     // Login
@@ -107,5 +112,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setLoading } = authSlice.actions;
+export const { setLoading, updateUserAvatar } = authSlice.actions;
 export default authSlice.reducer;

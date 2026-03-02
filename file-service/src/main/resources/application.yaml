@@ -16,4 +16,4 @@ spring:
 app:
   file:
     storage-dir: E:/Project/book-social-network/upload
-    download-prefix: http://localhost:8888/file/media/download/
+    download-prefix: http://10.0.2.2:8888/file/media/download/

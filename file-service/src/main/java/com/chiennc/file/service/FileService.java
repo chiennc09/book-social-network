@@ -34,9 +34,9 @@ public class FileService {
 
     FileMgmtMapper fileMgmtMapper;
 
-    public FileResponse uploadFile(MultipartFile file) throws IOException {
+    public FileResponse uploadFile(MultipartFile file, String type) throws IOException {
         /// Store file
-        var fileInfo = fileRepository.store(file);
+        var fileInfo = fileRepository.store(file, type);
 
         /// Create file management info
         var fileMgmt = fileMgmtMapper.toFileMgmt(fileInfo);

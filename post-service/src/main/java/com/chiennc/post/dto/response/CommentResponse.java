@@ -19,6 +19,7 @@ public class CommentResponse {
     String postId;
     String userId;
     String username;
+    String userAvatar;
     String content;
     String parentId;
     long replyCount;

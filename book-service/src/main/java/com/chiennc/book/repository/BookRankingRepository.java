@@ -5,5 +5,5 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 public interface BookRankingRepository extends MongoRepository<BookRanking, String> {
-    Optional<BookRanking> findByBookIdAndDate(String bookId, LocalDate date);
+    Optional<BookRanking> findFirstByBookIdAndDate(String bookId, LocalDate date);
 }

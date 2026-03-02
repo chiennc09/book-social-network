@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, ActivityIndicator, Modal, FlatList } from 'react-native';
-import { COLORS, SPACING } from '../../constants/theme';
+import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { postApi } from '../../api/postApi';
 import { bookApi } from '../../api/bookApi';
 import Icon from 'react-native-vector-icons/Feather';
 import { Book } from '../../types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 const NewThreadScreen = ({ navigation }: any) => {
   const [content, setContent] = useState('');
@@ -25,10 +26,11 @@ const NewThreadScreen = ({ navigation }: any) => {
     if (!content.trim()) return;
     setLoading(true);
     try {
-      await postApi.createPost({
+      const resp = await postApi.createPost({
         content,
         bookId: selectedBook?.id,
       });
+      eventEmitter.emit(EventNames.POST_CREATED, resp);
       navigation.goBack();
     } catch (error) {
        console.error(error);
@@ -46,7 +48,7 @@ const NewThreadScreen = ({ navigation }: any) => {
          setBookResults(dataList.map((item: any) => {
              let coverUrl = item.coverImage || item.coverUrl;
              if (coverUrl && !coverUrl.startsWith('http')) {
-                coverUrl = `http://10.0.2.2:8085/books/files/covers/${coverUrl}`;
+                coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
              }
              return {
                  id: item.id,
@@ -70,13 +72,13 @@ const NewThreadScreen = ({ navigation }: any) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Hủy</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thread mới</Text>
+        <Text style={styles.headerTitle}>Bài viết mới</Text>
         <View style={{ width: 30 }} /> 
       </View>
 
       <View style={styles.content}>
         <View style={styles.row}>
-           <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.avatar} />
+           <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
            <View style={styles.inputContainer}>
               <Text style={styles.username}>{(user as any)?.displayName || user?.username}</Text>
               <TextInput 

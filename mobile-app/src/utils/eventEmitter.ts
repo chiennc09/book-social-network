@@ -3,6 +3,7 @@ import { DeviceEventEmitter } from 'react-native';
 export const EventNames = {
   POST_UPDATED: 'POST_UPDATED',
   POST_DELETED: 'POST_DELETED',
+  POST_CREATED: 'POST_CREATED',
   BOOK_PROGRESS_UPDATED: 'BOOK_PROGRESS_UPDATED',
 };
 

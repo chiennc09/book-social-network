@@ -11,6 +11,7 @@ import com.chiennc.book.repository.BookRankingRepository;
 import com.chiennc.book.repository.BookRepository;
 import com.chiennc.book.exception.AppException;
 import com.chiennc.book.exception.ErrorCode;
+import com.chiennc.book.utils.TextUtils;
 //import com.chiennc.book.repository.httpclient.ExternalBookClient;
 import com.chiennc.book.repository.ReadHistoryRepository;
 import com.chiennc.event.dto.BookCompletedEvent;
@@ -37,7 +38,6 @@ public class BookService {
     BookRepository bookRepository;
     ReadHistoryRepository historyRepository;
     BookMapper bookMapper;
-    FileStorageService fileStorageService;
     BookRankingRepository rankingRepository;
     KafkaTemplate<String, Object> kafkaTemplate;
     // CONSTANT: Topic name
@@ -55,19 +55,20 @@ public class BookService {
         return bookMapper.toBookResponse(bookRepository.save(book));
     }
 
-    public void uploadFiles(String id, MultipartFile cover, MultipartFile pdf, MultipartFile epub) {
+    public void uploadFiles(String id, String coverUrl, String pdfUrl, String epubUrl) {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
 
-        if (cover != null) book.setCoverImage(fileStorageService.save(cover, "covers"));
-        if (pdf != null) book.setPdfPath(fileStorageService.save(pdf, "pdfs"));
-        if (epub != null) book.setEpubPath(fileStorageService.save(epub, "epubs"));
+        if (coverUrl != null) book.setCoverImage(coverUrl);
+        if (pdfUrl != null) book.setPdfPath(pdfUrl);
+        if (epubUrl != null) book.setEpubPath(epubUrl);
 
         bookRepository.save(book);
     }
 
     public List<BookResponse> search(String q) {
-        return bookRepository.findByTitleContainingIgnoreCaseOrAuthorsContainingIgnoreCase(q, q).stream()
+        String regex = TextUtils.toFuzzyRegex(q);
+        return bookRepository.searchByRegex(regex).stream()
                 .map(bookMapper::toBookResponse).toList();
     }
 
@@ -95,19 +96,31 @@ public class BookService {
 
         // QUAN TRỌNG: Chuyển tên file thành URL đầy đủ để Frontend gọi
         if (book.getPdfPath() != null) {
-            response.setPdfPath(baseUrl + "/books/files/pdfs/" + book.getPdfPath());
+            if (book.getPdfPath().startsWith("http")) {
+                response.setPdfPath(book.getPdfPath());
+            } else {
+                response.setPdfPath("http://10.0.2.2:8888/file/legacy/pdfs/" + book.getPdfPath());
+            }
         }
 
         if (book.getCoverImage() != null) {
-            response.setCoverImage(baseUrl + "/books/files/covers/" + book.getCoverImage());
+            if (book.getCoverImage().startsWith("http")) {
+                response.setCoverImage(book.getCoverImage());
+            } else {
+                response.setCoverImage("http://10.0.2.2:8888/file/legacy/covers/" + book.getCoverImage());
+            }
         }
 
         if (book.getEpubPath() != null) {
-            response.setEpubPath(baseUrl + "/books/files/epubs/" + book.getEpubPath());
+            if (book.getEpubPath().startsWith("http")) {
+                response.setEpubPath(book.getEpubPath());
+            } else {
+                response.setEpubPath("http://10.0.2.2:8888/file/legacy/epubs/" + book.getEpubPath());
+            }
         }
 
         // Lấy lịch sử đọc cũ (nếu có)
-        historyRepository.findByUserIdAndBookId(userId, bookId).ifPresent(history -> {
+        historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId).ifPresent(history -> {
             response.setLastPosition(history.getLastPosition());
             response.setProgressPercent(history.getProgressPercent());
         });
@@ -140,7 +153,7 @@ public class BookService {
     // Logic Ranking: Tự động tạo bản ghi mới cho ngày hôm nay nếu chưa có
     private void increaseRankingCount(String bookId) {
         LocalDate today = LocalDate.now();
-        BookRanking ranking = rankingRepository.findByBookIdAndDate(bookId, today)
+        BookRanking ranking = rankingRepository.findFirstByBookIdAndDate(bookId, today)
                 .orElse(BookRanking.builder().bookId(bookId).date(today).build());
 
         ranking.setViewCount(ranking.getViewCount() + 1);
@@ -150,7 +163,7 @@ public class BookService {
     /// 1. API: Thêm vào tủ / Đổi trạng thái (Manual)
     public void updateShelfStatus(String bookId, ReadStatus status) {
         String userId = getUserId();
-        ReadHistory history = historyRepository.findByUserIdAndBookId(userId, bookId)
+        ReadHistory history = historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId)
                 .orElse(ReadHistory.builder().userId(userId).bookId(bookId).build());
 
         // Logic logic: Nếu chuyển sang READ thì coi như xong 100%
@@ -169,7 +182,7 @@ public class BookService {
     // 2. Refactor: Update Progress (Auto logic)
     public void updateProgress(String bookId, String position, double percent) {
         String userId = getUserId();
-        ReadHistory history = historyRepository.findByUserIdAndBookId(userId, bookId)
+        ReadHistory history = historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId)
                 .orElse(ReadHistory.builder()
                         .userId(userId)
                         .bookId(bookId)
