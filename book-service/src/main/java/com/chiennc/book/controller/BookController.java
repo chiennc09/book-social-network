@@ -3,7 +3,9 @@ package com.chiennc.book.controller;
 import com.chiennc.book.constant.ReadStatus;
 import com.chiennc.book.dto.ApiResponse;
 import com.chiennc.book.dto.request.BookRequest;
+import com.chiennc.book.dto.request.ReviewRequest;
 import com.chiennc.book.dto.response.BookResponse;
+import com.chiennc.book.dto.response.ReviewResponse;
 import com.chiennc.book.service.BookService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -78,6 +80,32 @@ public class BookController {
     ApiResponse<List<BookResponse>> getBookshelf(@RequestParam ReadStatus status) {
         return ApiResponse.<List<BookResponse>>builder()
                 .result(bookService.getBookshelf(status))
+                .build();
+    }
+
+    // --- FAVORITES & REVIEWS ---
+    @PostMapping("/{id}/favorite")
+    ApiResponse<Void> favoriteBook(@PathVariable String id) {
+        bookService.favoriteBook(id);
+        return ApiResponse.<Void>builder().message("Book favorited").build();
+    }
+
+    @DeleteMapping("/{id}/favorite")
+    ApiResponse<Void> unfavoriteBook(@PathVariable String id) {
+        bookService.unfavoriteBook(id);
+        return ApiResponse.<Void>builder().message("Book unfavorited").build();
+    }
+
+    @PostMapping("/{id}/review")
+    ApiResponse<Void> addReview(@PathVariable String id, @RequestBody ReviewRequest request) {
+        bookService.addReview(id, request);
+        return ApiResponse.<Void>builder().message("Review added").build();
+    }
+
+    @GetMapping("/{id}/reviews")
+    ApiResponse<List<ReviewResponse>> getReviews(@PathVariable String id) {
+        return ApiResponse.<List<ReviewResponse>>builder()
+                .result(bookService.getReviews(id))
                 .build();
     }
 

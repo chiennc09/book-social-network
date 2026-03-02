@@ -11,8 +11,17 @@ import com.chiennc.book.repository.BookRankingRepository;
 import com.chiennc.book.repository.BookRepository;
 import com.chiennc.book.exception.AppException;
 import com.chiennc.book.exception.ErrorCode;
+import com.chiennc.book.exception.ErrorCode;
+import com.chiennc.book.entity.BookFavorite;
+import com.chiennc.book.entity.BookReview;
+import com.chiennc.book.dto.request.ReviewRequest;
+import com.chiennc.book.dto.response.ReviewResponse;
+import com.chiennc.book.dto.response.UserProfileResponse;
+import com.chiennc.book.exception.ErrorCode;
 import com.chiennc.book.utils.TextUtils;
-//import com.chiennc.book.repository.httpclient.ExternalBookClient;
+import com.chiennc.book.repository.httpclient.ProfileClient;
+import com.chiennc.book.repository.BookFavoriteRepository;
+import com.chiennc.book.repository.BookReviewRepository;
 import com.chiennc.book.repository.ReadHistoryRepository;
 import com.chiennc.event.dto.BookCompletedEvent;
 import lombok.AccessLevel;
@@ -39,6 +48,9 @@ public class BookService {
     ReadHistoryRepository historyRepository;
     BookMapper bookMapper;
     BookRankingRepository rankingRepository;
+    BookFavoriteRepository bookFavoriteRepository;
+    BookReviewRepository bookReviewRepository;
+    ProfileClient profileClient;
     KafkaTemplate<String, Object> kafkaTemplate;
     // CONSTANT: Topic name
     private static final String BOOK_COMPLETED_TOPIC = "book-completed";
@@ -69,7 +81,7 @@ public class BookService {
     public List<BookResponse> search(String q) {
         String regex = TextUtils.toFuzzyRegex(q);
         return bookRepository.searchByRegex(regex).stream()
-                .map(bookMapper::toBookResponse).toList();
+                .map(this::enrichBookResponse).toList();
     }
 
     public void delete(String id) {
@@ -78,8 +90,23 @@ public class BookService {
 
     public BookResponse getById(String id) {
         return bookRepository.findById(id)
-                .map(bookMapper::toBookResponse)
+                .map(this::enrichBookResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
+    }
+
+    private BookResponse enrichBookResponse(Book book) {
+        BookResponse response = bookMapper.toBookResponse(book);
+        try {
+            String userId = getUserId(); // current logged in user
+            if (userId != null) {
+                response.setFavorited(bookFavoriteRepository.existsByUserIdAndBookId(userId, book.getId()));
+                bookReviewRepository.findByUserIdAndBookId(userId, book.getId())
+                        .ifPresent(review -> response.setUserRating(review.getRating()));
+            }
+        } catch (Exception e) {
+            // Unauthenticated or error parsing token, just ignore
+        }
+        return response;
     }
 
     @NonFinal
@@ -128,6 +155,14 @@ public class BookService {
         // Tăng view tổng của sách mỗi khi mở đọc
         book.setTotalViews(book.getTotalViews() + 1);
         bookRepository.save(book);
+
+        // Lấy lịch sử yêu thích
+        response.setFavorited(bookFavoriteRepository.existsByUserIdAndBookId(userId, bookId));
+        
+        // Lấy lịch sử đánh giá
+        bookReviewRepository.findByUserIdAndBookId(userId, bookId).ifPresent(review -> {
+            response.setUserRating(review.getRating());
+        });
 
         // Ghi nhận vào bảng xếp hạng ngày
         increaseRankingCount(bookId);
@@ -233,6 +268,106 @@ public class BookService {
             // Override thông tin cá nhân hóa
             response.setLastPosition(h.getLastPosition());
             response.setProgressPercent(h.getProgressPercent());
+            
+            // Override thông tin rating nếu có
+            bookReviewRepository.findByUserIdAndBookId(userId, h.getBookId())
+                    .ifPresent(review -> response.setUserRating(review.getRating()));
+
+            return response;
+        }).toList();
+    }
+
+    // --- NEW LOGIC: FAVORITES & REVIEWS ---
+    public void favoriteBook(String bookId) {
+        String userId = getUserId();
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
+
+        if (bookFavoriteRepository.existsByUserIdAndBookId(userId, bookId)) {
+            throw new AppException(ErrorCode.BOOK_NOT_FOUND); // Dùng code tạm hoặc code mới, ở đây throw thay vì return để đảm bảo frontend bắt lội
+        }
+
+        bookFavoriteRepository.save(BookFavorite.builder()
+                .userId(userId)
+                .bookId(bookId)
+                .createdAt(LocalDateTime.now())
+                .build());
+        
+        book.setTotalFavorites(book.getTotalFavorites() + 1);
+        bookRepository.save(book);
+    }
+
+    public void unfavoriteBook(String bookId) {
+        String userId = getUserId();
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
+
+        if (!bookFavoriteRepository.existsByUserIdAndBookId(userId, bookId)) {
+            throw new AppException(ErrorCode.BOOK_NOT_FOUND);
+        }
+
+        bookFavoriteRepository.deleteByUserIdAndBookId(userId, bookId);
+        book.setTotalFavorites(Math.max(0, book.getTotalFavorites() - 1));
+        bookRepository.save(book);
+    }
+
+    public void addReview(String bookId, ReviewRequest request) {
+        String userId = getUserId();
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
+
+        BookReview review = bookReviewRepository.findByUserIdAndBookId(userId, bookId)
+                .orElse(BookReview.builder()
+                        .userId(userId)
+                        .bookId(bookId)
+                        .createdAt(LocalDateTime.now())
+                        .build());
+
+        // Update rating and content
+        review.setRating(request.getRating());
+        review.setContent(request.getContent());
+        review.setUpdatedAt(LocalDateTime.now());
+        bookReviewRepository.save(review);
+
+        // Recalculate average (Approximate fast way or query all)
+        // Here we'll do an exact recalculation to be safe
+        List<BookReview> allReviews = bookReviewRepository.findByBookIdOrderByCreatedAtDesc(bookId);
+        double totalScore = allReviews.stream().mapToInt(BookReview::getRating).sum();
+        book.setRatingCount(allReviews.size());
+        book.setAverageRating(allReviews.size() > 0 ? totalScore / allReviews.size() : 0);
+        
+        bookRepository.save(book);
+    }
+
+    public List<ReviewResponse> getReviews(String bookId) {
+        List<BookReview> reviews = bookReviewRepository.findByBookIdOrderByCreatedAtDesc(bookId);
+        
+        return reviews.stream().map(review -> {
+            ReviewResponse response = ReviewResponse.builder()
+                    .id(review.getId())
+                    .rating(review.getRating())
+                    .content(review.getContent())
+                    .likes(review.getLikes())
+                    .createdAt(review.getCreatedAt())
+                    .build();
+
+            try {
+                var userResponse = profileClient.getProfile(review.getUserId());
+                if (userResponse != null && userResponse.getResult() != null) {
+                    UserProfileResponse profile = userResponse.getResult();
+                    String displayName = profile.getFirstName() + " " + profile.getLastName();
+                    
+                    response.setUser(ReviewResponse.ReviewUser.builder()
+                            .displayName(displayName.trim().isEmpty() ? profile.getUsername() : displayName.trim())
+                            .avatar(profile.getAvatar())
+                            .build());
+                }
+            } catch (Exception e) {
+                // Ignore profile fetching error, leave user as null or default
+                 response.setUser(ReviewResponse.ReviewUser.builder()
+                    .displayName("Người dùng ẩn danh")
+                    .build());
+            }
             return response;
         }).toList();
     }

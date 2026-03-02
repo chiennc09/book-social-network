@@ -25,6 +25,8 @@ public class PostResponse {
     String originalPostId;
     long likeCount;
     long commentCount;
+    
+    @com.fasterxml.jackson.annotation.JsonProperty("isLiked")
     boolean isLiked;
     String created;
     Instant createdDate;

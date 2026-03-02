@@ -29,4 +29,13 @@ public class BookResponse {
     //  2 trường này để phục vụ chức năng Resume Reading
     String lastPosition;
     double progressPercent;
+    
+    // Yêu thích & Đánh giá
+    int ratingCount;
+    int totalFavorites;
+    
+    @com.fasterxml.jackson.annotation.JsonProperty("isFavorited")
+    boolean isFavorited;
+    
+    int userRating;
 }
