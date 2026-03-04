@@ -92,6 +92,24 @@ public class PostService {
                 .build();
     }
 
+    public PageResponse<PostResponse> getUserPosts(String userId, int page, int size) {
+        Sort sort = Sort.by("createdDate").descending();
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        var pageData = postRepository.findAllByUserId(userId, pageable);
+
+        var postList = pageData.getContent().stream()
+                .map(post -> enrichPostResponse(post, null, null))
+                .toList();
+
+        return PageResponse.<PostResponse>builder()
+                .currentPage(page)
+                .totalPages(pageData.getTotalPages())
+                .pageSize(pageData.getSize())
+                .totalElements(pageData.getTotalElements())
+                .data(postList)
+                .build();
+    }
+
     private PostResponse enrichPostResponse(Post post, String username, String userAvatar) {
         PostResponse response = postMapper.toPostResponse(post);
         response.setCreated(dateTimeFormatter.format(post.getCreatedDate()));
@@ -104,14 +122,17 @@ public class PostService {
             // fallback if not provided directly
             try {
                 UserProfileResponse profile = profileClient.getProfile(post.getUserId()).getResult();
-                if (profile != null) {
+                if(profile != null) {
                     response.setUsername(profile.getUsername());
+                    response.setUserDisplayName(profile.getDisplayName());
                     response.setUserAvatar(profile.getAvatar());
-                }
+                    response.setUserBadges(profile.getBadges());
+                }    
             } catch(Exception e) {
                 log.warn("Could not fetch profile for user {}", post.getUserId());
             }
         }
+        
         response.setLikeCount(postLikeRepository.countByPostId(post.getId()));
         response.setCommentCount(postCommentRepository.countByPostId(post.getId()));
         response.setLiked(postLikeRepository.existsByPostIdAndUserId(post.getId(), getUserIdByToken()));
@@ -123,7 +144,7 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, sort);
         var pageData = postRepository.findAll(pageable);
 
-        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, post.getUsername(), null)).toList();
+        var postList = pageData.getContent().stream().map(post -> enrichPostResponse(post, null, null)).toList();
 
         return PageResponse.<PostResponse>builder()
                 .currentPage(page)
@@ -230,6 +251,8 @@ public class PostService {
                 if (profile != null) {
                     response.setUserAvatar(profile.getAvatar());
                     response.setUsername(profile.getUsername());
+                    response.setUserDisplayName(profile.getDisplayName());
+                    response.setUserBadges(profile.getBadges());
                 }
             } catch(Exception e) {
                 log.warn("Could not fetch profile for comment user {}", comment.getUserId());
@@ -262,6 +285,8 @@ public class PostService {
                 if (profile != null) {
                     response.setUserAvatar(profile.getAvatar());
                     response.setUsername(profile.getUsername());
+                    response.setUserDisplayName(profile.getDisplayName());
+                    response.setUserBadges(profile.getBadges());
                 }
             } catch(Exception e) {
                 log.warn("Could not fetch profile for reply user {}", comment.getUserId());

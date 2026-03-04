@@ -19,7 +19,9 @@ public class CommentResponse {
     String postId;
     String userId;
     String username;
+    String userDisplayName;
     String userAvatar;
+    java.util.Set<com.chiennc.post.entity.Badge> userBadges;
     String content;
     String parentId;
     long replyCount;

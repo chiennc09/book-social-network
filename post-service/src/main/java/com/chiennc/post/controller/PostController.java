@@ -45,6 +45,17 @@ public class PostController {
                 .build();
     }
 
+    @GetMapping("/users/{userId}/posts")
+    ApiResponse<PageResponse<PostResponse>> getUserPosts(
+            @PathVariable String userId,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size
+    ){
+        return ApiResponse.<PageResponse<PostResponse>>builder()
+                .result(postService.getUserPosts(userId, page, size))
+                .build();
+    }
+
     @GetMapping("/feed")
     ApiResponse<PageResponse<PostResponse>> getFeed(
             @RequestParam(value = "page", required = false, defaultValue = "1") int page,

@@ -355,18 +355,16 @@ public class BookService {
                 var userResponse = profileClient.getProfile(review.getUserId());
                 if (userResponse != null && userResponse.getResult() != null) {
                     UserProfileResponse profile = userResponse.getResult();
-                    String displayName = profile.getFirstName() + " " + profile.getLastName();
+                    String displayName = profile.getDisplayName();
                     
-                    response.setUser(ReviewResponse.ReviewUser.builder()
-                            .displayName(displayName.trim().isEmpty() ? profile.getUsername() : displayName.trim())
-                            .avatar(profile.getAvatar())
-                            .build());
+                    response.setUserDisplayName(displayName != null && !displayName.trim().isEmpty() ? displayName.trim() : profile.getUsername());
+                    response.setUsername(profile.getUsername());
+                    response.setUserAvatar(profile.getAvatar());
+                    response.setUserBadges(profile.getBadges());
+                    response.setUserId(profile.getId());
                 }
             } catch (Exception e) {
-                // Ignore profile fetching error, leave user as null or default
-                 response.setUser(ReviewResponse.ReviewUser.builder()
-                    .displayName("Người dùng ẩn danh")
-                    .build());
+                 response.setUserDisplayName("Người dùng ẩn danh");
             }
             return response;
         }).toList();

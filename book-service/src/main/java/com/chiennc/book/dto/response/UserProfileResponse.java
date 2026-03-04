@@ -18,4 +18,6 @@ public class UserProfileResponse {
     String lastName;
     String username;
     String avatar;
+    String displayName;
+    java.util.Set<com.chiennc.book.entity.Badge> badges;
 }

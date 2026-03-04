@@ -9,7 +9,7 @@ import FeedItem from '../../components/feed/FeedItem';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 // Sub-component cho mỗi Comment để có thể quản lý Replies riêng tư
-const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser }: { item: any, level?: number, rootId?: string, onReplyClick: (username: string, parentId: string) => void, authUser?: any }) => {
+const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigation }: { item: any, level?: number, rootId?: string, onReplyClick: (username: string, parentId: string) => void, authUser?: any, navigation: any }) => {
   const [replies, setReplies] = useState<any[]>([]);
   const [showReplies, setShowReplies] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(false);
@@ -38,10 +38,12 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser }: { item
     <View style={[styles.commentItemRow, level > 0 && { paddingTop: 10 }]}>
       {/* Left Column - Avatar & Line */}
       <View style={styles.leftCol}>
-        <Image 
-           source={{ uri: (authUser && item.userId === authUser.id && authUser.avatar) ? authUser.avatar : (item.userAvatar || DEFAULT_AVATAR) }} 
-           style={[styles.avatar, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
-        />
+        <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: item.userId })}>
+           <Image 
+              source={{ uri: (authUser && item.userId === authUser.id && authUser.avatar) ? authUser.avatar : (item.userAvatar || DEFAULT_AVATAR) }} 
+              style={[styles.avatar, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
+           />
+        </TouchableOpacity>
         {/* Draw vertical line for level 0 if it has replies */}
         {level === 0 && item.replyCount > 0 && (
            <View style={styles.verticalLine} />
@@ -51,7 +53,18 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser }: { item
       {/* Right Column - Content & Nested Replies */}
       <View style={styles.rightCol}>
          <View style={styles.commentHeader}>
-            <Text style={styles.username}>{item.username} {item.userId === rootId && <Text style={{color: COLORS.textSecondary, fontWeight: 'normal'}}>• Tác giả</Text>}</Text>
+            <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: item.userId })} style={{flexDirection: 'row', alignItems: 'center'}}>
+               <Text style={styles.username}>{item.userDisplayName || item.username} {item.userId === rootId && <Text style={{color: COLORS.textSecondary, fontWeight: 'normal'}}>• Tác giả</Text>}</Text>
+               {item.userBadges && item.userBadges.length > 0 && (
+                  <View style={styles.feedBadge}>
+                     {item.userBadges[0].iconUrl ? (
+                        <Image source={{uri: item.userBadges[0].iconUrl}} style={styles.feedBadgeIcon} />
+                     ) : (
+                        <Icon name="award" size={10} color="#FFD700" />
+                     )}
+                  </View>
+               )}
+            </TouchableOpacity>
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
               <Text style={styles.timestamp}>{item.created || 'Vừa xong'}</Text>
               <Icon name="more-horizontal" size={16} color={COLORS.textSecondary} style={{marginLeft: 10}} />
@@ -92,7 +105,7 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser }: { item
 
          {/* Render Replies inside Right Column to indent them automatically */}
          {showReplies && replies.map((reply: any) => (
-            <CommentItem key={reply.id} item={reply} level={1} rootId={currentRootId} onReplyClick={onReplyClick} authUser={authUser} />
+            <CommentItem key={reply.id} item={reply} level={1} rootId={currentRootId} onReplyClick={onReplyClick} authUser={authUser} navigation={navigation} />
          ))}
       </View>
     </View>
@@ -180,7 +193,7 @@ const CommentScreen = ({ route, navigation }: any) => {
          <FlatList
            data={comments}
            keyExtractor={(item) => item.id}
-           renderItem={({ item }) => <CommentItem item={item} onReplyClick={handleReplyClick} authUser={user} />}
+           renderItem={({ item }) => <CommentItem item={item} onReplyClick={handleReplyClick} authUser={user} navigation={navigation} />}
            contentContainerStyle={{ paddingBottom: 80 }}
            ListHeaderComponent={() => (
              <>
@@ -249,6 +262,9 @@ const styles = StyleSheet.create({
   commentActions: { flexDirection: 'row', marginTop: 8, gap: 16 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionText: { color: COLORS.textSecondary, fontSize: 12 },
+
+  feedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,215,0,0.1)', borderRadius: 8, paddingHorizontal: 4, paddingVertical: 1, marginLeft: 6 },
+  feedBadgeIcon: { width: 10, height: 10, marginRight: 2 },
 
   // Đường gạch ngang nhỏ cho text "Hiển thị phản hồi"
   showRepliesBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginLeft: -35 }, 

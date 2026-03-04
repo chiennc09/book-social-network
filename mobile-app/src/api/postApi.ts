@@ -23,6 +23,12 @@ export const postApi = {
     });
   },
 
+  getUserPosts: (userId: string, page: number = 1, size: number = 10) => {
+    return axiosClient.get<any, { result: PageResponse<Post> }>(`${BASE_URL}/users/${userId}/posts`, {
+        params: { page, size }
+    });
+  },
+
   getAllPosts: (page: number = 1, size: number = 10) => {
     return axiosClient.get<any, { result: PageResponse<Post> }>(`${BASE_URL}/all`, {
         params: { page, size }

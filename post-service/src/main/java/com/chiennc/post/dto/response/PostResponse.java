@@ -19,7 +19,9 @@ public class PostResponse {
     String content;
     String userId;
     String username;
+    String userDisplayName;
     String userAvatar;
+    java.util.Set<com.chiennc.post.entity.Badge> userBadges;
     String bookId;
     Boolean isRepost;
     String originalPostId;
