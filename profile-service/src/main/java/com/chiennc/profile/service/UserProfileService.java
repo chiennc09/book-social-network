@@ -76,9 +76,9 @@ public class UserProfileService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         if (request.getBio() != null) profile.setBio(request.getBio());
-        //if (request.getLink() != null) profile.setLink(request.getLink());
+        // if (request.getLink() != null) profile.setLink(request.getLink());
         if (request.getAvatar() != null) profile.setAvatar(request.getAvatar());
-        //if (request.getIsPrivate() != null) profile.setIsPrivate(request.getIsPrivate());
+        // if (request.getIsPrivate() != null) profile.setIsPrivate(request.getIsPrivate());
 
         profile = userProfileRepository.save(profile);
         return userProfileMapper.toUserProfileResponse(profile);
@@ -160,11 +160,16 @@ public class UserProfileService {
         return userProfileRepository.getFriendIds(userId);
     }
 
+    public List<UserProfileResponse> getFriends() {
+        String userId = getUserIdByToken();
+        return userProfileRepository.getFriends(userId).stream()
+                .map(userProfileMapper::toUserProfileResponse)
+                .toList();
+    }
+
     /* ================= LEADERBOARD ================= */
     public List<UserProfileResponse> getLeaderboard(int limit) {
         List<UserProfile> topUsers = userProfileRepository.getLeaderboard(limit);
-        return topUsers.stream()
-                .map(userProfileMapper::toUserProfileResponse)
-                .toList();
+        return topUsers.stream().map(userProfileMapper::toUserProfileResponse).toList();
     }
 }

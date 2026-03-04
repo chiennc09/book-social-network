@@ -13,6 +13,7 @@ import CommentScreen from '../screens/post/CommentScreen';
 import BookDetailScreen from '../screens/book/BookDetailScreen';
 import ReaderScreen from '../screens/book/ReaderScreen';
 import ChallengeScreen from '../screens/library/ChallengeScreen';
+import FriendManagementScreen from '../screens/profile/FriendManagementScreen';
 
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../constants/theme';
@@ -59,6 +60,7 @@ const RootNavigator = () => {
            <Stack.Screen name="BookDetail" component={BookDetailScreen} />
            <Stack.Screen name="Reader" component={ReaderScreen} options={{ presentation: 'fullScreenModal' }} />
            <Stack.Screen name="Challenge" component={ChallengeScreen} />
+           <Stack.Screen name="FriendManagement" component={FriendManagementScreen} />
         </Stack.Group>
 
       </Stack.Navigator>

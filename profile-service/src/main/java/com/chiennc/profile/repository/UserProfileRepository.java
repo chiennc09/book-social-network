@@ -92,6 +92,12 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
 	""")
     List<String> getFriendIds(String userId);
 
+    @Query("""
+		MATCH (u:user_profile {userId: $userId})-[:FRIEND]-(f:user_profile)
+		RETURN f
+	""")
+    List<UserProfile> getFriends(String userId);
+
     /* ================= LEADERBOARD ================= */
     @Query("""
 		MATCH (u:user_profile)

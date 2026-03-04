@@ -107,6 +107,13 @@ public class UserProfileController {
                 .build();
     }
 
+    @GetMapping("/friend/list")
+    public ApiResponse<List<UserProfileResponse>> getFriends() {
+        return ApiResponse.<List<UserProfileResponse>>builder()
+                .result(userProfileService.getFriends())
+                .build();
+    }
+
     /* ================= COUNT ================= */
 
     @GetMapping("/{userId}/followers")

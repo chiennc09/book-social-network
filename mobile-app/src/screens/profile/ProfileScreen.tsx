@@ -151,7 +151,12 @@ const ProfileScreen = ({ navigation }: any) => {
           <Image source={{ uri: (authUser as any)?.avatar || user?.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
         </View>
 
-        <Text style={styles.followers}>{user?.followersCount} người theo dõi</Text>
+        {/* Friends Status (Replaces followers text) */}
+        <TouchableOpacity 
+           onPress={() => navigation.navigate('FriendManagement')}
+           style={{ marginLeft: SPACING.l, marginTop: SPACING.s, paddingVertical: 4 }}>
+           <Text style={styles.followers}>{user?.friendCount || 0} bạn bè</Text>
+        </TouchableOpacity>
 
         {/* Buttons */}
         <View style={styles.actionButtons}>

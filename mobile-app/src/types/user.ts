@@ -15,6 +15,7 @@ export interface UserProfile {
   link: string;
   isPrivate: boolean;
   followersCount: number;
+  friendCount?: number;
   userId?: string; 
   totalBooksRead?: number;
   badges?: Badge[];

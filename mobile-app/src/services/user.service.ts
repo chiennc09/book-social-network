@@ -29,6 +29,7 @@ export const userService = {
         link: profileData.link || '',
         isPrivate: profileData.isPrivate || false,
         followersCount: profileData.followersCount || 0,
+        friendCount: profileData.friendCount || 0,
         totalBooksRead: profileData.totalBooksRead || 0,
         badges: userBadges
       };
