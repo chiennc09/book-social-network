@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING } from '../../constants/theme';
 import { Review } from '../../services/book.service';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 const ReviewsSection = ({ reviews, ratingAverage }: Props) => {
+  const navigation = useNavigation<any>();
   return (
     <View style={styles.container}>
       {/* Header Section */}
@@ -30,10 +32,23 @@ const ReviewsSection = ({ reviews, ratingAverage }: Props) => {
             <View key={review.id} style={styles.item}>
                 {/* User Info */}
                 <View style={styles.userRow}>
-                    <Image source={{ uri: review.user.avatar }} style={styles.avatar} />
+                    <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: review.user.id })}>
+                        <Image source={{ uri: review.user.avatar }} style={styles.avatar} />
+                    </TouchableOpacity>
                     <View style={{ marginLeft: 10, flex: 1 }}>
-                        <Text style={styles.name}>{review.user.displayName}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: review.user.id })} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.name}>{review.user.displayName}</Text>
+                            {review.user.badges && review.user.badges.length > 0 && (
+                                <View style={styles.reviewBadge}>
+                                    {review.user.badges[0].iconUrl ? (
+                                        <Image source={{uri: review.user.badges[0].iconUrl}} style={styles.feedBadgeIcon} />
+                                    ) : (
+                                        <Icon name="award" size={10} color="#FFD700" />
+                                    )}
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                            <View style={{ flexDirection: 'row', marginRight: 8 }}>
                               {[1,2,3,4,5].map(s => (
                                   <Icon key={s} name="star" size={10} color={s <= review.rating ? '#FFD700' : '#444'} />
@@ -92,7 +107,9 @@ const styles = StyleSheet.create({
   actionText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '500' },
 
   viewAllBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 0 },
-  viewAllText: { color: COLORS.text, fontWeight: '600' }
+  viewAllText: { color: COLORS.text, fontWeight: '600' },
+  reviewBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,215,0,0.1)', borderRadius: 8, paddingHorizontal: 4, paddingVertical: 1, marginLeft: 6 },
+  feedBadgeIcon: { width: 10, height: 10, marginRight: 2 },
 });
 
 export default ReviewsSection;

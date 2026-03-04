@@ -12,8 +12,9 @@ export const userService = {
       // 2. Fetch user badges using their explicit ID
       let userBadges: Badge[] = [];
       try {
-         if (profileData.id) {
-           const badgeRes: any = await profileApi.getUserBadges(profileData.id);
+         const targetId = profileData.userId || profileData.id;
+         if (targetId) {
+           const badgeRes: any = await profileApi.getUserBadges(targetId);
            userBadges = badgeRes.result || badgeRes.data?.result || [];
          }
       } catch (e) {
@@ -21,7 +22,7 @@ export const userService = {
       }
 
       return {
-        id: profileData.id,
+        id: profileData.userId || profileData.id,
         username: profileData.username,
         displayName: profileData.displayName || profileData.username,
         avatar: profileData.avatar || DEFAULT_AVATAR,

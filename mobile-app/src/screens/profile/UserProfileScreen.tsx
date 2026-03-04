@@ -1,32 +1,59 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Animated, FlatList } from 'react-native';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { userService } from '../../services/user.service';
+import { feedService } from '../../services/feed.service';
 import { profileApi } from '../../api/profileApi';
 import { UserProfile } from '../../types/user';
+import FeedItem from '../../components/feed/FeedItem';
+import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 const UserProfileScreen = ({ route, navigation }: any) => {
   const { userId } = route.params;
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  const [posts, setPosts] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'posts' | 'reposts'>('posts');
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Lấy dữ liệu profile của người dùng khác
-  const fetchProfile = async () => {
+  const fetchProfileAndPosts = async (pageNum = 1) => {
     try {
-      const userData = await userService.getUserProfile(userId);
-      setUser(userData);
+      const [userData, postsData] = await Promise.all([
+         pageNum === 1 ? userService.getUserProfile(userId) : Promise.resolve(user),
+         feedService.getUserPosts(userId, pageNum, 10)
+      ]);
+      
+      if (pageNum === 1) {
+         if (userData) setUser(userData);
+         setPosts(postsData);
+      } else {
+         setPosts(prev => {
+            const newPosts = postsData.filter((item: any) => !prev.some(p => p.id === item.id));
+            return [...prev, ...newPosts];
+         });
+      }
+      setHasMore(postsData.length === 10);
     } catch (error) {
-      console.error('Failed to fetch user profile', error);
+      console.error('Failed to fetch user profile data', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    fetchProfile();
+    setPage(1);
+    setHasMore(true);
+    fetchProfileAndPosts(1);
+    
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
@@ -35,13 +62,21 @@ const UserProfileScreen = ({ route, navigation }: any) => {
     ).start();
   }, [userId]);
 
+  // Lắng nghe xoá bài
+  useEffect(() => {
+     const sub = eventEmitter.on(EventNames.POST_DELETED, (data: any) => {
+         setPosts(prev => prev.filter(p => p.id !== data.id));
+     });
+     return () => sub.remove();
+  }, []);
+
   const handleInteract = async (action: string) => {
     if (!user) return;
     try {
       if (action === 'ADD') await profileApi.sendFriendRequest(user.userId || user.id);
       if (action === 'ACCEPT') await profileApi.acceptFriend(user.userId || user.id);
       if (action === 'REMOVE') await profileApi.removeFriend(user.userId || user.id);
-      fetchProfile(); // reload trạng thái 
+      fetchProfileAndPosts(1); // reload trạng thái 
     } catch (e) {
       console.error(e);
     }
@@ -98,8 +133,26 @@ const UserProfileScreen = ({ route, navigation }: any) => {
     );
   }
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
+  const loadMore = () => {
+    if (!loadingMore && hasMore && !loading && !refreshing) {
+       setLoadingMore(true);
+       const nextPage = page + 1;
+       setPage(nextPage);
+       fetchProfileAndPosts(nextPage);
+    }
+  };
+
+  const onRefresh = () => {
+     setRefreshing(true);
+     setPage(1);
+     setHasMore(true);
+     fetchProfileAndPosts(1);
+  };
+
+  const displayedPosts = posts.filter(p => activeTab === 'posts' ? !p.isRepost : p.isRepost);
+
+  const renderHeader = () => (
+    <View style={{ marginBottom: 10 }}>
       <View style={styles.appHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{padding: 5}}>
           <Icon name="arrow-left" size={24} color={COLORS.text} />
@@ -136,6 +189,42 @@ const UserProfileScreen = ({ route, navigation }: any) => {
       <View style={styles.actionButtons}>
          {renderActionButtons()}
       </View>
+
+      <View style={styles.tabs}>
+           <TouchableOpacity 
+             style={[styles.tabItem, activeTab === 'posts' && styles.activeTab]}
+             onPress={() => setActiveTab('posts')}
+           >
+             <Text style={activeTab === 'posts' ? styles.activeTabText : styles.tabText}>Bài viết</Text>
+           </TouchableOpacity>
+           <TouchableOpacity 
+             style={[styles.tabItem, activeTab === 'reposts' && styles.activeTab]}
+             onPress={() => setActiveTab('reposts')}
+           >
+             <Text style={activeTab === 'reposts' ? styles.activeTabText : styles.tabText}>Đăng lại</Text>
+           </TouchableOpacity>
+        </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <FlatList
+        data={displayedPosts}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <FeedItem post={item} />}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={
+          <View style={styles.feedPlaceholder}>
+              <Text style={styles.placeholderText}>Chưa có bài đăng nào.</Text>
+          </View>
+        }
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={COLORS.text} /> : null}
+      />
     </SafeAreaView>
   );
 };
@@ -163,6 +252,13 @@ const styles = StyleSheet.create({
   btnText: { color: COLORS.text, fontWeight: '600', fontSize: 14 },
   btnPrimary: { flex: 1, backgroundColor: COLORS.text, borderRadius: 10, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
   btnTextPrimary: { color: COLORS.background, fontWeight: 'bold', fontSize: 14 },
+  tabs: { flexDirection: 'row', marginTop: SPACING.l, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 12 },
+  activeTab: { borderBottomWidth: 1, borderBottomColor: COLORS.text },
+  activeTabText: { color: COLORS.text, fontWeight: 'bold' },
+  tabText: { color: COLORS.textSecondary, fontWeight: '600' },
+  feedPlaceholder: { marginTop: 50, alignItems: 'center' },
+  placeholderText: { color: COLORS.textSecondary },
 });
 
 export default UserProfileScreen;

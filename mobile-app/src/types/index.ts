@@ -42,6 +42,9 @@ export interface Post {
     avatar: string;
     badges?: any[];
   };
+  userId?: string;
+  userDisplayName?: string;
+  userBadges?: any[];
   content: string;
   book?: Book; // Trường này bắt buộc hoặc optional tùy logic (ở đây để optional để tránh lỗi data cũ)
   images?: string[]; // Ảnh người dùng đăng kèm (ngoài ảnh bìa sách)

@@ -11,21 +11,14 @@ import java.time.LocalDateTime;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ReviewResponse {
-    String id;
-    int rating;
-    String content;
-    int likes;
+    private String id;
+    private String content;
+    private String userId;
+    private String username;
+    private String userDisplayName;
+    private String userAvatar;
+    private java.util.Set<com.chiennc.book.entity.Badge> userBadges;
+    private Integer rating;
+    private int likes;
     LocalDateTime createdAt;
-    
-    // User Info to hydrate
-    ReviewUser user;
-    
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class ReviewUser {
-        String displayName;
-        String avatar;
-    }
 }

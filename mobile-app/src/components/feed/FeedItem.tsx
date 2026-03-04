@@ -100,7 +100,9 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
     <View style={styles.container}>
       {/* 1. Avatar (Cột trái) */}
       <View style={styles.leftColumn}>
-        <Image source={{ uri: displayAvatar }} style={styles.avatar} />
+        <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: post.user.id || post.userId })}>
+           <Image source={{ uri: displayAvatar }} style={styles.avatar} />
+        </TouchableOpacity>
         {/* Đường nối thread nếu cần */}
         <View style={styles.threadLine} /> 
       </View>
@@ -110,17 +112,19 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
         
         {/* Header: Tên & Thời gian */}
         <View style={styles.header}>
-          <Text style={styles.displayName}>{post.user.displayName}</Text>
+          <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: post.user.id || post.userId })}>
+             <Text style={styles.displayName}>{post.userDisplayName || post.user.displayName || post.user.username}</Text>
+          </TouchableOpacity>
           <View style={styles.headerInfo}>
              <Text style={styles.username}>{post.user.username}</Text>
-             {post.user.badges && post.user.badges.length > 0 && (
+             {post.userBadges && post.userBadges.length > 0 && (
                 <View style={styles.feedBadge}>
-                   {post.user.badges[0].iconUrl ? (
-                      <Image source={{uri: post.user.badges[0].iconUrl}} style={styles.feedBadgeIcon} />
+                   {post.userBadges[0].iconUrl ? (
+                      <Image source={{uri: post.userBadges[0].iconUrl}} style={styles.feedBadgeIcon} />
                    ) : (
                       <Icon name="award" size={10} color="#FFD700" />
                    )}
-                   <Text style={styles.feedBadgeText}>{post.user.badges[0].name}</Text>
+                   <Text style={styles.feedBadgeText}>{post.userBadges[0].name}</Text>
                 </View>
              )}
              <Text style={styles.dot}>•</Text>

@@ -5,7 +5,7 @@ import { bookApi } from '../api/bookApi';
 
 export interface Review {
   id: string;
-  user: { displayName: string; avatar: string };
+  user: { id: string; displayName: string; avatar: string; badges?: any[] };
   rating: number;
   content: string;
   date: string;
@@ -82,7 +82,12 @@ export const bookService = {
         pages: data.totalPages,
         reviews: reviewsData.map((r: any) => ({
              id: r.id,
-             user: { displayName: r.user?.displayName || 'Ẩn danh', avatar: r.user?.avatar },
+             user: { 
+                 id: r.userId, 
+                 displayName: r.userDisplayName || r.username || 'Ẩn danh', 
+                 avatar: r.userAvatar,
+                 badges: r.userBadges 
+             },
              rating: r.rating,
              content: r.content,
              date: r.createdAt,

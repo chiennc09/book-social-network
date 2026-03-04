@@ -28,6 +28,17 @@ export const feedService = {
        return [];
     }
   },
+
+  async getUserPosts(userId: string, page: number = 1, size: number = 10): Promise<Post[]> {
+    try {
+       const response: any = await postApi.getUserPosts(userId, page, size);
+       const items = response.result?.data || response.data?.result?.data || [];
+       return await this._mapPosts(items);
+    } catch (error) {
+       console.error("Error fetching user posts", error);
+       return [];
+    }
+  },
   
   async _mapPosts(items: any[]): Promise<Post[]> {
     return await Promise.all(items.map(async (item: any) => {
@@ -40,12 +51,14 @@ export const feedService = {
         return {
           id: item.id,
           user: {
-            id: item.userId,
-            username: item.username,
-            displayName: item.username, 
+            id: item.userId || item.user?.id,
+            username: item.username || item.user?.username,
+            displayName: item.userDisplayName || item.user?.displayName || item.username, 
             avatar: item.userAvatar || item.user?.avatar || DEFAULT_AVATAR,
-            badges: item.badges || item.user?.badges || [],
+            badges: item.userBadges || item.user?.badges || [],
           },
+          userDisplayName: item.userDisplayName || item.user?.displayName || item.username,
+          userBadges: item.userBadges || item.user?.badges || [],
           content: item.content,
           book: bookObj,
           likesCount: item.likeCount || 0,

@@ -23,4 +23,6 @@ public class UserProfileResponse {
     LocalDate dob;
     String city;
     String avatar;
+    String displayName;
+    java.util.Set<com.chiennc.post.entity.Badge> badges;
 }
