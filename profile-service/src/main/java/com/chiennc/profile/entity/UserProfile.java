@@ -46,4 +46,17 @@ public class UserProfile {
     private Set<Badge> badges;
 
     private Long totalBooksRead = 0L;
+
+    public String getDisplayName() {
+        String fullName = "";
+        if (firstName != null && !firstName.trim().isEmpty()) {
+            fullName += firstName.trim();
+        }
+        if (lastName != null && !lastName.trim().isEmpty()) {
+            if (!fullName.isEmpty()) fullName += " ";
+            fullName += lastName.trim();
+        }
+        if (fullName.isEmpty()) return username;
+        return fullName;
+    }
 }

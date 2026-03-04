@@ -33,5 +33,8 @@ export const profileApi = {
 
   getLeaderboard: (limit: number = 20) => {
     return axiosClient.get(`${BASE_URL}/users/leaderboard?limit=${limit}`);
-  }
+  },
+
+  searchUsers: (query: string) => axiosClient.get(`${BASE_URL}/users/search?q=${query}`),
+  getUserProfile: (userId: string) => axiosClient.get(`${BASE_URL}/users/${userId}`),
 };

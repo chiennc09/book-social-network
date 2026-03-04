@@ -6,7 +6,10 @@ import {
 import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { searchService, Genre } from '../../services/search.service';
+import { profileApi } from '../../api/profileApi';
 import { Book } from '../../types/index';
+import { UserProfile } from '../../types/user';
+import { DEFAULT_AVATAR } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -14,12 +17,13 @@ const SearchScreen = ({ navigation }: any) => {
   // State quản lý Input và Chế độ hiển thị
   const [searchText, setSearchText] = useState('');
   const [isSearching, setIsSearching] = useState(false); // True: Hiện kết quả, False: Hiện khám phá
-  const [searchTab, setSearchTab] = useState<'all' | 'title' | 'author'>('all');
+  const [searchTab, setSearchTab] = useState<'all' | 'title' | 'author' | 'user'>('all');
 
   // Data State
   const [genres, setGenres] = useState<Genre[]>([]);
   const [trendingBooks, setTrendingBooks] = useState<Book[]>([]);
   const [searchResults, setSearchResults] = useState<Book[]>([]);
+  const [searchUserResults, setSearchUserResults] = useState<UserProfile[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
   
   const inputRef = useRef<TextInput>(null);
@@ -37,16 +41,22 @@ const SearchScreen = ({ navigation }: any) => {
     fetchExploreData();
   }, []);
 
-  // Xử lý tìm kiếm (Debounce đơn giản hoặc gọi trực tiếp khi Enter)
+  // Xử lý tìm kiếm
   const handleSearch = async (text: string) => {
     setSearchText(text);
     if (text.length > 0) {
       setLoadingSearch(true);
-      const res = await searchService.searchBooks(text, searchTab);
-      setSearchResults(res);
+      if (searchTab === 'user') {
+          const res: any = await profileApi.searchUsers(text);
+          setSearchUserResults(res.result || res.data?.result || res.data || []);
+      } else {
+          const res = await searchService.searchBooks(text, searchTab);
+          setSearchResults(res);
+      }
       setLoadingSearch(false);
     } else {
       setSearchResults([]);
+      setSearchUserResults([]);
     }
   };
 
@@ -179,8 +189,8 @@ const SearchScreen = ({ navigation }: any) => {
       
       {/* Tabs Switcher */}
       <View style={styles.tabContainer}>
-         {(['all', 'title', 'author'] as const).map((tab) => {
-            const labels = { all: 'Tất cả', title: 'Tên sách', author: 'Tác giả' };
+         {(['all', 'title', 'author', 'user'] as const).map((tab) => {
+            const labels = { all: 'Tất cả', title: 'Tên sách', author: 'Tác giả', user: 'Người dùng' };
             const isActive = searchTab === tab;
             return (
               <TouchableOpacity 
@@ -195,12 +205,35 @@ const SearchScreen = ({ navigation }: any) => {
       </View>
 
       <Text style={styles.resultCount}>
-         Hiển thị {searchResults.length} kết quả
+         Hiển thị {searchTab === 'user' ? searchUserResults.length : searchResults.length} kết quả
       </Text>
 
       {/* Result List */}
       {loadingSearch ? (
          <ActivityIndicator color={COLORS.text} style={{ marginTop: 20 }} />
+      ) : searchTab === 'user' ? (
+         <FlatList
+           data={searchUserResults}
+           keyExtractor={(item) => item.id || item.userId || ''}
+           contentContainerStyle={{ paddingHorizontal: SPACING.m, paddingBottom: 50 }}
+           renderItem={({ item }) => (
+            <TouchableOpacity 
+              style={styles.resultItem}
+              onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
+            >
+               <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={[styles.resultCover, { width: 50, height: 50, borderRadius: 25 }]} />
+               <View style={styles.resultInfo}>
+                  <Text style={styles.resultTitle}>{item.displayName || item.username}</Text>
+                  <Text style={styles.resultAuthor}>@{item.username}</Text>
+               </View>
+            </TouchableOpacity>
+           )}
+           ListEmptyComponent={
+              <View style={{ alignItems: 'center', marginTop: 40 }}>
+                 <Text style={{ color: '#555' }}>Không tìm thấy người dùng nào.</Text>
+              </View>
+           }
+         />
       ) : (
         <FlatList
           data={searchResults}

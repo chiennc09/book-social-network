@@ -39,6 +39,40 @@ export const userService = {
     }
   },
 
+  async getUserProfile(userId: string): Promise<UserProfile> {
+    try {
+      const profileRes: any = await profileApi.getUserProfile(userId);
+      const profileData = profileRes.result || profileRes.data?.result || profileRes.data || profileRes;
+      
+      let userBadges: Badge[] = [];
+      try {
+         const badgeRes: any = await profileApi.getUserBadges(userId);
+         userBadges = badgeRes.result || badgeRes.data?.result || [];
+      } catch (e) {
+         console.warn("Could not fetch user badges", e);
+      }
+
+      return {
+        id: profileData.id,
+        userId: profileData.userId,
+        username: profileData.username,
+        displayName: profileData.displayName || profileData.username,
+        avatar: profileData.avatar || DEFAULT_AVATAR,
+        bio: profileData.bio || '',
+        link: profileData.link || '',
+        isPrivate: profileData.isPrivate || false,
+        followersCount: profileData.followerCount || profileData.followersCount || 0,
+        friendCount: profileData.friendCount || 0,
+        totalBooksRead: profileData.totalBooksRead || 0,
+        relationship: profileData.relationship || 'NONE',
+        badges: userBadges
+      };
+    } catch (error) {
+       console.error(`Failed to fetch profile for user ${userId}`, error);
+       throw error;
+    }
+  },
+
   async updateProfile(payload: Partial<UserProfile>) {
      try {
        const res: any = await profileApi.updateProfile(payload);

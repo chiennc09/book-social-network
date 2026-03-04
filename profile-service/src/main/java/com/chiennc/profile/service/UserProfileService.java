@@ -43,12 +43,38 @@ public class UserProfileService {
         return profiles.stream().map(userProfileMapper::toUserProfileResponse).toList();
     }
 
-    public UserProfileResponse getByUserId(String userId) {
+    public UserProfileResponse getByUserId(String targetUserId) {
         UserProfile userProfile = userProfileRepository
-                .findByUserId(userId)
+                .findByUserId(targetUserId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        return userProfileMapper.toUserProfileResponse(userProfile);
+        UserProfileResponse response = userProfileMapper.toUserProfileResponse(userProfile);
+
+        // Hydrate counts
+        response.setFollowerCount(userProfileRepository.countFollowers(targetUserId));
+        response.setFriendCount(userProfileRepository.countFriends(targetUserId));
+
+        // Evaluate relationship context if authenticated
+        try {
+            String myUserId = getUserIdByToken();
+            if (myUserId != null && !myUserId.equals(targetUserId)) {
+                if (userProfileRepository.checkFriend(myUserId, targetUserId)) {
+                    response.setRelationship("FRIEND");
+                } else if (userProfileRepository.checkIncomingRequest(myUserId, targetUserId)) {
+                    response.setRelationship("PENDING_INCOMING");
+                } else if (userProfileRepository.checkOutgoingRequest(myUserId, targetUserId)) {
+                    response.setRelationship("PENDING_OUTGOING");
+                } else {
+                    response.setRelationship("NONE");
+                }
+            } else {
+                response.setRelationship("SELF");
+            }
+        } catch (Exception e) {
+            response.setRelationship("NONE");
+        }
+
+        return response;
     }
 
     public UserProfileResponse getMyProfile() {
@@ -163,6 +189,15 @@ public class UserProfileService {
     public List<UserProfileResponse> getFriends() {
         String userId = getUserIdByToken();
         return userProfileRepository.getFriends(userId).stream()
+                .map(userProfileMapper::toUserProfileResponse)
+                .toList();
+    }
+
+    public List<UserProfileResponse> searchUsers(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+        return userProfileRepository.searchUsers(query.trim()).stream()
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
     }

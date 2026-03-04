@@ -16,6 +16,7 @@ export interface UserProfile {
   isPrivate: boolean;
   followersCount: number;
   friendCount?: number;
+  relationship?: 'FRIEND' | 'PENDING_INCOMING' | 'PENDING_OUTGOING' | 'NONE' | 'SELF';
   userId?: string; 
   totalBooksRead?: number;
   badges?: Badge[];

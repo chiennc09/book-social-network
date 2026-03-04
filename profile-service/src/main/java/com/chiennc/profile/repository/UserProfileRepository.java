@@ -98,6 +98,27 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
 	""")
     List<UserProfile> getFriends(String userId);
 
+    /* ================= SEARCH & RELATIONSHIPS ================= */
+
+    @Query(
+            """
+		MATCH (u:user_profile)
+		WHERE toLower(u.username) CONTAINS toLower($query)
+		OR toLower(u.firstName) CONTAINS toLower($query)
+		OR toLower(u.lastName) CONTAINS toLower($query)
+		RETURN u LIMIT 20
+	""")
+    List<UserProfile> searchUsers(String query);
+
+    @Query("MATCH (:user_profile {userId: $from})-[:FRIEND]-(:user_profile {userId: $to}) RETURN count(*) > 0")
+    boolean checkFriend(String from, String to);
+
+    @Query("MATCH (:user_profile {userId: $to})-[:FRIEND_REQUEST]->(:user_profile {userId: $from}) RETURN count(*) > 0")
+    boolean checkIncomingRequest(String from, String to);
+
+    @Query("MATCH (:user_profile {userId: $from})-[:FRIEND_REQUEST]->(:user_profile {userId: $to}) RETURN count(*) > 0")
+    boolean checkOutgoingRequest(String from, String to);
+
     /* ================= LEADERBOARD ================= */
     @Query("""
 		MATCH (u:user_profile)

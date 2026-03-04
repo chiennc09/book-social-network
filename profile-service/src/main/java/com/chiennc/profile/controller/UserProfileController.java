@@ -59,6 +59,13 @@ public class UserProfileController {
                 .build();
     }
 
+    @GetMapping("/users/search")
+    ApiResponse<List<UserProfileResponse>> searchUsers(@RequestParam String q) {
+        return ApiResponse.<List<UserProfileResponse>>builder()
+                .result(userProfileService.searchUsers(q))
+                .build();
+    }
+
     /* ================= FOLLOW ================= */
 
     @PostMapping("/follow")

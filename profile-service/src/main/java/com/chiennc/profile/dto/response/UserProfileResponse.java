@@ -23,6 +23,9 @@ public class UserProfileResponse {
     private String bio;
     private String readingLevel;
 
+    private String displayName;
+    private String relationship;
+
     // Thêm các trường thống kê [cite: 8, 9, 10]
     private long booksReadCount;
     private long postCount;

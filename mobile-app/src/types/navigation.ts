@@ -25,4 +25,5 @@ export type RootStackParamList = {
   Reader: { bookId: string; url: string; lastPosition?: string };
   Challenge: undefined;
   FriendManagement: undefined;
+  UserProfile: { userId: string };
 };
