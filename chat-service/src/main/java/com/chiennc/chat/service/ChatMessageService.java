@@ -1,5 +1,13 @@
 package com.chiennc.chat.service;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
+
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
 import com.chiennc.chat.dto.request.ChatMessageRequest;
 import com.chiennc.chat.dto.response.ChatMessageResponse;
 import com.chiennc.chat.entity.ChatMessage;
@@ -10,16 +18,11 @@ import com.chiennc.chat.mapper.ChatMessageMapper;
 import com.chiennc.chat.repository.ChatMessageRepository;
 import com.chiennc.chat.repository.ConversationRepository;
 import com.chiennc.chat.repository.httpclient.ProfileClient;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Objects;
 
 @Slf4j
 @Service
@@ -29,13 +32,15 @@ public class ChatMessageService {
     ChatMessageRepository chatMessageRepository;
     ConversationRepository conversationRepository;
     ProfileClient profileClient;
+    SimpMessagingTemplate messagingTemplate;
 
     ChatMessageMapper chatMessageMapper;
 
     public List<ChatMessageResponse> getMessages(String conversationId) {
         // Validate conversationId
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        conversationRepository.findById(conversationId)
+        conversationRepository
+                .findById(conversationId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
                 .getParticipants()
                 .stream()
@@ -51,7 +56,8 @@ public class ChatMessageService {
     public ChatMessageResponse create(ChatMessageRequest request) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         // Validate conversationId
-        conversationRepository.findById(request.getConversationId())
+        conversationRepository
+                .findById(request.getConversationId())
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
                 .getParticipants()
                 .stream()
@@ -69,11 +75,13 @@ public class ChatMessageService {
         // Build Chat message Info
         ChatMessage chatMessage = chatMessageMapper.toChatMessage(request);
         chatMessage.setSender(ParticipantInfo.builder()
-                        .userId(userInfo.getUserId())
-                        .username(userInfo.getUsername())
-                        .firstName(userInfo.getFirstName())
-                        .lastName(userInfo.getLastName())
-                        .avatar(userInfo.getAvatar())
+                .userId(userInfo.getUserId())
+                .username(userInfo.getUsername())
+                .firstName(userInfo.getFirstName())
+                .lastName(userInfo.getLastName())
+                .avatar(userInfo.getAvatar())
+                .displayName(userInfo.getDisplayName())
+                .badges(userInfo.getBadges())
                 .build());
         chatMessage.setCreatedDate(Instant.now());
 
@@ -81,7 +89,12 @@ public class ChatMessageService {
         chatMessage = chatMessageRepository.save(chatMessage);
 
         // convert to Response
-        return toChatMessageResponse(chatMessage);
+        ChatMessageResponse response = toChatMessageResponse(chatMessage);
+
+        // Push realtime via WebSocket Topic
+        messagingTemplate.convertAndSend("/topic/conversation/" + request.getConversationId(), response);
+
+        return response;
     }
 
     private ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage) {

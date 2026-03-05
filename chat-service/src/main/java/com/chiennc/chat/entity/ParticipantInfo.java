@@ -15,4 +15,6 @@ public class ParticipantInfo {
     String firstName;
     String lastName;
     String avatar;
+    String displayName;
+    java.util.Set<Badge> badges;
 }

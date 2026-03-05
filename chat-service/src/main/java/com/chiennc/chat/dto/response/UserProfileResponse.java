@@ -15,4 +15,6 @@ public class UserProfileResponse {
     String firstName;
     String lastName;
     String avatar;
+    String displayName;
+    java.util.Set<com.chiennc.chat.entity.Badge> badges;
 }

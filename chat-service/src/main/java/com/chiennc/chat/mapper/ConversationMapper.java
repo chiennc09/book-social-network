@@ -1,10 +1,11 @@
 package com.chiennc.chat.mapper;
 
-import com.chiennc.chat.dto.response.ConversationResponse;
-import com.chiennc.chat.entity.Conversation;
+import java.util.List;
+
 import org.mapstruct.Mapper;
 
-import java.util.List;
+import com.chiennc.chat.dto.response.ConversationResponse;
+import com.chiennc.chat.entity.Conversation;
 
 @Mapper(componentModel = "spring")
 public interface ConversationMapper {
