@@ -15,6 +15,8 @@ import ReaderScreen from '../screens/book/ReaderScreen';
 import ChallengeScreen from '../screens/library/ChallengeScreen';
 import FriendManagementScreen from '../screens/profile/FriendManagementScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
+import ChatListScreen from '../screens/chat/ChatListScreen';
+import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
 
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../constants/theme';
@@ -63,6 +65,8 @@ const RootNavigator = () => {
            <Stack.Screen name="Challenge" component={ChallengeScreen} />
            <Stack.Screen name="FriendManagement" component={FriendManagementScreen} />
            <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+           <Stack.Screen name="ChatList" component={ChatListScreen} />
+           <Stack.Screen name="ChatRoom" component={ChatRoomScreen} />
         </Stack.Group>
 
       </Stack.Navigator>
