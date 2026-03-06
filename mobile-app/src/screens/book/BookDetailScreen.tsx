@@ -16,6 +16,7 @@ import ReviewsSection from '../../components/book/ReviewsSection'; // Đã có f
 import ShelfModal from '../../components/book/modal/ShelfModal';
 import DetailInfoModal from '../../components/book/modal/DetailInfoModal';
 import WriteReviewModal from '../../components/book/modal/WriteReviewModal'; // Đã có file mới
+import ShareToChatModal from '../../components/book/modal/ShareToChatModal';
 
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
@@ -32,6 +33,7 @@ const BookDetailScreen = ({ route, navigation }: any) => {
   const [shelfModalVisible, setShelfModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [shareChatVisible, setShareChatVisible] = useState(false);
   
   // User Interaction State
   const [userRating, setUserRating] = useState(0); // 0 means not rated yet
@@ -127,7 +129,7 @@ const BookDetailScreen = ({ route, navigation }: any) => {
             onToggleFavorite={handleToggleFavorite}
             onPressShelf={() => setShelfModalVisible(true)}
             onPressDetail={() => setDetailModalVisible(true)}
-            onPressShare={() => console.log('Share')}
+            onPressShare={() => setShareChatVisible(true)}
             onPressRead={() => {
                 if (book.epubPath || book.pdfPath) {
                     const url = book.epubPath || book.pdfPath;
@@ -206,6 +208,14 @@ const BookDetailScreen = ({ route, navigation }: any) => {
         onClose={() => setReviewModalVisible(false)}
         initialRating={userRating}
         onSubmit={handleSubmitReview}
+      />
+      {/* Modal Chia sẻ sách đến chat */}
+      <ShareToChatModal
+        visible={shareChatVisible}
+        onClose={() => setShareChatVisible(false)}
+        bookTitle={book.title}
+        bookId={book.id}
+        bookCover={book.coverUrl || book.coverImage}
       />
       
     </View>

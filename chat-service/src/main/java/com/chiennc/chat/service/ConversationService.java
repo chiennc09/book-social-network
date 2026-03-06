@@ -17,6 +17,7 @@ import com.chiennc.chat.entity.ParticipantInfo;
 import com.chiennc.chat.exception.AppException;
 import com.chiennc.chat.exception.ErrorCode;
 import com.chiennc.chat.mapper.ConversationMapper;
+import com.chiennc.chat.repository.ChatMessageRepository;
 import com.chiennc.chat.repository.ConversationRepository;
 import com.chiennc.chat.repository.httpclient.ProfileClient;
 
@@ -31,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ConversationService {
     ConversationRepository conversationRepository;
+    ChatMessageRepository chatMessageRepository;
     ProfileClient profileClient;
 
     ConversationMapper conversationMapper;
@@ -128,6 +130,11 @@ public class ConversationService {
                                     : participantInfo.getUsername());
                     conversationResponse.setConversationAvatar(participantInfo.getAvatar());
                 });
+
+        // Attach last message preview
+        chatMessageRepository
+                .findFirstByConversationIdOrderByCreatedDateDesc(conversation.getId())
+                .ifPresent(lastMsg -> conversationResponse.setLastMessage(lastMsg.getMessage()));
 
         return conversationResponse;
     }

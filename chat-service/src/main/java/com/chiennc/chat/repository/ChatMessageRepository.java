@@ -10,4 +10,6 @@ import com.chiennc.chat.entity.ChatMessage;
 @Repository
 public interface ChatMessageRepository extends MongoRepository<ChatMessage, String> {
     List<ChatMessage> findAllByConversationIdOrderByCreatedDateDesc(String conversationId);
+
+    java.util.Optional<ChatMessage> findFirstByConversationIdOrderByCreatedDateDesc(String conversationId);
 }
