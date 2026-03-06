@@ -6,7 +6,13 @@ import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 
 const ChatRoomScreen = ({ route, navigation }: any) => {
-  const { conversationId, conversationName } = route.params;
+  const { conversationId, conversationName, conversationAvatar } = route.params;
+
+  const formatTime = (dateString: string) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
@@ -17,7 +23,11 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
     // Connect WebSocket
     chatSocketService.connect(() => {
        chatSocketService.subscribeToConversation(conversationId, (newMsg: any) => {
-          setMessages(prev => [newMsg, ...prev]);
+          setMessages(prev => {
+             // Avoid duplicate message appending
+             if (prev.find(m => m.id === newMsg.id)) return prev;
+             return [newMsg, ...prev];
+          });
        });
     });
 
@@ -36,14 +46,25 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
   };
 
   const sendMessage = () => {
-    if (!inputText.trim()) return;
-    
-    chatApi.sendMessage({
-       conversationId,
-       message: inputText
-    }).catch(console.error);
+    const text = inputText.trim();
+    if (!text) return;
 
+    // Optimistic UI: prepend the message immediately so sender sees it right away
+    const optimisticMsg = {
+      id: `temp-${Date.now()}`,
+      message: text,
+      me: true,
+      createdDate: new Date().toISOString(),
+      sender: { displayName: '', username: '', avatar: null, userId: '' },
+    };
+    setMessages(prev => [optimisticMsg, ...prev]);
     setInputText('');
+
+    chatApi.sendMessage({ conversationId, message: text }).catch(err => {
+      console.error('Failed to send message:', err);
+      // Rollback optimistic message on error
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+    });
   };
 
   const renderMessage = ({ item }: { item: any }) => {
@@ -58,6 +79,7 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
         <View style={[styles.messageContent, isMe ? styles.messageContentMe : styles.messageContentThem]}>
            {!isMe && <Text style={styles.senderName}>{item.sender.displayName || item.sender.username}</Text>}
            <Text style={styles.messageText}>{item.message}</Text>
+           <Text style={[styles.timestamp, isMe ? styles.timestampMe : styles.timestampThem]}>{formatTime(item.createdDate)}</Text>
         </View>
       </View>
     );
@@ -66,11 +88,14 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
           <Icon name="arrow-left" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{conversationName || 'Chat'}</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerTitleContainer}>
+          <Image source={{ uri: conversationAvatar || DEFAULT_AVATAR }} style={styles.headerAvatar} />
+          <Text style={styles.headerTitle}>{conversationName || 'Chat'}</Text>
+        </View>
+        <View style={{ width: 32 }} />
       </View>
 
       <KeyboardAvoidingView 
@@ -114,6 +139,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border
   },
+  headerTitleContainer: { flexDirection: 'row', alignItems: 'center' },
+  headerAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
   headerTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
   messageBubble: { flexDirection: 'row', marginVertical: 4, maxWidth: '80%' },
   messageBubbleMe: { alignSelf: 'flex-end', justifyContent: 'flex-end' },
@@ -124,6 +151,9 @@ const styles = StyleSheet.create({
   messageContentThem: { backgroundColor: '#333', borderBottomLeftRadius: 4 },
   senderName: { color: '#ccc', fontSize: 12, marginBottom: 2, fontWeight: 'bold' },
   messageText: { color: '#fff', fontSize: 15 },
+  timestamp: { fontSize: 10, marginTop: 4, alignSelf: 'flex-end' },
+  timestampMe: { color: 'rgba(255, 255, 255, 0.7)' },
+  timestampThem: { color: '#888' },
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: SPACING.m, borderTopWidth: 1, borderTopColor: COLORS.border },
   input: { flex: 1, backgroundColor: '#222', color: COLORS.text, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, marginRight: 10 },
   sendButton: { backgroundColor: COLORS.text, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }

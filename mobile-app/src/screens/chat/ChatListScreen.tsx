@@ -38,13 +38,16 @@ const ChatListScreen = ({ navigation }: any) => {
         style={styles.chatItem} 
         onPress={() => navigation.push('ChatRoom', { 
             conversationId: item.id, 
-            conversationName: item.conversationName 
+            conversationName: item.conversationName,
+            conversationAvatar: item.conversationAvatar 
         })}
       >
         <Image style={styles.avatar} source={{ uri: item.conversationAvatar || DEFAULT_AVATAR }} />
         <View style={styles.chatInfo}>
           <Text style={styles.chatName}>{item.conversationName}</Text>
-          <Text style={styles.chatPreview} numberOfLines={1}>Tin nhắn mới nhất...</Text>
+          <Text style={styles.chatPreview} numberOfLines={1}>
+             {item.lastMessage ? item.lastMessage.content || item.lastMessage.message || 'Tin nhắn mới' : 'Chưa có tin nhắn'}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -68,7 +71,7 @@ const ChatListScreen = ({ navigation }: any) => {
     handleLoadFriends();
   };
 
-  const createChat = async (targetId: string, displayName: string) => {
+  const createChat = async (targetId: string, displayName: string, avatarUrl: string) => {
     setIsModalVisible(false);
     try {
       setLoading(true);
@@ -81,7 +84,8 @@ const ChatListScreen = ({ navigation }: any) => {
          setLoading(false);
          navigation.push('ChatRoom', { 
             conversationId: conv.id, 
-            conversationName: conv.conversationName || displayName
+            conversationName: conv.conversationName || displayName,
+            conversationAvatar: conv.conversationAvatar || avatarUrl
          });
       }
     } catch (e) {
@@ -97,7 +101,7 @@ const ChatListScreen = ({ navigation }: any) => {
      return (
        <TouchableOpacity 
           style={styles.chatItem} 
-          onPress={() => createChat(actualId, item.displayName || item.username)}
+          onPress={() => createChat(actualId, item.displayName || item.username, item.avatar || DEFAULT_AVATAR)}
        >
           <Image style={styles.avatar} source={{ uri: item.avatar || DEFAULT_AVATAR }} />
           <View style={styles.chatInfo}>

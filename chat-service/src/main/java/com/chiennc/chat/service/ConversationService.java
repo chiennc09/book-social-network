@@ -122,7 +122,10 @@ public class ConversationService {
                 .filter(participantInfo -> !participantInfo.getUserId().equals(currentUserId))
                 .findFirst()
                 .ifPresent(participantInfo -> {
-                    conversationResponse.setConversationName(participantInfo.getUsername());
+                    conversationResponse.setConversationName(
+                            participantInfo.getDisplayName() != null
+                                    ? participantInfo.getDisplayName()
+                                    : participantInfo.getUsername());
                     conversationResponse.setConversationAvatar(participantInfo.getAvatar());
                 });
 

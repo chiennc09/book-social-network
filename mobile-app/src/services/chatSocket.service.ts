@@ -11,67 +11,104 @@ if (typeof global.TextDecoder === 'undefined') {
   global.TextDecoder = TextDecoder;
 }
 
+type ConnectState = 'idle' | 'connecting' | 'connected';
+
 class ChatSocketService {
   private client: Client | null = null;
+  private state: ConnectState = 'idle';
+  private pendingCallbacks: Array<() => void> = [];
   private currentSubscription: any = null;
 
+  /**
+   * Connect to STOMP broker.
+   * - If already connected: fires callback immediately.
+   * - If connecting: queues callback to be fired when connection succeeds.
+   * - If idle: initiates connection.
+   */
   async connect(onConnectCallback?: () => void) {
-    if (this.client && this.client.active) return;
+    if (this.state === 'connected' && this.client?.active) {
+      onConnectCallback?.();
+      return;
+    }
 
+    if (onConnectCallback) {
+      this.pendingCallbacks.push(onConnectCallback);
+    }
+
+    if (this.state === 'connecting') {
+      // Already connecting – callback is queued, nothing else to do
+      return;
+    }
+
+    this.state = 'connecting';
     const token = await AsyncStorage.getItem('accessToken');
 
     this.client = new Client({
       brokerURL: 'ws://10.0.2.2:8086/chat/ws/chat',
       connectHeaders: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       onConnect: () => {
-        console.log("WebSocket Connected!");
-        if (onConnectCallback) onConnectCallback();
+        console.log('[STOMP] Connected');
+        this.state = 'connected';
+        const callbacks = [...this.pendingCallbacks];
+        this.pendingCallbacks = [];
+        callbacks.forEach(cb => cb());
       },
-      onStompError: (frame) => {
-        console.error('Broker reported error: ' + frame.headers['message']);
-        console.error('Additional details: ' + frame.body);
+      onStompError: frame => {
+        console.error('[STOMP] Error:', frame.headers['message'], frame.body);
+        this.state = 'idle';
+        this.pendingCallbacks = [];
+      },
+      onWebSocketClose: () => {
+        console.warn('[STOMP] WebSocket closed');
+        this.state = 'idle';
+        this.currentSubscription = null;
       },
     });
 
     this.client.activate();
   }
 
-  subscribeToConversation(conversationId: string, onMessageReceived: (msg: any) => void) {
-    if (!this.client || !this.client.active) {
-      console.warn("Cannot subscribe, STOMP client not active");
+  subscribeToConversation(
+    conversationId: string,
+    onMessageReceived: (msg: any) => void,
+  ) {
+    if (!this.client || this.state !== 'connected') {
+      console.warn('[STOMP] Cannot subscribe – client not connected');
       return;
     }
 
-    if (this.currentSubscription) {
-      this.currentSubscription.unsubscribe();
-    }
+    // Unsubscribe from previous topic if switching rooms
+    this.currentSubscription?.unsubscribe();
 
-    this.currentSubscription = this.client.subscribe(`/topic/conversation/${conversationId}`, (message) => {
-      if (message.body) {
-        onMessageReceived(JSON.parse(message.body));
-      }
-    });
+    this.currentSubscription = this.client.subscribe(
+      `/topic/conversation/${conversationId}`,
+      message => {
+        if (message.body) {
+          onMessageReceived(JSON.parse(message.body));
+        }
+      },
+    );
 
-    console.log(`Subscribed to topic: /topic/conversation/${conversationId}`);
+    console.log(`[STOMP] Subscribed to /topic/conversation/${conversationId}`);
   }
 
   unsubscribe() {
-    if (this.currentSubscription) {
-      this.currentSubscription.unsubscribe();
-      this.currentSubscription = null;
-    }
+    this.currentSubscription?.unsubscribe();
+    this.currentSubscription = null;
   }
 
+  /** Fully tear down the connection (call on logout) */
   disconnect() {
-    if (this.client) {
-      this.client.deactivate();
-      this.client = null;
-    }
+    this.unsubscribe();
+    this.client?.deactivate();
+    this.client = null;
+    this.state = 'idle';
+    this.pendingCallbacks = [];
   }
 }
 
