@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { userService } from '../../services/user.service';
 import { feedService } from '../../services/feed.service';
 import { profileApi } from '../../api/profileApi';
+import { chatApi } from '../../api/chatApi';
 import { UserProfile } from '../../types/user';
 import FeedItem from '../../components/feed/FeedItem';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
@@ -82,6 +83,29 @@ const UserProfileScreen = ({ route, navigation }: any) => {
     }
   };
 
+  const handleStartChat = async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const targetUserId = user.userId || user.id;
+      const response: any = await chatApi.createConversation({
+        participantIds: [targetUserId],
+        type: 'DIRECT'
+      });
+      const conv = response.result || response.data?.result || response.data;
+      if (conv) {
+        setLoading(false);
+        navigation.push('ChatRoom', { 
+            conversationId: conv.id, 
+            conversationName: conv.conversationName || user.displayName || user.username 
+        });
+      }
+    } catch (e) {
+      console.error('Failed to create/get conversation', e);
+      setLoading(false);
+    }
+  };
+
   const renderActionButtons = () => {
     if (!user) return null;
     switch(user.relationship) {
@@ -91,7 +115,7 @@ const UserProfileScreen = ({ route, navigation }: any) => {
              <TouchableOpacity style={styles.btnOutline} onPress={() => handleInteract('REMOVE')}>
                <Text style={styles.btnText}>Huỷ kết bạn</Text>
              </TouchableOpacity>
-             <TouchableOpacity style={styles.btnPrimary}>
+             <TouchableOpacity style={styles.btnPrimary} onPress={handleStartChat}>
                <Text style={styles.btnTextPrimary}>Nhắn tin</Text>
              </TouchableOpacity>
            </View>

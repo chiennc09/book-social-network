@@ -6,6 +6,7 @@ import java.util.Objects;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import com.chiennc.chat.dto.request.ChatMessageRequest;
@@ -38,7 +39,8 @@ public class ChatMessageService {
 
     public List<ChatMessageResponse> getMessages(String conversationId) {
         // Validate conversationId
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = jwt.getClaim("userId");
         conversationRepository
                 .findById(conversationId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
@@ -54,7 +56,8 @@ public class ChatMessageService {
     }
 
     public ChatMessageResponse create(ChatMessageRequest request) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = jwt.getClaim("userId");
         // Validate conversationId
         conversationRepository
                 .findById(request.getConversationId())
@@ -98,7 +101,8 @@ public class ChatMessageService {
     }
 
     private ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = jwt.getClaim("userId");
         var chatMessageResponse = chatMessageMapper.toChatMessageResponse(chatMessage);
 
         chatMessageResponse.setMe(userId.equals(chatMessage.getSender().getUserId()));

@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.StringJoiner;
 
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import com.chiennc.chat.dto.request.ConversationRequest;
@@ -35,7 +36,8 @@ public class ConversationService {
     ConversationMapper conversationMapper;
 
     public List<ConversationResponse> myConversations() {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = jwt.getClaim("userId");
         List<Conversation> conversations = conversationRepository.findAllByParticipantIdsContains(userId);
 
         return conversations.stream().map(this::toConversationResponse).toList();
@@ -43,7 +45,8 @@ public class ConversationService {
 
     public ConversationResponse create(ConversationRequest request) {
         // Fetch user infos
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = jwt.getClaim("userId");
         var userInfoResponse = profileClient.getProfile(userId);
         var participantInfoResponse =
                 profileClient.getProfile(request.getParticipantIds().getFirst());
@@ -110,8 +113,8 @@ public class ConversationService {
     }
 
     private ConversationResponse toConversationResponse(Conversation conversation) {
-        String currentUserId =
-                SecurityContextHolder.getContext().getAuthentication().getName();
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentUserId = jwt.getClaim("userId");
 
         ConversationResponse conversationResponse = conversationMapper.toConversationResponse(conversation);
 

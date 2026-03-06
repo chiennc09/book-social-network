@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, SafeAreaView, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { chatApi } from '../../api/chatApi';
+import { profileApi } from '../../api/profileApi';
 import { DEFAULT_AVATAR, COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 
 const ChatListScreen = ({ navigation }: any) => {
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // New Chat Modal States
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loadingFriends, setLoadingFriends] = useState(false);
 
   useEffect(() => {
     fetchConversations();
@@ -43,6 +50,64 @@ const ChatListScreen = ({ navigation }: any) => {
     );
   };
 
+  const handleLoadFriends = async () => {
+    try {
+      setLoadingFriends(true);
+      const response: any = await profileApi.getFriends();
+      const items = response.result || response.data?.result || response.data || [];
+      setFriends(items);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingFriends(false);
+    }
+  };
+
+  const openNewChatModal = () => {
+    setIsModalVisible(true);
+    handleLoadFriends();
+  };
+
+  const createChat = async (targetId: string, displayName: string) => {
+    setIsModalVisible(false);
+    try {
+      setLoading(true);
+      const response: any = await chatApi.createConversation({
+         participantIds: [targetId],
+         type: 'DIRECT'
+      });
+      const conv = response.result || response.data?.result || response.data;
+      if (conv) {
+         setLoading(false);
+         navigation.push('ChatRoom', { 
+            conversationId: conv.id, 
+            conversationName: conv.conversationName || displayName
+         });
+      }
+    } catch (e) {
+      console.error('Failed to create/get conversation', e);
+      setLoading(false);
+    }
+  };
+
+  const renderFriendItem = ({ item }: { item: any }) => {
+     let actualId = item.id;
+     if (item.userId) actualId = item.userId; // handle mapped response
+
+     return (
+       <TouchableOpacity 
+          style={styles.chatItem} 
+          onPress={() => createChat(actualId, item.displayName || item.username)}
+       >
+          <Image style={styles.avatar} source={{ uri: item.avatar || DEFAULT_AVATAR }} />
+          <View style={styles.chatInfo}>
+            <Text style={styles.chatName}>{item.displayName || item.username}</Text>
+            <Text style={styles.chatPreview}>@{item.username}</Text>
+          </View>
+       </TouchableOpacity>
+     );
+  };
+
   if (loading) return <View style={styles.loader}><ActivityIndicator size="large" color={COLORS.text}/></View>;
 
   return (
@@ -61,6 +126,41 @@ const ChatListScreen = ({ navigation }: any) => {
         renderItem={renderItem}
         ListEmptyComponent={<Text style={styles.emptyText}>Chưa có cuộc trò chuyện nào</Text>}
       />
+
+      <TouchableOpacity style={styles.fab} onPress={openNewChatModal}>
+        <Icon name="message-square" size={24} color={COLORS.background} />
+      </TouchableOpacity>
+
+      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
+         <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+               <Text style={styles.modalTitle}>Nhắn tin mới</Text>
+               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                  <Icon name="x" size={24} color={COLORS.text} />
+               </TouchableOpacity>
+            </View>
+            <View style={styles.searchBox}>
+               <Icon name="search" size={20} color={COLORS.textSecondary} />
+               <TextInput 
+                  style={styles.searchInput} 
+                  placeholder="Tìm kiếm bạn bè..." 
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+               />
+            </View>
+            {loadingFriends ? (
+               <ActivityIndicator style={{marginTop: 20}} color={COLORS.text} />
+            ) : (
+               <FlatList 
+                  data={friends.filter(f => (f.displayName || f.username).toLowerCase().includes(searchQuery.toLowerCase()))}
+                  keyExtractor={item => item.id || item.userId || Math.random().toString()}
+                  renderItem={renderFriendItem}
+                  ListEmptyComponent={<Text style={styles.emptyText}>Không tìm thấy bạn bè nào</Text>}
+               />
+            )}
+         </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -88,7 +188,13 @@ const styles = StyleSheet.create({
   chatInfo: { marginLeft: SPACING.m, flex: 1 },
   chatName: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
   chatPreview: { color: COLORS.textSecondary, fontSize: 14, marginTop: 4 },
-  emptyText: { textAlign: 'center', color: COLORS.textSecondary, marginTop: 20 }
+  emptyText: { textAlign: 'center', color: COLORS.textSecondary, marginTop: 20 },
+  fab: { position: 'absolute', bottom: 30, right: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: COLORS.text, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  modalContainer: { flex: 1, backgroundColor: COLORS.background, marginTop: 50, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: SPACING.m, elevation: 10 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m },
+  modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 8, paddingHorizontal: 12, height: 40, marginBottom: SPACING.m },
+  searchInput: { flex: 1, color: COLORS.text, marginLeft: 8 }
 });
 
 export default ChatListScreen;

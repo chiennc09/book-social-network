@@ -29,8 +29,8 @@ public class ChatMessageController {
                 .build();
     }
 
-    @GetMapping
-    ApiResponse<List<ChatMessageResponse>> getMessages(@RequestParam("conversationId") String conversationId) {
+    @GetMapping("/{conversationId}")
+    ApiResponse<List<ChatMessageResponse>> getMessages(@PathVariable("conversationId") String conversationId) {
         return ApiResponse.<List<ChatMessageResponse>>builder()
                 .result(chatMessageService.getMessages(conversationId))
                 .build();
