@@ -150,9 +150,14 @@ const HomeScreen = ({ route, navigation }: any) => {
         <Icon name="menu" size={24} color={COLORS.text} />
       </TouchableOpacity>
       <Icon name="book-open" size={28} color={COLORS.text} />
-      <TouchableOpacity style={styles.iconBtn}>
-        <Icon name="search" size={24} color={COLORS.text} />
-      </TouchableOpacity>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity style={[styles.iconBtn, { marginRight: 15 }]} onPress={() => navigation.push('ChatList')}>
+          <Icon name="message-circle" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.iconBtn}>
+          <Icon name="search" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 

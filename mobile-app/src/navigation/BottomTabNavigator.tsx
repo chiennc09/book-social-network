@@ -8,6 +8,8 @@ import { HomeDrawerNavigator, ProfileDrawerNavigator } from './DrawerNavigators'
 import LibraryScreen from '../screens/library/LibraryScreen';
 import SearchScreen from '../screens/search/SearchScreen';
 
+import ChatListScreen from '../screens/chat/ChatListScreen';
+
 // Placeholder cho các màn hình chưa code
 const Placeholder = ({ name }: { name: string }) => (
   <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' }}>
@@ -42,7 +44,7 @@ const BottomTabNavigator = () => {
         options={{ tabBarIcon: ({ color }) => <Icon name="search" color={color} size={26} /> }} 
       />
       <Tab.Screen 
-        name="Chatbot" component={() => <Placeholder name="Chat" />} 
+        name="Chatbot" component={ChatListScreen} 
         options={{ tabBarIcon: ({ color }) => <Icon name="message-circle" color={color} size={26} /> }} 
       />
       <Tab.Screen 

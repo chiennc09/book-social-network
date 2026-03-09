@@ -26,4 +26,6 @@ export type RootStackParamList = {
   Challenge: undefined;
   FriendManagement: undefined;
   UserProfile: { userId: string };
+  ChatList: undefined;
+  ChatRoom: { conversationId: string, conversationName?: string };
 };
