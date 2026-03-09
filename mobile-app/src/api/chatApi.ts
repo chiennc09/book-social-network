@@ -18,8 +18,8 @@ export const chatApi = {
     return axiosClient.get(`${BASE_URL}/messages/${conversationId}`);
   },
 
-  // Send a message via REST (fallback if websocket fails, or just initial implementation)
-  sendMessage: (data: { conversationId: string, message: string }) => {
+  // Send a message via REST
+  sendMessage: (data: { conversationId: string; message: string; bookAttachment?: any }) => {
     return axiosClient.post(`${BASE_URL}/messages/create`, data);
   }
 };

@@ -213,9 +213,14 @@ const BookDetailScreen = ({ route, navigation }: any) => {
       <ShareToChatModal
         visible={shareChatVisible}
         onClose={() => setShareChatVisible(false)}
-        bookTitle={book.title}
-        bookId={book.id}
-        bookCover={book.coverUrl || book.coverImage}
+        navigation={navigation}
+        bookAttachment={{
+          bookId: book.id,
+          title: book.title,
+          author: book.author,
+          coverUrl: book.coverUrl || book.coverImage,
+          ratingAverage: book.ratingAverage,
+        }}
       />
       
     </View>

@@ -1,55 +1,115 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 import { chatApi } from '../../api/chatApi';
 import { chatSocketService } from '../../services/chatSocket.service';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
-import Icon from 'react-native-vector-icons/Feather';
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const formatTime = (dateString: string) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+// ── Book Card Sub-component ─────────────────────────────────────────────────
+
+const BookCard = ({
+  book,
+  onPress,
+  isMe,
+}: {
+  book: any;
+  onPress: () => void;
+  isMe: boolean;
+}) => (
+  <TouchableOpacity
+    style={[styles.bookCard, isMe ? styles.bookCardMe : styles.bookCardThem]}
+    onPress={onPress}
+    activeOpacity={0.85}>
+    <View style={styles.bookCardInner}>
+      {book.coverUrl ? (
+        <Image source={{ uri: book.coverUrl }} style={styles.bookCardCover} />
+      ) : (
+        <View style={[styles.bookCardCover, styles.bookCardCoverPlaceholder]}>
+          <Icon name="book" size={22} color="#aaa" />
+        </View>
+      )}
+      <View style={styles.bookCardInfo}>
+        <Text style={styles.bookCardTitle} numberOfLines={2}>
+          {book.title}
+        </Text>
+        {book.author ? (
+          <Text style={styles.bookCardAuthor} numberOfLines={1}>
+            {book.author}
+          </Text>
+        ) : null}
+        {typeof book.ratingAverage === 'number' ? (
+          <View style={styles.bookCardRating}>
+            <Icon name="star" size={12} color="#FFD700" />
+            <Text style={styles.bookCardRatingText}>
+              {book.ratingAverage.toFixed(1)}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <Icon name="chevron-right" size={18} color="#aaa" />
+    </View>
+  </TouchableOpacity>
+);
+
+// ── Main Component ──────────────────────────────────────────────────────────
 
 const ChatRoomScreen = ({ route, navigation }: any) => {
   const { conversationId, conversationName, conversationAvatar } = route.params;
 
-  const formatTime = (dateString: string) => {
-    if (!dateString) return '';
-    const d = new Date(dateString);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     fetchMessages();
-    
-    // Connect WebSocket
+
     chatSocketService.connect(() => {
-       chatSocketService.subscribeToConversation(conversationId, (newMsg: any) => {
-          setMessages(prev => {
-             // Avoid duplicate message appending
-             if (prev.find(m => m.id === newMsg.id)) return prev;
-             return [newMsg, ...prev];
-          });
-       });
+      chatSocketService.subscribeToConversation(conversationId, (newMsg: any) => {
+        setMessages(prev => {
+          if (prev.find(m => m.id === newMsg.id)) return prev;
+          return [newMsg, ...prev];
+        });
+      });
     });
 
     return () => chatSocketService.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchMessages = async () => {
     try {
       const response: any = await chatApi.getMessages(conversationId);
       const items = response.result || response.data?.result || [];
-      // Assuming REST brings ordered by createdDate desc
       setMessages(items);
     } catch (e) {
       console.error(e);
     }
   };
 
+  // Send a plain text message with optimistic UI
   const sendMessage = () => {
     const text = inputText.trim();
     if (!text) return;
 
-    // Optimistic UI: prepend the message immediately so sender sees it right away
     const optimisticMsg = {
       id: `temp-${Date.now()}`,
       message: text,
@@ -62,24 +122,65 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
 
     chatApi.sendMessage({ conversationId, message: text }).catch(err => {
       console.error('Failed to send message:', err);
-      // Rollback optimistic message on error
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
     });
   };
 
   const renderMessage = ({ item }: { item: any }) => {
     const isMe = item.me;
+    const hasBook = !!item.bookAttachment;
+
     return (
-      <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleThem]}>
+      <View
+        style={[
+          styles.messageBubble,
+          isMe ? styles.messageBubbleMe : styles.messageBubbleThem,
+        ]}>
         {!isMe && (
-           <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: item.sender.userId })}>
-             <Image source={{ uri: item.sender.avatar || DEFAULT_AVATAR }} style={styles.senderAvatar} />
-           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.push('UserProfile', { userId: item.sender?.userId })
+            }>
+            <Image
+              source={{ uri: item.sender?.avatar || DEFAULT_AVATAR }}
+              style={styles.senderAvatar}
+            />
+          </TouchableOpacity>
         )}
-        <View style={[styles.messageContent, isMe ? styles.messageContentMe : styles.messageContentThem]}>
-           {!isMe && <Text style={styles.senderName}>{item.sender.displayName || item.sender.username}</Text>}
-           <Text style={styles.messageText}>{item.message}</Text>
-           <Text style={[styles.timestamp, isMe ? styles.timestampMe : styles.timestampThem]}>{formatTime(item.createdDate)}</Text>
+        <View style={styles.messageOuter}>
+          {!isMe && (
+            <Text style={styles.senderName}>
+              {item.sender?.displayName || item.sender?.username}
+            </Text>
+          )}
+
+          {hasBook ? (
+            <BookCard
+              book={item.bookAttachment}
+              isMe={isMe}
+              onPress={() =>
+                navigation.push('BookDetail', {
+                  bookId: item.bookAttachment.bookId,
+                })
+              }
+            />
+          ) : (
+            <View
+              style={[
+                styles.messageContent,
+                isMe ? styles.messageContentMe : styles.messageContentThem,
+              ]}>
+              <Text style={styles.messageText}>{item.message}</Text>
+            </View>
+          )}
+
+          <Text
+            style={[
+              styles.timestamp,
+              isMe ? styles.timestampMe : styles.timestampThem,
+            ]}>
+            {formatTime(item.createdDate)}
+          </Text>
         </View>
       </View>
     );
@@ -92,23 +193,28 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
           <Icon name="arrow-left" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Image source={{ uri: conversationAvatar || DEFAULT_AVATAR }} style={styles.headerAvatar} />
+          <Image
+            source={{ uri: conversationAvatar || DEFAULT_AVATAR }}
+            style={styles.headerAvatar}
+          />
           <Text style={styles.headerTitle}>{conversationName || 'Chat'}</Text>
         </View>
         <View style={{ width: 32 }} />
       </View>
 
-      <KeyboardAvoidingView 
-        style={styles.chatContainer} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView
+        style={styles.chatContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
           ref={flatListRef}
           data={messages}
           keyExtractor={(item, index) => item.id || index.toString()}
           renderItem={renderMessage}
           inverted
-          contentContainerStyle={{ paddingHorizontal: SPACING.m, paddingBottom: SPACING.m }}
+          contentContainerStyle={{
+            paddingHorizontal: SPACING.m,
+            paddingBottom: SPACING.m,
+          }}
         />
 
         <View style={styles.inputContainer}>
@@ -128,6 +234,8 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
   );
 };
 
+// ── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   chatContainer: { flex: 1 },
@@ -137,26 +245,110 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: SPACING.m,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border
+    borderBottomColor: COLORS.border,
   },
   headerTitleContainer: { flexDirection: 'row', alignItems: 'center' },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
   headerTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-  messageBubble: { flexDirection: 'row', marginVertical: 4, maxWidth: '80%' },
+
+  messageBubble: {
+    flexDirection: 'row',
+    marginVertical: 4,
+    maxWidth: '85%',
+  },
   messageBubbleMe: { alignSelf: 'flex-end', justifyContent: 'flex-end' },
   messageBubbleThem: { alignSelf: 'flex-start' },
-  senderAvatar: { width: 30, height: 30, borderRadius: 15, marginRight: 8, marginTop: 4 },
+  senderAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 8,
+    marginTop: 4,
+  },
+  messageOuter: { flexShrink: 1 },
+  senderName: {
+    color: '#ccc',
+    fontSize: 12,
+    marginBottom: 2,
+    fontWeight: 'bold',
+  },
   messageContent: { padding: 12, borderRadius: 16 },
-  messageContentMe: { backgroundColor: '#007AFF', borderBottomRightRadius: 4 },
-  messageContentThem: { backgroundColor: '#333', borderBottomLeftRadius: 4 },
-  senderName: { color: '#ccc', fontSize: 12, marginBottom: 2, fontWeight: 'bold' },
+  messageContentMe: {
+    backgroundColor: '#007AFF',
+    borderBottomRightRadius: 4,
+  },
+  messageContentThem: {
+    backgroundColor: '#333',
+    borderBottomLeftRadius: 4,
+  },
   messageText: { color: '#fff', fontSize: 15 },
-  timestamp: { fontSize: 10, marginTop: 4, alignSelf: 'flex-end' },
-  timestampMe: { color: 'rgba(255, 255, 255, 0.7)' },
-  timestampThem: { color: '#888' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', padding: SPACING.m, borderTopWidth: 1, borderTopColor: COLORS.border },
-  input: { flex: 1, backgroundColor: '#222', color: COLORS.text, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, marginRight: 10 },
-  sendButton: { backgroundColor: COLORS.text, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }
+  timestamp: { fontSize: 10, marginTop: 3, alignSelf: 'flex-end' },
+  timestampMe: { color: 'rgba(255,255,255,0.6)' },
+  timestampThem: { color: '#777' },
+
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.m,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#222',
+    color: COLORS.text,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 10,
+  },
+  sendButton: {
+    backgroundColor: COLORS.text,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ── Book Card ──
+  bookCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    minWidth: 220,
+  },
+  bookCardMe: { backgroundColor: '#005ECB' },
+  bookCardThem: { backgroundColor: '#2A2A2A' },
+  bookCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+  },
+  bookCardCover: {
+    width: 48,
+    height: 64,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  bookCardCoverPlaceholder: {
+    backgroundColor: '#444',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookCardInfo: { flex: 1 },
+  bookCardTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 3,
+  },
+  bookCardAuthor: { color: '#ccc', fontSize: 12 },
+  bookCardRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  bookCardRatingText: { color: '#FFD700', fontSize: 12, marginLeft: 3 },
 });
 
 export default ChatRoomScreen;

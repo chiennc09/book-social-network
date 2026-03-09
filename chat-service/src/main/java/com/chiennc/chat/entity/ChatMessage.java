@@ -27,6 +27,8 @@ public class ChatMessage {
 
     ParticipantInfo sender;
 
+    BookAttachment bookAttachment;
+
     @Indexed
     Instant createdDate;
 }

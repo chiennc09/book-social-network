@@ -2,6 +2,8 @@ package com.chiennc.chat.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 
+import com.chiennc.chat.entity.BookAttachment;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -14,6 +16,7 @@ public class ChatMessageRequest {
     @NotBlank
     String conversationId;
 
-    @NotBlank
     String message;
+
+    BookAttachment bookAttachment;
 }

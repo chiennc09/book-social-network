@@ -2,6 +2,7 @@ package com.chiennc.chat.dto.response;
 
 import java.time.Instant;
 
+import com.chiennc.chat.entity.BookAttachment;
 import com.chiennc.chat.entity.ParticipantInfo;
 
 import lombok.*;
@@ -19,4 +20,5 @@ public class ChatMessageResponse {
     String message;
     ParticipantInfo sender;
     Instant createdDate;
+    BookAttachment bookAttachment;
 }
