@@ -52,6 +52,7 @@ public class BookService {
     BookReviewRepository bookReviewRepository;
     ProfileClient profileClient;
     KafkaTemplate<String, Object> kafkaTemplate;
+    UserBehaviorProducer userBehaviorProducer;
     // CONSTANT: Topic name
     private static final String BOOK_COMPLETED_TOPIC = "book-completed";
 
@@ -89,9 +90,20 @@ public class BookService {
     }
 
     public BookResponse getById(String id) {
-        return bookRepository.findById(id)
+        BookResponse response = bookRepository.findById(id)
                 .map(this::enrichBookResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
+
+        try {
+            String userId = getUserId();
+            if (userId != null) {
+                userBehaviorProducer.sendBehaviorEvent(userId, id, "VIEW", 1.0);
+            }
+        } catch (Exception e) {
+            // Ignore if unauthenticated
+        }
+
+        return response;
     }
 
     private BookResponse enrichBookResponse(Book book) {
@@ -167,6 +179,9 @@ public class BookService {
         // Ghi nhận vào bảng xếp hạng ngày
         increaseRankingCount(bookId);
 
+        // Bắn event hành vi VIEW
+        userBehaviorProducer.sendBehaviorEvent(userId, bookId, "VIEW", 1.0);
+
         return response;
     }
 
@@ -209,6 +224,9 @@ public class BookService {
             // Bắn event Kafka
             kafkaTemplate.send(BOOK_COMPLETED_TOPIC, new BookCompletedEvent(userId, bookId, LocalDateTime.now()));
         }
+
+        // Bắn event hành vi ADD_BOOKSHELF
+        userBehaviorProducer.sendBehaviorEvent(userId, bookId, "ADD_BOOKSHELF", 4.0);
 
         history.setStatus(status);
         historyRepository.save(history);
@@ -295,6 +313,9 @@ public class BookService {
         
         book.setTotalFavorites(book.getTotalFavorites() + 1);
         bookRepository.save(book);
+
+        // Bắn event hành vi FAVORITE
+        userBehaviorProducer.sendBehaviorEvent(userId, bookId, "FAVORITE", 5.0);
     }
 
     public void unfavoriteBook(String bookId) {
@@ -337,6 +358,9 @@ public class BookService {
         book.setAverageRating(allReviews.size() > 0 ? totalScore / allReviews.size() : 0);
         
         bookRepository.save(book);
+
+        // Bắn event hành vi RATING
+        userBehaviorProducer.sendBehaviorEvent(userId, bookId, "RATING", (double) request.getRating());
     }
 
     public List<ReviewResponse> getReviews(String bookId) {

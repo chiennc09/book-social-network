@@ -15,3 +15,25 @@ services:
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+
+  redis:
+    image: redis:7.2.4-alpine
+    container_name: redis
+    hostname: redis
+    ports:
+      - '6379:6379'
+
+  recommendation-service:
+    build: ./recommendation-service
+    container_name: recommendation-service
+    ports:
+      - '8088:8000'
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_URL=redis://redis:6379
+      - MONGODB_URL=mongodb://root:root@host.docker.internal:27017/recommendation-service?authSource=admin
+    depends_on:
+      - kafka
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
