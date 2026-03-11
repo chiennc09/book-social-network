@@ -18,14 +18,15 @@ public class Book {
     String title;
     List<String> authors;
     String description;
-    String category;
+    String categoryId;
     String coverImage;
 
     // Đường dẫn file thực tế trong server
     String pdfPath;
     String epubPath;
 
-    boolean isPublic;
+    @com.fasterxml.jackson.annotation.JsonProperty("isPublic")
+    Boolean isPublic;
     String ownerId;
 
     @Builder.Default

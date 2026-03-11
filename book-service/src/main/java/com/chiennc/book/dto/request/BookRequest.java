@@ -17,7 +17,11 @@ public class BookRequest {
     String title;
     List<String> authors;
     String description;
-    String category;
-    boolean isPublic;
+    String categoryId;
+    String coverImage;
+    String pdfPath;
+    String epubPath;
+    @com.fasterxml.jackson.annotation.JsonProperty("isPublic")
+    Boolean isPublic;
     int totalPages;
 }

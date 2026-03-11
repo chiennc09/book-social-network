@@ -43,14 +43,20 @@ public class BookController {
         return ApiResponse.<List<BookResponse>>builder().result(bookService.search(q)).build();
     }
 
+    @GetMapping("/{id}")
+    ApiResponse<BookResponse> getById(@PathVariable String id) {
+        return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();
+    }
+
     // 2. Upload file PDF/EPUB và Cover (Now expects URLs from file-service)
     @PostMapping("/{id}/upload")
-    ApiResponse<String> upload(@PathVariable String id,
+    ApiResponse<BookResponse> upload(@PathVariable String id,
                                @RequestParam(required = false) String coverUrl,
                                @RequestParam(required = false) String pdfUrl,
                                @RequestParam(required = false) String epubUrl) {
         bookService.uploadFiles(id, coverUrl, pdfUrl, epubUrl);
-        return ApiResponse.<String>builder().result("Files uploaded successfully").build();
+
+        return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();
     }
 
     // 3. Chức năng Đọc sách (Trả về link file + Lịch sử đọc cũ)

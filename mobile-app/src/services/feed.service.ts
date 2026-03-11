@@ -45,7 +45,7 @@ export const feedService = {
         let bookObj: Book | undefined;
         if (item.bookId) {
           try {
-            bookObj = await bookService.getBookDetails(item.bookId) as Book;
+            bookObj = await bookService.getBookBasicInfo(item.bookId) as Book;
           } catch(_e) { }
         }
         return {

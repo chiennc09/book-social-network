@@ -4,6 +4,7 @@ import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { libraryService, LibraryBook } from '../../services/library.service';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import ShareBookModal from '../../components/library/ShareBookModal';
 
 const { width } = Dimensions.get('window');
 
@@ -11,6 +12,7 @@ const LibraryScreen = ({ navigation }: any) => {
   const [activeTab, setActiveTab] = useState<'reading' | 'want_to_read' | 'read'>('reading');
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [loading, setLoading] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   // Fetch data khi đổi Tab
   useEffect(() => {
@@ -135,13 +137,13 @@ const LibraryScreen = ({ navigation }: any) => {
            </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.footerCard} onPress={() => Alert.alert('Thông báo', 'Tính năng Thống kê sắp ra mắt')}>
+        <TouchableOpacity style={styles.footerCard} onPress={() => setShareModalVisible(true)}>
            <View style={[styles.iconBox, { backgroundColor: '#4ECDC4' }]}>
-              <Icon name="bar-chart-2" size={24} color="white" />
+              <Icon name="share-2" size={24} color="white" />
            </View>
            <View>
-              <Text style={styles.cardTitle}>Thống kê</Text>
-              <Text style={styles.cardSub}>Biểu đồ đọc sách</Text>
+              <Text style={styles.cardTitle}>Chia sẻ sách</Text>
+              <Text style={styles.cardSub}>Đóng góp cho cộng đồng</Text>
            </View>
         </TouchableOpacity>
       </View>
@@ -181,6 +183,14 @@ const LibraryScreen = ({ navigation }: any) => {
             />
         )}
       </View>
+
+      <ShareBookModal 
+         visible={shareModalVisible} 
+         onClose={() => setShareModalVisible(false)} 
+         onSuccess={() => {
+            // Có thể reload lại tủ sách hoặc navigate
+         }} 
+      />
     </SafeAreaView>
   );
 };

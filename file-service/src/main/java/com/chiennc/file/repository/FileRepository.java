@@ -35,13 +35,15 @@ public class FileRepository {
             Files.createDirectories(folder);
         }
 
-        /// Lấy tên định dạng file (Đuôi)
-        String fileExtension = StringUtils
-                .getFilenameExtension(file.getOriginalFilename());
+        /// Lấy tên định dạng gốc
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null) {
+            originalFilename = originalFilename.replaceAll("\\s+", "_");
+        } else {
+            originalFilename = "file";
+        }
 
-        String fileName = Objects.isNull(fileExtension)
-                ? UUID.randomUUID().toString()
-                : UUID.randomUUID() + "." + fileExtension;
+        String fileName = UUID.randomUUID().toString() + "_" + originalFilename;
 
         /// Lấy đường dẫn hoàn chỉnh file mong muốn
         Path filePath = folder.resolve(fileName).normalize().toAbsolutePath();

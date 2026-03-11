@@ -98,5 +98,29 @@ export const bookService = {
       console.error('Error fetching book details:', error);
       throw error;
     }
+  },
+
+  async getBookBasicInfo(id: string): Promise<Book> {
+    try {
+      const resp = await bookApi.getById(id);
+      const data: any = (resp as any).result;
+
+      let coverUrl = data.coverImage;
+      if (coverUrl && !coverUrl.startsWith('http')) {
+         coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
+      }
+
+      return {
+        id: data.id,
+        title: data.title,
+        authors: data.authors,
+        author: data.authors?.[0] || 'Unknown',
+        coverUrl: coverUrl,
+        averageRating: data.averageRating || 0,
+      } as Book;
+    } catch (error) {
+       console.error('Error fetching book basic info:', error);
+       throw error;
+    }
   }
 };

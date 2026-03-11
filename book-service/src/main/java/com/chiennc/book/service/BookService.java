@@ -20,8 +20,9 @@ import com.chiennc.book.dto.response.UserProfileResponse;
 import com.chiennc.book.exception.ErrorCode;
 import com.chiennc.book.utils.TextUtils;
 import com.chiennc.book.repository.httpclient.ProfileClient;
-import com.chiennc.book.repository.BookFavoriteRepository;
 import com.chiennc.book.repository.BookReviewRepository;
+import com.chiennc.book.repository.CategoryRepository;
+import com.chiennc.book.repository.BookFavoriteRepository;
 import com.chiennc.book.repository.ReadHistoryRepository;
 import com.chiennc.event.dto.BookCompletedEvent;
 import lombok.AccessLevel;
@@ -29,6 +30,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -46,13 +51,15 @@ import java.util.List;
 public class BookService {
     BookRepository bookRepository;
     ReadHistoryRepository historyRepository;
-    BookMapper bookMapper;
     BookRankingRepository rankingRepository;
     BookFavoriteRepository bookFavoriteRepository;
     BookReviewRepository bookReviewRepository;
+    CategoryRepository categoryRepository;
+    BookMapper bookMapper;
     ProfileClient profileClient;
     KafkaTemplate<String, Object> kafkaTemplate;
     UserBehaviorProducer userBehaviorProducer;
+    MongoTemplate mongoTemplate;
     // CONSTANT: Topic name
     private static final String BOOK_COMPLETED_TOPIC = "book-completed";
 
@@ -82,7 +89,8 @@ public class BookService {
     public List<BookResponse> search(String q) {
         String regex = TextUtils.toFuzzyRegex(q);
         return bookRepository.searchByRegex(regex).stream()
-                .map(this::enrichBookResponse).toList();
+                .map(this::enrichBookResponse)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     public void delete(String id) {
@@ -94,20 +102,14 @@ public class BookService {
                 .map(this::enrichBookResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
 
-        try {
-            String userId = getUserId();
-            if (userId != null) {
-                userBehaviorProducer.sendBehaviorEvent(userId, id, "VIEW", 1.0);
-            }
-        } catch (Exception e) {
-            // Ignore if unauthenticated
-        }
-
         return response;
     }
 
     private BookResponse enrichBookResponse(Book book) {
         BookResponse response = bookMapper.toBookResponse(book);
+        if (book.getCategoryId() != null) {
+            categoryRepository.findById(book.getCategoryId()).ifPresent(response::setCategory);
+        }
         try {
             String userId = getUserId(); // current logged in user
             if (userId != null) {
@@ -132,6 +134,9 @@ public class BookService {
 
         // Map sang response
         BookResponse response = bookMapper.toBookResponse(book);
+        if (book.getCategoryId() != null) {
+            categoryRepository.findById(book.getCategoryId()).ifPresent(response::setCategory);
+        }
 
         // QUAN TRỌNG: Chuyển tên file thành URL đầy đủ để Frontend gọi
         if (book.getPdfPath() != null) {
@@ -203,11 +208,9 @@ public class BookService {
     // Logic Ranking: Tự động tạo bản ghi mới cho ngày hôm nay nếu chưa có
     private void increaseRankingCount(String bookId) {
         LocalDate today = LocalDate.now();
-        BookRanking ranking = rankingRepository.findFirstByBookIdAndDate(bookId, today)
-                .orElse(BookRanking.builder().bookId(bookId).date(today).build());
-
-        ranking.setViewCount(ranking.getViewCount() + 1);
-        rankingRepository.save(ranking);
+        Query query = new Query(Criteria.where("bookId").is(bookId).and("date").is(today));
+        Update update = new Update().inc("viewCount", 1);
+        mongoTemplate.upsert(query, update, BookRanking.class);
     }
 
     /// 1. API: Thêm vào tủ / Đổi trạng thái (Manual)
@@ -282,6 +285,9 @@ public class BookService {
             // Lấy thông tin sách gốc
             var bookParams = bookRepository.findById(h.getBookId()).orElseThrow();
             var response = bookMapper.toBookResponse(bookParams);
+            if (bookParams.getCategoryId() != null) {
+                categoryRepository.findById(bookParams.getCategoryId()).ifPresent(response::setCategory);
+            }
 
             // Override thông tin cá nhân hóa
             response.setLastPosition(h.getLastPosition());
@@ -292,7 +298,7 @@ public class BookService {
                     .ifPresent(review -> response.setUserRating(review.getRating()));
 
             return response;
-        }).toList();
+        }).collect(java.util.stream.Collectors.toList());
     }
 
     // --- NEW LOGIC: FAVORITES & REVIEWS ---
@@ -391,7 +397,7 @@ public class BookService {
                  response.setUserDisplayName("Người dùng ẩn danh");
             }
             return response;
-        }).toList();
+        }).collect(java.util.stream.Collectors.toList());
     }
 
     private String getUserId() {
