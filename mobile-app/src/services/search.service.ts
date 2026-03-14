@@ -1,90 +1,119 @@
+// src/services/search.service.ts
 import { Book } from '../types/index';
+import bookAxiosClient from '../api/bookAxiosClient';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface Genre {
   id: string;
   name: string;
-  color: string; // Màu nền cho box thể loại
+  color: string; // Background colour for the genre card
 }
 
+// Default palette used when a category has no colour set in the DB.
+const DEFAULT_GENRE_COLORS = [
+  '#E94057', '#8A2BE2', '#F27121',
+  '#11998e', '#F9D423', '#3494E6',
+  '#FF6B6B', '#4ECDC4', '#45B7D1',
+  '#96CEB4', '#FFEAA7', '#DDA0DD',
+];
+
+// ─── Service ──────────────────────────────────────────────────────────────────
+
 export const searchService = {
-  // Lấy danh sách thể loại (Image 1)
+  /**
+   * Fetch book genres/categories from the backend.
+   * Falls back to an empty array on error so the UI degrades gracefully.
+   * The `color` field is mandatory in the UI — if the server omits it
+   * we assign a colour from the default palette deterministically.
+   */
   async getGenres(): Promise<Genre[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          { id: '1', name: 'Tiểu thuyết', color: '#E94057' },
-          { id: '2', name: 'Kinh dị', color: '#8A2BE2' },
-          { id: '3', name: 'Lãng mạn', color: '#F27121' },
-          { id: '4', name: 'Khoa học', color: '#11998e' },
-          { id: '5', name: 'Kinh tế', color: '#F9D423' },
-          { id: '6', name: 'Tâm lý học', color: '#3494E6' },
-        ]);
-      }, 300);
-    });
-  },
-
-  // Lấy sách gợi ý (Trending - Image 2)
-  async getTrendingBooks(): Promise<Book[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          {
-             id: 't1', title: 'The Housemaid', authors: ['Freida McFadden'], 
-             coverUrl: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1317793965i/11468377.jpg',
-             status: 'want_to_read', progress: 0, totalPages: 300, totalPage: 300, currentPage: 0, author: 'Freida McFadden'
-          },
-          {
-             id: 't2', title: 'Anxious People', authors: ['Fredrik Backman'], 
-             coverUrl: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1436202607i/3735293.jpg',
-             status: 'want_to_read', progress: 0, totalPages: 350, totalPage: 350, currentPage: 0, author: 'Fredrik Backman'
-          },
-          {
-             id: 't3', title: 'Of Mice and Men', authors: ['John Steinbeck'], 
-             coverUrl: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1511302904i/890.jpg',
-             status: 'want_to_read', progress: 0, totalPages: 107, totalPage: 107, currentPage: 0, author: 'John Steinbeck'
-          },
-          {
-             id: 't4', title: 'Of Mice and Men', authors: ['John Steinbeck'], 
-             coverUrl: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1511302904i/890.jpg',
-             status: 'want_to_read', progress: 0, totalPages: 107, totalPage: 107, currentPage: 0, author: 'John Steinbeck'
-          },
-          {
-             id: 't5', title: 'Of Mice and Men', authors: ['John Steinbeck'], 
-             coverUrl: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1511302904i/890.jpg',
-             status: 'want_to_read', progress: 0, totalPages: 107, totalPage: 107, currentPage: 0, author: 'John Steinbeck'
-          },
-          {
-             id: 't6', title: 'Of Mice and Men', authors: ['John Steinbeck'], 
-             coverUrl: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1511302904i/890.jpg',
-             status: 'want_to_read', progress: 0, totalPages: 107, totalPage: 107, currentPage: 0, author: 'John Steinbeck'
-          },
-        ]);
-      }, 400);
-    });
-  },
-
-  // Tìm kiếm sách (Image 3)
-  async searchBooks(query: string, type: 'all' | 'title' | 'author'): Promise<Book[]> {
     try {
-      const { bookApi } = require('../api/bookApi'); // dynamic require to avoid circular dependency
-      const resp: any = await bookApi.search(query);
-      const dataList = resp.result || [];
-      return dataList.map((item: any) => ({
-         id: item.id,
-         title: item.title,
-         authors: item.authors,
-         author: item.authors?.[0] || 'Unknown',
-         coverUrl: item.coverImage,
-         status: item.shelfStatus || 'none',
-         progress: item.progressPercent || 0,
-         totalPage: item.totalPages || 0,
-         currentPage: 0,
-         description: item.description,
-         averageRating: item.averageRating || 0,
+      const resp: any = await bookAxiosClient.get('/categories');
+      const items: any[] = resp?.result ?? resp ?? [];
+
+      return items.map((item: any, index: number) => ({
+        id:    String(item.id ?? item._id ?? index),
+        name:  item.name ?? 'Unknown',
+        color: item.color ?? DEFAULT_GENRE_COLORS[index % DEFAULT_GENRE_COLORS.length],
       }));
     } catch (error) {
-      console.error('Error searching books:', error);
+      console.error('[searchService] Failed to load genres:', error);
       return [];
     }
-  }
-};
+  },
+
+  /**
+   * Fetch trending books (top by view count in the last 7 days).
+   * Maps the BookResponse from the server to the Book type used by the UI.
+   */
+  async getTrendingBooks(days = 7, limit = 10): Promise<Book[]> {
+    try {
+      const resp: any = await bookAxiosClient.get('/trending', {
+        params: { days, limit },
+      });
+      const items: any[] = resp?.result ?? resp ?? [];
+
+      return items.map((item: any) => {
+        let coverUrl: string = item.coverImage ?? item.coverUrl ?? '';
+        if (coverUrl && !coverUrl.startsWith('http')) {
+          coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
+        }
+        return {
+          id:            String(item.id),
+          title:         item.title ?? '',
+          authors:       item.authors ?? [],
+          author:        item.authors?.[0] ?? 'Unknown',
+          coverUrl,
+          coverImage:    coverUrl,
+          status:        item.shelfStatus ?? 'none',
+          progress:      item.progressPercent ?? 0,
+          totalPages:    item.totalPages ?? 0,
+          totalPage:     item.totalPages ?? 0,
+          currentPage:   0,
+          averageRating: item.averageRating ?? 0,
+          totalViews:    item.totalViews ?? 0,
+        } as Book;
+      });
+    } catch (error) {
+      console.error('[searchService] Failed to load trending books:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Search books by query string and filter type.
+   * Already uses the real search API — kept as-is.
+   */
+  async searchBooks(query: string, type: 'all' | 'title' | 'author'): Promise<Book[]> {
+    try {
+      const { bookApi } = require('../api/bookApi');
+      const resp: any = await bookApi.search(query);
+      const dataList: any[] = resp?.result ?? [];
+
+      return dataList.map((item: any) => {
+        let coverUrl: string = item.coverImage ?? '';
+        if (coverUrl && !coverUrl.startsWith('http')) {
+          coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
+        }
+        return {
+          id:            String(item.id),
+          title:         item.title,
+          authors:       item.authors,
+          author:        item.authors?.[0] ?? 'Unknown',
+          coverUrl,
+          coverImage:    coverUrl,
+          status:        item.shelfStatus ?? 'none',
+          progress:      item.progressPercent ?? 0,
+          totalPage:     item.totalPages ?? 0,
+          currentPage:   0,
+          description:   item.description,
+          averageRating: item.averageRating ?? 0,
+        } as Book;
+      });
+    } catch (error) {
+      console.error('[searchService] Search failed:', error);
+      return [];
+    }
+  },
+};

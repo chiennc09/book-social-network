@@ -93,6 +93,45 @@ public class BookService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    /**
+     * Trending books: top N books by total views in the last `days` days.
+     * Uses the BookRanking daily counter that is incremented every time a user opens a book.
+     * If no ranking data exists yet (e.g. fresh DB), falls back to most-viewed books
+     * from the books collection directly (totalViews field).
+     *
+     * Performance note: The aggregation runs entirely inside MongoDB ($match → $group → $sort → $limit),
+     * so only the top-N bookIds are transferred over the wire before resolving to BookResponse.
+     */
+    public List<BookResponse> getTrendingBooks(int days, int limit) {
+        // Clamp inputs to sane boundaries
+        days  = Math.max(1, Math.min(days, 365));
+        limit = Math.max(1, Math.min(limit, 50));
+
+        LocalDate from = LocalDate.now().minusDays(days);
+        LocalDate to   = LocalDate.now();
+
+        List<BookRankingRepository.BookViewAggResult> ranked =
+                rankingRepository.findTopBooksByDateRange(from, to, limit);
+
+        if (ranked.isEmpty()) {
+            // Fallback: no ranking data yet — return globally most-viewed books
+            return bookRepository.findAll(
+                    org.springframework.data.domain.PageRequest.of(0, limit,
+                            org.springframework.data.domain.Sort.by(
+                                    org.springframework.data.domain.Sort.Direction.DESC, "totalViews")))
+                    .getContent().stream()
+                    .map(this::enrichBookResponsePublic)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        // Resolve bookId → BookResponse (skip deleted books silently)
+        return ranked.stream()
+                .map(r -> bookRepository.findById(r.getId()).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .map(this::enrichBookResponsePublic)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public void delete(String id) {
         bookRepository.deleteById(id);
     }
@@ -119,6 +158,19 @@ public class BookService {
             }
         } catch (Exception e) {
             // Unauthenticated or error parsing token, just ignore
+        }
+        return response;
+    }
+
+    /**
+     * Lightweight enrichment for public/unauthenticated endpoints (e.g. /trending).
+     * Skips user-specific personalization (isFavorited, userRating) to avoid
+     * requiring a JWT and to reduce latency on high-traffic public calls.
+     */
+    private BookResponse enrichBookResponsePublic(Book book) {
+        BookResponse response = bookMapper.toBookResponse(book);
+        if (book.getCategoryId() != null) {
+            categoryRepository.findById(book.getCategoryId()).ifPresent(response::setCategory);
         }
         return response;
     }

@@ -43,6 +43,22 @@ public class BookController {
         return ApiResponse.<List<BookResponse>>builder().result(bookService.search(q)).build();
     }
 
+    /**
+     * Public endpoint — no auth required.
+     * Returns top-N trending books by view count over the last `days` days.
+     *
+     * @param days  look-back window in days (default 7, max 365)
+     * @param limit max number of books to return (default 10, max 50)
+     */
+    @GetMapping("/trending")
+    ApiResponse<List<BookResponse>> getTrending(
+            @RequestParam(defaultValue = "3")  int days,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.<List<BookResponse>>builder()
+                .result(bookService.getTrendingBooks(days, limit))
+                .build();
+    }
+
     @GetMapping("/{id}")
     ApiResponse<BookResponse> getById(@PathVariable String id) {
         return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();

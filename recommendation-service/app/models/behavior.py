@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from datetime import datetime
 from enum import Enum
 from typing import Optional, Union, List
@@ -18,6 +18,42 @@ class UserBehaviorEvent(BaseModel):
     actionType: ActionType
     value: float = 1.0
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    @field_validator('userId', 'bookId', mode='before')
+    @classmethod
+    def must_not_be_blank(cls, v: str) -> str:
+        """Guard against empty/whitespace IDs that would create phantom DB records."""
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("userId and bookId must be non-empty strings")
+        return v.strip()
+
+    @field_validator('value', mode='before')
+    @classmethod
+    def validate_value(cls, v) -> float:
+        """Coerce value to float early; actual range check is done in model_validator."""
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            raise ValueError(f"value must be a number, got: {v!r}")
+
+    @model_validator(mode='after')
+    def validate_range_by_action(self) -> 'UserBehaviorEvent':
+        """
+        Per-action validation:
+        - RATING   : value must be in [1.0, 5.0]
+        - READ_TIME: value must be >= 0 (minutes read, cannot be negative)
+        """
+        if self.actionType == ActionType.RATING:
+            if not (1.0 <= self.value <= 5.0):
+                raise ValueError(
+                    f"RATING value must be between 1.0 and 5.0, got {self.value}"
+                )
+        elif self.actionType == ActionType.READ_TIME:
+            if self.value < 0:
+                raise ValueError(
+                    f"READ_TIME value must be >= 0 (minutes), got {self.value}"
+                )
+        return self
 
     @field_validator('timestamp', mode='before')
     @classmethod
