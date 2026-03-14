@@ -67,9 +67,11 @@ const SearchScreen = ({ navigation }: any) => {
           const bookIds = await recommendationApi.getRecommendations(currentUserId, 10);
 
           if (bookIds.length > 0) {
+            // Extra guard against duplicate IDs from older cached computations
+            const uniqueBookIds = Array.from(new Set(bookIds));
             // Resolve bookIds → Book objects (parallel, skip failures)
             const bookDetails = await Promise.all(
-              bookIds.map((id) =>
+              uniqueBookIds.map((id) =>
                 bookService.getBookBasicInfo(id).catch(() => null),
               ),
             );
@@ -180,7 +182,7 @@ const SearchScreen = ({ navigation }: any) => {
         {/* ── Genres ─────────────────────────────────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>KHÁM PHÁ THỂ LOẠI</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('AllGenres')}>
             <Text style={styles.viewAllText}>Xem tất cả</Text>
           </TouchableOpacity>
         </View>
@@ -190,7 +192,7 @@ const SearchScreen = ({ navigation }: any) => {
             <TouchableOpacity
               key={genre.id}
               style={[styles.genreItem, { backgroundColor: genre.color }]}
-              onPress={() => navigation.navigate('BooksByGenre', { genreId: genre.id, genreName: genre.name })}
+              onPress={() => navigation.navigate('GenreBooks', { genreId: genre.id, genreName: genre.name })}
             >
               <Text style={styles.genreText}>{genre.name}</Text>
             </TouchableOpacity>

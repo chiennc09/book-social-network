@@ -111,11 +111,25 @@ async def train_als_model():
             if not ids:
                 continue
 
-        recommended_ids = [str(item_categories[i]) for i in ids]
+        # De-duplicate string IDs while preserving score order.
+        seen_str: set = set()
+        recommended_ids = []
+
+        for item_idx in ids:
+            # Handle implicit <0.5.x returning list of tuples vs >=0.6.x returning numpy arrays
+            idx = item_idx[0] if isinstance(item_idx, (tuple, list)) else item_idx
+            
+            if 0 <= int(idx) < len(item_categories):
+                str_id = str(item_categories[int(idx)])
+                if str_id not in seen_str:
+                    seen_str.add(str_id)
+                    recommended_ids.append(str_id)
+
         redis_key = f"rec:{user_id_str}"
 
         # Store as JSON with expiry so stale recommendations don't persist forever.
         pipeline.set(redis_key, json.dumps(recommended_ids), ex=settings.REDIS_TTL_SECONDS)
+
 
         users_processed += 1
 

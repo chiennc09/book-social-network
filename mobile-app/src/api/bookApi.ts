@@ -52,4 +52,12 @@ export const bookApi = {
 
   getReviews: (id: string) =>
     bookAxiosClient.get(`/${id}/reviews`),
+
+  // Books filtered by category — used by GenreBooksScreen
+  getByCategory: (categoryId: string) =>
+    bookAxiosClient.get(`/category/${categoryId}`),
+
+  // Trending books — top N by views in last `days` days
+  getTrending: (days = 3, limit = 10) =>
+    bookAxiosClient.get('/trending', { params: { days, limit } }),
 };

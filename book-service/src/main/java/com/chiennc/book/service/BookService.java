@@ -95,42 +95,76 @@ public class BookService {
 
     /**
      * Trending books: top N books by total views in the last `days` days.
-     * Uses the BookRanking daily counter that is incremented every time a user opens a book.
-     * If no ranking data exists yet (e.g. fresh DB), falls back to most-viewed books
-     * from the books collection directly (totalViews field).
      *
-     * Performance note: The aggregation runs entirely inside MongoDB ($match → $group → $sort → $limit),
-     * so only the top-N bookIds are transferred over the wire before resolving to BookResponse.
+     * Uses MongoTemplate aggregation (not @Aggregation) to avoid the Spring Data
+     * MongoDB NPE caused by projection-interface resolving on complex $group results.
+     *
+     * Pipeline: $match date range → $group sum viewCount → $sort desc → $limit N
+     * Falls back to global totalViews sort when book_ranking has no data yet.
      */
     public List<BookResponse> getTrendingBooks(int days, int limit) {
-        // Clamp inputs to sane boundaries
         days  = Math.max(1, Math.min(days, 365));
         limit = Math.max(1, Math.min(limit, 50));
 
         LocalDate from = LocalDate.now().minusDays(days);
         LocalDate to   = LocalDate.now();
 
-        List<BookRankingRepository.BookViewAggResult> ranked =
-                rankingRepository.findTopBooksByDateRange(from, to, limit);
+        // Build aggregation pipeline using MongoTemplate — avoids the @Aggregation
+        // projection-interface NPE (Class.isEnum() on null) that Spring Data MongoDB
+        // can produce when the grouping result type cannot be determined at reflection time.
+        org.springframework.data.mongodb.core.aggregation.Aggregation agg =
+            org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(
+                org.springframework.data.mongodb.core.aggregation.Aggregation.match(
+                    Criteria.where("date").gte(from).lte(to)
+                ),
+                org.springframework.data.mongodb.core.aggregation.Aggregation.group("bookId")
+                    .sum("viewCount").as("totalViews"),
+                org.springframework.data.mongodb.core.aggregation.Aggregation.sort(
+                    org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "totalViews"
+                    )
+                ),
+                org.springframework.data.mongodb.core.aggregation.Aggregation.limit(limit)
+            );
 
-        if (ranked.isEmpty()) {
-            // Fallback: no ranking data yet — return globally most-viewed books
+        // Use Document to get raw BSON — no reflection on generic projection interfaces
+        List<org.bson.Document> rawResults = mongoTemplate
+            .aggregate(agg, "book_ranking", org.bson.Document.class)
+            .getMappedResults();
+
+        if (rawResults.isEmpty()) {
+            // Fallback: book_ranking is empty (fresh DB) → sort books by totalViews field
             return bookRepository.findAll(
                     org.springframework.data.domain.PageRequest.of(0, limit,
-                            org.springframework.data.domain.Sort.by(
-                                    org.springframework.data.domain.Sort.Direction.DESC, "totalViews")))
+                        org.springframework.data.domain.Sort.by(
+                            org.springframework.data.domain.Sort.Direction.DESC, "totalViews"
+                        )))
                     .getContent().stream()
                     .map(this::enrichBookResponsePublic)
                     .collect(java.util.stream.Collectors.toList());
         }
 
-        // Resolve bookId → BookResponse (skip deleted books silently)
-        return ranked.stream()
-                .map(r -> bookRepository.findById(r.getId()).orElse(null))
+        // Resolve bookIds → BookResponse, skip silently if book was deleted
+        return rawResults.stream()
+                .map(doc -> doc.getString("_id"))   // _id = bookId from $group
+                .filter(id -> id != null && !id.isBlank())
+                .map(id -> bookRepository.findById(id).orElse(null))
                 .filter(java.util.Objects::nonNull)
                 .map(this::enrichBookResponsePublic)
                 .collect(java.util.stream.Collectors.toList());
     }
+
+    /**
+     * Books filtered by category, sorted by totalViews desc.
+     * Used by the "Khám phá thể loại" section on the frontend.
+     */
+    public List<BookResponse> getBooksByCategory(String categoryId) {
+        return bookRepository.findByCategoryIdOrderByTotalViewsDesc(categoryId)
+                .stream()
+                .map(this::enrichBookResponsePublic)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
 
     public void delete(String id) {
         bookRepository.deleteById(id);

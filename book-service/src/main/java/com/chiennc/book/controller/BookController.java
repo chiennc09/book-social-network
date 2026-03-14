@@ -59,6 +59,17 @@ public class BookController {
                 .build();
     }
 
+    /**
+     * Books by genre/category — public, no auth required.
+     * Returns all books in the given category sorted by total views.
+     */
+    @GetMapping("/category/{categoryId}")
+    ApiResponse<List<BookResponse>> getByCategory(@PathVariable String categoryId) {
+        return ApiResponse.<List<BookResponse>>builder()
+                .result(bookService.getBooksByCategory(categoryId))
+                .build();
+    }
+
     @GetMapping("/{id}")
     ApiResponse<BookResponse> getById(@PathVariable String id) {
         return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();
