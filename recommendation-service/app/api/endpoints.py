@@ -1,8 +1,14 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
-from app.api.schemas import RecommendationResponse
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+from pydantic import BaseModel
+from typing import List
+from app.core.config import settings
 from app.core.redis_client import RedisClient
 from app.core.mongodb import MongoDBClient
-from app.services.training_service import train_als_model
+from app.services.training_service import train_hybrid_model
+from app.services.embedding_service import (
+    search_similar_books,
+    cbf_recommendations_for_user,
+)
 import json
 import logging
 
@@ -10,78 +16,88 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Response schemas
+# ---------------------------------------------------------------------------
+class RecommendationResponse(BaseModel):
+    userId: str
+    recommendedBookIds: List[str]
+    source: str = "unknown"  # "hybrid-als-cbf" | "cbf-only" | "trending" | "empty"
+
+
+class SimilarBooksResponse(BaseModel):
+    bookId: str
+    similarBookIds: List[str]
+
+
+# ---------------------------------------------------------------------------
+# GET /recommendations/{user_id}
+# ---------------------------------------------------------------------------
 @router.get("/recommendations/{user_id}", response_model=RecommendationResponse)
-async def get_recommendations(
-    user_id: str,
-    limit: int = Query(default=20, ge=1, le=50, description="Max number of recommendations to return"),
-):
-    """
-    Return personalised book recommendations for a user.
-
-    - If the user has been through at least one training cycle (Redis key exists),
-      return their top-`limit` recommended book IDs.
-    - If no key exists (cold start — new user or TTL expired), return an empty list.
-      The frontend is expected to hide this section and show trending books instead.
-    """
-    if not user_id or not user_id.strip():
-        raise HTTPException(status_code=400, detail="user_id must not be empty")
-
+async def get_recommendations(user_id: str):
     try:
         redis_client = RedisClient.get_client()
-        redis_key = f"rec:{user_id.strip()}"
+        redis_key = f"rec:{user_id}"
 
         recs_json = await redis_client.get(redis_key)
-
         if recs_json:
-            recommended_books: list[str] = json.loads(recs_json)
-            # Respect the requested limit even if more are stored
             return RecommendationResponse(
                 userId=user_id,
-                recommendedBookIds=recommended_books[:limit],
+                recommendedBookIds=json.loads(recs_json),
+                source="hybrid-als-cbf",
             )
 
-        # Cold start: no recommendations yet for this user.
-        # Return empty list — frontend hides this section.
-        return RecommendationResponse(userId=user_id, recommendedBookIds=[])
+        # --- Cold-start path ---
+        db = MongoDBClient.get_db()
+        user_scores = await db.user_item_scores.find(
+            {"userId": user_id},
+            {"bookId": 1, "totalScore": 1, "_id": 0},
+        ).sort("totalScore", -1).limit(20).to_list(length=20)
 
-    except Exception as e:
-        logger.error("Error serving recommendations for user=%s: %s", user_id, e, exc_info=True)
+        if len(user_scores) >= settings.COLD_START_THRESHOLD:
+            # Enough interactions → use CBF-only (no ALS yet)
+            user_book_ids = [s["bookId"] for s in user_scores]
+            recs = await cbf_recommendations_for_user(user_book_ids, limit=20)
+            if recs:
+                return RecommendationResponse(
+                    userId=user_id,
+                    recommendedBookIds=recs,
+                    source="cbf-only",
+                )
+
+        # --- Absolute cold-start → return trending from Redis ---
+        trending_json = await redis_client.get("rec:global_trending")
+        if trending_json:
+            return RecommendationResponse(
+                userId=user_id,
+                recommendedBookIds=json.loads(trending_json),
+                source="trending",
+            )
+
+        return RecommendationResponse(userId=user_id, recommendedBookIds=[], source="empty")
+
+    except Exception as exc:
+        logger.error(f"Error serving recommendations for {user_id}: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+# ---------------------------------------------------------------------------
+# GET /similar/{book_id}
+# ---------------------------------------------------------------------------
+@router.get("/similar/{book_id}", response_model=SimilarBooksResponse)
+async def get_similar_books(book_id: str, limit: int = 10):
+    try:
+        similar_ids = await search_similar_books(book_id, limit=min(limit, 20))
+        return SimilarBooksResponse(bookId=book_id, similarBookIds=similar_ids)
+    except Exception as exc:
+        logger.error(f"Error fetching similar books for {book_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ---------------------------------------------------------------------------
+# POST /jobs/train  (manual trigger)
+# ---------------------------------------------------------------------------
 @router.post("/jobs/train")
 async def trigger_training(background_tasks: BackgroundTasks):
-    """
-    Manually trigger an ALS training job in the background.
-    Useful for development or after bulk data imports.
-    Returns immediately; check logs for completion status.
-    """
-    background_tasks.add_task(train_als_model)
-    return {"status": "Training job triggered", "note": "Check service logs for completion status"}
-
-
-@router.get("/health/ready")
-async def readiness_check():
-    """
-    Kubernetes/Docker readiness probe.
-    Verifies that both Redis and MongoDB connections are alive before
-    the service is added to the load balancer rotation.
-    """
-    errors = []
-
-    try:
-        redis = RedisClient.get_client()
-        await redis.ping()
-    except Exception as e:
-        errors.append(f"Redis: {e}")
-
-    try:
-        db = MongoDBClient.get_db()
-        await db.command("ping")
-    except Exception as e:
-        errors.append(f"MongoDB: {e}")
-
-    if errors:
-        raise HTTPException(status_code=503, detail={"status": "not ready", "errors": errors})
-
-    return {"status": "ready"}
+    background_tasks.add_task(train_hybrid_model)
+    return {"status": "Training job triggered"}

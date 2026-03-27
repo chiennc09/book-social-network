@@ -23,6 +23,15 @@ services:
     ports:
       - '6379:6379'
 
+  qdrant:
+    image: qdrant/qdrant:v1.8.3
+    container_name: qdrant
+    hostname: qdrant
+    ports:
+      - '6333:6333'
+    volumes:
+      - qdrant_data:/qdrant/storage
+
   recommendation-service:
     build: ./recommendation-service
     container_name: recommendation-service
@@ -32,8 +41,13 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - REDIS_URL=redis://redis:6379
       - MONGODB_URL=mongodb://root:root@host.docker.internal:27017/recommendation-service?authSource=admin
+      - QDRANT_URL=http://qdrant:6333
     depends_on:
       - kafka
       - redis
+      - qdrant
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+volumes:
+  qdrant_data:

@@ -59,20 +59,27 @@ public class BookService {
     ProfileClient profileClient;
     KafkaTemplate<String, Object> kafkaTemplate;
     UserBehaviorProducer userBehaviorProducer;
+    BookEventProducer bookEventProducer;
     MongoTemplate mongoTemplate;
     // CONSTANT: Topic name
     private static final String BOOK_COMPLETED_TOPIC = "book-completed";
 
     public BookResponse createBook(BookRequest request) {
         Book book = bookMapper.toBook(request);
-        return bookMapper.toBookResponse(bookRepository.save(book));
+        Book saved = bookRepository.save(book);
+        // Publish to Kafka → recommendation-service indexes it in Qdrant
+        bookEventProducer.publishBookUpserted(saved, "BOOK_CREATED");
+        return bookMapper.toBookResponse(saved);
     }
 
     public BookResponse updateBook(String id, BookRequest request) {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
         bookMapper.updateBook(book, request);
-        return bookMapper.toBookResponse(bookRepository.save(book));
+        Book saved = bookRepository.save(book);
+        // Publish updated book → recommendation-service re-indexes in Qdrant
+        bookEventProducer.publishBookUpserted(saved, "BOOK_UPDATED");
+        return bookMapper.toBookResponse(saved);
     }
 
     public void uploadFiles(String id, String coverUrl, String pdfUrl, String epubUrl) {
