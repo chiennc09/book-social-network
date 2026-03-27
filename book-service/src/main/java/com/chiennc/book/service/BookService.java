@@ -29,6 +29,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -48,6 +49,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class BookService {
     BookRepository bookRepository;
     ReadHistoryRepository historyRepository;
@@ -91,6 +93,18 @@ public class BookService {
         if (epubUrl != null) book.setEpubPath(epubUrl);
 
         bookRepository.save(book);
+    }
+
+    /**
+     * Helper to backfill Qdrant: queries all existing books and fires
+     *BOOK_UPDATED events for each to trigger vector embedding in the Python service.
+     */
+    public void syncAllBooksToQdrant() {
+        List<Book> allBooks = bookRepository.findAll();
+        for (Book book : allBooks) {
+            bookEventProducer.publishBookUpserted(book, "BOOK_UPDATED");
+        }
+        log.info("Triggered Qdrant sync for {} books", allBooks.size());
     }
 
     public List<BookResponse> search(String q) {

@@ -43,6 +43,12 @@ public class BookController {
         return ApiResponse.<List<BookResponse>>builder().result(bookService.search(q)).build();
     }
 
+    @PostMapping("/sync-qdrant")
+    ApiResponse<String> syncToQdrant() {
+        bookService.syncAllBooksToQdrant();
+        return ApiResponse.<String>builder().message("Sync triggered").build();
+    }
+
     /**
      * Public endpoint — no auth required.
      * Returns top-N trending books by view count over the last `days` days.

@@ -10,6 +10,7 @@ Responsibilities:
   - Re-rank ALS candidate list using content similarity scores.
 """
 import logging
+import uuid
 from typing import Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -18,6 +19,30 @@ from app.core.config import settings
 from app.core.qdrant_client import QdrantManager
 
 logger = logging.getLogger(__name__)
+
+def _get_qdrant_id(book_id: str) -> str:
+    """Convert a MongoDB ObjectId or other ID into a valid Qdrant UUID."""
+    book_id = str(book_id)
+    if len(book_id) == 24:
+        try:
+            return str(uuid.UUID(book_id.rjust(32, '0')))
+        except ValueError:
+            pass
+    try:
+        return str(uuid.UUID(book_id))
+    except ValueError:
+        return str(uuid.uuid5(uuid.NAMESPACE_OID, book_id))
+
+def _get_original_id(point) -> str:
+    """Extract original book_id from a Qdrant query result."""
+    payload = getattr(point, "payload", None)
+    if payload and "book_id" in payload:
+        return str(payload["book_id"])
+    hex_str = str(point.id).replace("-", "")
+    if len(hex_str) == 32 and hex_str.startswith("00000000"):
+        return hex_str[8:]
+    return str(point.id)
+
 
 # ---------------------------------------------------------------------------
 # Model singleton — loaded once when this module is first imported.
@@ -55,7 +80,7 @@ def _build_book_text(book: dict) -> str:
     # authors can be a list of strings
     authors_raw = book.get("authors") or []
     authors = ", ".join(authors_raw) if isinstance(authors_raw, list) else str(authors_raw)
-    category_name = (book.get("category_name") or "").strip()
+    category_name = (book.get("categoryName") or book.get("category_name") or "").strip()
 
     if title:
         parts.append(title)
@@ -88,36 +113,41 @@ async def index_book(book: dict) -> None:
     Expected book dict keys:
       id, title, description, authors, category_name, category_id (optional)
     """
-    book_id = book.get("id")
-    if not book_id:
+    book_id = str(book.get("id"))
+    if not book_id or book_id == "None":
         logger.warning("index_book called with no 'id', skipping.")
         return
 
     text = _build_book_text(book)
     vector = _embed(text)
 
+    qdrant_id = _get_qdrant_id(book_id)
     payload = {
+        "book_id": book_id,
         "title": book.get("title", ""),
-        "category_id": book.get("category_id", ""),
-        "category_name": book.get("category_name", ""),
+        "description": book.get("description", ""),
+        "authors": book.get("authors", []),
+        "category_id": str(book.get("categoryId") or book.get("category_id") or ""),
+        "category_name": book.get("categoryName") or book.get("category_name") or "",
     }
 
     client = QdrantManager.get_client()
     await client.upsert(
         collection_name=settings.QDRANT_COLLECTION_NAME,
-        points=[PointStruct(id=book_id, vector=vector, payload=payload)],
+        points=[PointStruct(id=qdrant_id, vector=vector, payload=payload)],
     )
-    logger.info(f"Indexed book '{book_id}' into Qdrant.")
+    logger.info(f"Indexed book '{book_id}' (qdrant: {qdrant_id}) into Qdrant.")
 
 
 async def delete_book(book_id: str) -> None:
     """Remove a book vector from Qdrant when the book is deleted."""
     client = QdrantManager.get_client()
+    qdrant_id = _get_qdrant_id(book_id)
     await client.delete(
         collection_name=settings.QDRANT_COLLECTION_NAME,
-        points_selector=[book_id],
+        points_selector=[qdrant_id],
     )
-    logger.info(f"Deleted book '{book_id}' from Qdrant.")
+    logger.info(f"Deleted book '{book_id}' (qdrant: {qdrant_id}) from Qdrant.")
 
 
 async def search_similar_books(book_id: str, limit: int = 10) -> list[str]:
@@ -128,11 +158,12 @@ async def search_similar_books(book_id: str, limit: int = 10) -> list[str]:
     Returns an ordered list of bookIds (the query book itself is excluded).
     """
     client = QdrantManager.get_client()
+    qdrant_id = _get_qdrant_id(book_id)
 
     # Fetch the source vector
     results = await client.retrieve(
         collection_name=settings.QDRANT_COLLECTION_NAME,
-        ids=[book_id],
+        ids=[qdrant_id],
         with_vectors=True,
     )
     if not results:
@@ -146,9 +177,10 @@ async def search_similar_books(book_id: str, limit: int = 10) -> list[str]:
         collection_name=settings.QDRANT_COLLECTION_NAME,
         query_vector=query_vector,
         limit=limit + 1,   # +1 to account for the book itself appearing in results
+        with_payload=True,
     )
 
-    similar_ids = [str(h.id) for h in hits if str(h.id) != str(book_id)]
+    similar_ids = [_get_original_id(h) for h in hits if _get_original_id(h) != str(book_id)]
     return similar_ids[:limit]
 
 
@@ -165,9 +197,10 @@ async def build_user_content_profile(book_ids: list[str]) -> Optional[np.ndarray
         return None
 
     client = QdrantManager.get_client()
+    qdrant_ids = [_get_qdrant_id(b) for b in book_ids]
     results = await client.retrieve(
         collection_name=settings.QDRANT_COLLECTION_NAME,
-        ids=book_ids,
+        ids=qdrant_ids,
         with_vectors=True,
     )
     if not results:
@@ -204,15 +237,17 @@ async def rerank_candidates(
         return []
 
     client = QdrantManager.get_client()
+    qdrant_ids = [_get_qdrant_id(b) for b in candidate_book_ids]
     results = await client.retrieve(
         collection_name=settings.QDRANT_COLLECTION_NAME,
-        ids=candidate_book_ids,
+        ids=qdrant_ids,
         with_vectors=True,
+        with_payload=True,
     )
 
     # Build a lookup map: bookId → vector
     vector_map: dict[str, np.ndarray] = {
-        str(r.id): np.array(r.vector, dtype=np.float32)
+        _get_original_id(r): np.array(r.vector, dtype=np.float32)
         for r in results
     }
 
@@ -249,8 +284,9 @@ async def cbf_recommendations_for_user(user_book_ids: list[str], limit: int = 20
         collection_name=settings.QDRANT_COLLECTION_NAME,
         query_vector=profile.tolist(),
         limit=limit + len(user_book_ids),  # over-fetch to filter interacted books
+        with_payload=True,
     )
 
     already_seen = set(str(b) for b in user_book_ids)
-    results = [str(h.id) for h in hits if str(h.id) not in already_seen]
+    results = [_get_original_id(h) for h in hits if _get_original_id(h) not in already_seen]
     return results[:limit]
