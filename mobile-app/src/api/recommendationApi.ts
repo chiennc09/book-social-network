@@ -43,6 +43,13 @@ export interface SimilarBooksResponse {
   similarBookIds: string[];
 }
 
+export interface TodayRecommendationResponse {
+  userId: string;
+  todayBookIds: string[];
+  /** 'session-cbf' | 'recency-cbf' | 'trending' | 'empty' */
+  source: string;
+}
+
 // ─── API Methods ──────────────────────────────────────────────────────────────
 
 export const recommendationApi = {
@@ -84,6 +91,27 @@ export const recommendationApi = {
     } catch (error) {
       console.warn('[recommendationApi] Failed to fetch similar books:', error);
       return [];
+    }
+  },
+
+  /**
+   * Fetch short-term 'Today's Picks' based on the user's recent session activity.
+   * The list is rebuilt fresh after every VIEW / FAVORITE / etc. interaction,
+   * and cached with a 24h TTL on the server between refreshes.
+   */
+  getTodayRecommendations: async (
+    userId: string,
+    limit = 10,
+  ): Promise<{ ids: string[]; source: string }> => {
+    try {
+      const resp: TodayRecommendationResponse = await recommendationAxiosClient.get(
+        `/recommendations/${userId}/today`,
+        { params: { limit } },
+      );
+      return { ids: resp.todayBookIds ?? [], source: resp.source ?? 'empty' };
+    } catch (error) {
+      console.warn('[recommendationApi] Failed to fetch today recs:', error);
+      return { ids: [], source: 'error' };
     }
   },
 };

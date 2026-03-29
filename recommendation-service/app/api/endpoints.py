@@ -16,13 +16,13 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Response schemas
-# ---------------------------------------------------------------------------
+# ─── Response schemas ──────────────────────────────────────────────────────────
+
 class RecommendationResponse(BaseModel):
     userId: str
     recommendedBookIds: List[str]
-    source: str = "unknown"  # "hybrid-als-cbf" | "cbf-only" | "trending" | "empty"
+    # "hybrid-als-cbf" | "cbf-only" | "trending" | "empty"
+    source: str = "unknown"
 
 
 class SimilarBooksResponse(BaseModel):
@@ -30,16 +30,23 @@ class SimilarBooksResponse(BaseModel):
     similarBookIds: List[str]
 
 
-# ---------------------------------------------------------------------------
-# GET /recommendations/{user_id}
-# ---------------------------------------------------------------------------
+class TodayRecommendationResponse(BaseModel):
+    userId: str
+    todayBookIds: List[str]
+    # "session-cbf": built from recent_views
+    # "recency-cbf": built from recently interacted books (fallback)
+    # "trending"   : ultimate fallback
+    source: str
+
+
+# ─── GET /recommendations/{user_id}  (Long-term: ALS + CBF) ───────────────────
+
 @router.get("/recommendations/{user_id}", response_model=RecommendationResponse)
 async def get_recommendations(user_id: str):
     try:
         redis_client = RedisClient.get_client()
-        redis_key = f"rec:{user_id}"
 
-        recs_json = await redis_client.get(redis_key)
+        recs_json = await redis_client.get(f"rec:{user_id}")
         if recs_json:
             return RecommendationResponse(
                 userId=user_id,
@@ -47,7 +54,7 @@ async def get_recommendations(user_id: str):
                 source="hybrid-als-cbf",
             )
 
-        # --- Cold-start path ---
+        # Cold-start: enough interactions → CBF-only
         db = MongoDBClient.get_db()
         user_scores = await db.user_item_scores.find(
             {"userId": user_id},
@@ -55,17 +62,14 @@ async def get_recommendations(user_id: str):
         ).sort("totalScore", -1).limit(20).to_list(length=20)
 
         if len(user_scores) >= settings.COLD_START_THRESHOLD:
-            # Enough interactions → use CBF-only (no ALS yet)
             user_book_ids = [s["bookId"] for s in user_scores]
             recs = await cbf_recommendations_for_user(user_book_ids, limit=20)
             if recs:
                 return RecommendationResponse(
-                    userId=user_id,
-                    recommendedBookIds=recs,
-                    source="cbf-only",
+                    userId=user_id, recommendedBookIds=recs, source="cbf-only"
                 )
 
-        # --- Absolute cold-start → return trending from Redis ---
+        # Absolute cold-start → trending
         trending_json = await redis_client.get("rec:global_trending")
         if trending_json:
             return RecommendationResponse(
@@ -81,9 +85,81 @@ async def get_recommendations(user_id: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ---------------------------------------------------------------------------
-# GET /similar/{book_id}
-# ---------------------------------------------------------------------------
+# ─── GET /recommendations/{user_id}/today  (Short-term: Session CBF) ──────────
+
+@router.get("/recommendations/{user_id}/today", response_model=TodayRecommendationResponse)
+async def get_today_recommendations(user_id: str, limit: int = 10):
+    """
+    Short-term 'Today's Picks' recommendation.
+
+    Build strategy (3-tier fallback):
+      1. Cache hit  → return today_rec:{userId} (TTL 24h, invalidated on each interaction)
+      2. recent_views exists → CBF from ≤10 recent bookIds (live session intent)
+      3. lastInteractedAt fallback → CBF from ≤10 most recently interacted books in MongoDB
+      4. No data  → global trending
+
+    today_rec is deleted on every VIEW/FAVORITE/etc. event so the next call
+    always reflects the user's freshest intent.
+    """
+    try:
+        redis_client = RedisClient.get_client()
+        today_key = f"today_rec:{user_id}"
+
+        # ── 1. Cache hit ──────────────────────────────────────────────────────
+        cached = await redis_client.get(today_key)
+        if cached:
+            return TodayRecommendationResponse(
+                userId=user_id,
+                todayBookIds=json.loads(cached),
+                source="session-cbf",
+            )
+
+        limit = min(limit, 20)
+        result_ids: list[str] = []
+        source = "empty"
+
+        # ── 2. Build from recent_views (session window) ───────────────────────
+        recent_ids_raw = await redis_client.lrange(f"recent_views:{user_id}", 0, -1)
+        recent_ids = [b.decode() if isinstance(b, bytes) else b for b in recent_ids_raw]
+
+        if recent_ids:
+            result_ids = await cbf_recommendations_for_user(recent_ids, limit=limit)
+            source = "session-cbf"
+
+        # ── 3. Fallback: most recently interacted books from MongoDB ──────────
+        if not result_ids:
+            db = MongoDBClient.get_db()
+            recent_docs = await db.user_item_scores.find(
+                {"userId": user_id},
+                {"bookId": 1, "_id": 0},
+            ).sort("lastInteractedAt", -1).limit(10).to_list(length=10)
+
+            fallback_book_ids = [d["bookId"] for d in recent_docs]
+            if fallback_book_ids:
+                result_ids = await cbf_recommendations_for_user(fallback_book_ids, limit=limit)
+                source = "recency-cbf"
+
+        # ── 4. Ultimate fallback: trending ────────────────────────────────────
+        if not result_ids:
+            trending_json = await redis_client.get("rec:global_trending")
+            if trending_json:
+                result_ids = json.loads(trending_json)[:limit]
+                source = "trending"
+
+        # Write to cache (even empty result, prevents thunder-herd)
+        await redis_client.set(today_key, json.dumps(result_ids), ex=settings.REDIS_TTL_SECONDS)
+
+        return TodayRecommendationResponse(
+            userId=user_id, todayBookIds=result_ids, source=source
+        )
+
+    except Exception as exc:
+        logger.error(f"Error building today recs for {user_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ─── GET /similar/{book_id} ────────────────────────────────────────────────────
+
 @router.get("/similar/{book_id}", response_model=SimilarBooksResponse)
 async def get_similar_books(book_id: str, limit: int = 10):
     try:
@@ -94,9 +170,8 @@ async def get_similar_books(book_id: str, limit: int = 10):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ---------------------------------------------------------------------------
-# POST /jobs/train  (manual trigger)
-# ---------------------------------------------------------------------------
+# ─── POST /jobs/train ──────────────────────────────────────────────────────────
+
 @router.post("/jobs/train")
 async def trigger_training(background_tasks: BackgroundTasks):
     background_tasks.add_task(train_hybrid_model)

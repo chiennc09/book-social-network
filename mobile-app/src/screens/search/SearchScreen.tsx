@@ -15,6 +15,7 @@ import { UserProfile } from '../../types/user';
 import { DEFAULT_AVATAR } from '../../constants/theme';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import TodayRecsSection from '../../components/book/TodayRecsSection';
 
 const { width } = Dimensions.get('window');
 
@@ -199,7 +200,16 @@ const SearchScreen = ({ navigation }: any) => {
           ))}
         </View>
 
-        {/* ── Recommended Books — hidden for cold-start users ─────────── */}
+        {/* ── Today's Picks — short-term session recommendations ──────── */}
+        {currentUserId ? (
+          <TodayRecsSection
+            userId={currentUserId}
+            onBookPress={(bookId) => navigation.navigate('BookDetail', { bookId })}
+            limit={10}
+          />
+        ) : null}
+
+        {/* ── Long-term Recommended Books — hidden for cold-start users ─ */}
         {recommendedBooks.length > 0 && (
           <>
             <View style={[styles.sectionHeader, { marginTop: 24 }]}>
