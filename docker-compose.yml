@@ -1,6 +1,12 @@
-version: "3"
+version: "3.8"
 name: book-social-network
+
 services:
+
+  # ══════════════════════════════════════════════════════════════════
+  #  INFRASTRUCTURE
+  # ══════════════════════════════════════════════════════════════════
+
   kafka:
     image: 'bitnami/kafka:3.7.0'
     container_name: kafka
@@ -15,6 +21,13 @@ services:
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
   redis:
     image: redis:7.2.4-alpine
@@ -22,6 +35,12 @@ services:
     hostname: redis
     ports:
       - '6379:6379'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:v1.8.3
@@ -31,10 +50,16 @@ services:
       - '6333:6333'
     volumes:
       - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════════════════════════════
+  #  PYTHON SERVICE
+  # ══════════════════════════════════════════════════════════════════
 
   recommendation-service:
     build: ./recommendation-service
     container_name: recommendation-service
+    hostname: recommendation-service
     ports:
       - '8088:8000'
     environment:
@@ -43,11 +68,190 @@ services:
       - MONGODB_URL=mongodb://root:root@host.docker.internal:27017/recommendation-service?authSource=admin
       - QDRANT_URL=http://qdrant:6333
     depends_on:
-      - kafka
-      - redis
-      - qdrant
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════════════════════════════
+  #  SPRING BOOT SERVICES
+  # ══════════════════════════════════════════════════════════════════
+
+  identity-service:
+    build: ./identity-service
+    container_name: identity-service
+    hostname: identity-service
+    ports:
+      - '8080:8080'
+    environment:
+      # Override localhost → host machine (where MySQL is running)
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/identity_service
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      # Override localhost Kafka → internal Docker Kafka
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # Override localhost profile-service → internal Docker network
+      - APP_SERVICES_PROFILE=http://profile-service:8091/profile
+    depends_on:
+      kafka:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  profile-service:
+    build: ./profile-service
+    container_name: profile-service
+    hostname: profile-service
+    ports:
+      - '8091:8091'
+    environment:
+      # Override localhost → host machine (where Neo4j is running)
+      - SPRING_NEO4J_URI=bolt://host.docker.internal:7687
+      - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
+      - SPRING_NEO4J_AUTHENTICATION_PASSWORD=12345678
+      # Override localhost Kafka → internal Docker Kafka
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    hostname: notification-service
+    ports:
+      - '8082:8082'
+    environment:
+      # Override localhost → host machine (where MongoDB is running)
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/notification-service?authSource=admin
+      # Override localhost Kafka → internal Docker Kafka
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  post-service:
+    build: ./post-service
+    container_name: post-service
+    hostname: post-service
+    ports:
+      - '8083:8083'
+    environment:
+      # Override localhost → host machine (where MongoDB is running)
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/post-service?authSource=admin
+      # Override localhost profile-service → internal Docker network
+      - APP_SERVICES_PROFILE_URL=http://profile-service:8091/profile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  file-service:
+    build: ./file-service
+    container_name: file-service
+    hostname: file-service
+    ports:
+      - '8084:8084'
+    environment:
+      # Override localhost → host machine (where MongoDB is running)
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/file-service?authSource=admin
+      # Override hardcoded Windows path → container internal path
+      - APP_FILE_STORAGE_DIR=/app/uploads
+      # Download URL goes through API Gateway (accessible from clients)
+      - APP_FILE_DOWNLOAD_PREFIX=http://localhost:8888/file/media/download/
+    volumes:
+      # Mount host upload directory so files persist across container restarts
+      - ./upload:/app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  book-service:
+    build: ./book-service
+    container_name: book-service
+    hostname: book-service
+    ports:
+      - '8085:8085'
+    environment:
+      # Override localhost → host machine (where MongoDB is running)
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/book-service?authSource=admin
+      # Override localhost Kafka → internal Docker Kafka
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # Override localhost profile-service → internal Docker network
+      - APP_SERVICES_PROFILE_URL=http://profile-service:8091/profile
+      # Base URL accessible by clients (exposed on host)
+      - APP_BASE_URL=http://localhost:8085
+    depends_on:
+      kafka:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  chat-service:
+    build: ./chat-service
+    container_name: chat-service
+    hostname: chat-service
+    ports:
+      - '8086:8086'
+    environment:
+      # Override localhost → host machine (where MongoDB is running)
+      - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/chat-service?authSource=admin
+      # Override localhost profile-service → internal Docker network
+      - APP_SERVICES_PROFILE_URL=http://profile-service:8091/profile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    hostname: api-gateway
+    ports:
+      - '8888:8888'
+    environment:
+      # Route to internal Docker service names instead of localhost
+      - IDENTITY_SERVICE_URL=http://identity-service:8080
+      - PROFILE_SERVICE_URL=http://profile-service:8091
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8082
+      - POST_SERVICE_URL=http://post-service:8083
+      - FILE_SERVICE_URL=http://file-service:8084
+      - BOOK_SERVICE_URL=http://book-service:8085
+      - CHAT_SERVICE_URL=http://chat-service:8086
+    depends_on:
+      - identity-service
+      - profile-service
+      - notification-service
+      - post-service
+      - file-service
+      - book-service
+      - chat-service
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════════════════════════════
+  #  FRONTEND
+  # ══════════════════════════════════════════════════════════════════
+
+  web-app:
+    build: ./web-app
+    container_name: web-app
+    hostname: web-app
+    ports:
+      - '3000:80'
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
 
 volumes:
   qdrant_data:
