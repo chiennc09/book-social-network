@@ -1,5 +1,6 @@
 import { Client } from '@stomp/stompjs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SERVICE_PATHS } from '../config/env';
 
 // TextEncoder Polyfill for STOMP inside React Native
 declare var global: any;
@@ -20,10 +21,10 @@ class ChatSocketService {
   private currentSubscription: any = null;
 
   /**
-   * Connect to STOMP broker.
-   * - If already connected: fires callback immediately.
-   * - If connecting: queues callback to be fired when connection succeeds.
-   * - If idle: initiates connection.
+   * Connect to STOMP broker via API Gateway WebSocket.
+   * - If already connected:  fires callback immediately.
+   * - If connecting:         queues callback.
+   * - If idle:               initiates connection.
    */
   async connect(onConnectCallback?: () => void) {
     if (this.state === 'connected' && this.client?.active) {
@@ -36,29 +37,29 @@ class ChatSocketService {
     }
 
     if (this.state === 'connecting') {
-      // Already connecting – callback is queued, nothing else to do
-      return;
+      return; // Already connecting — callback is queued
     }
 
     this.state = 'connecting';
     const token = await AsyncStorage.getItem('accessToken');
 
     this.client = new Client({
-      brokerURL: 'ws://10.0.2.2:8086/chat/ws/chat',
+      // WebSocket goes through Gateway → chat-service
+      brokerURL: SERVICE_PATHS.chatWs,
       connectHeaders: {
         Authorization: `Bearer ${token}`,
       },
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      reconnectDelay: 5_000,
+      heartbeatIncoming: 4_000,
+      heartbeatOutgoing: 4_000,
       onConnect: () => {
-        console.log('[STOMP] Connected');
+        console.log('[STOMP] Connected to', SERVICE_PATHS.chatWs);
         this.state = 'connected';
         const callbacks = [...this.pendingCallbacks];
         this.pendingCallbacks = [];
-        callbacks.forEach(cb => cb());
+        callbacks.forEach((cb) => cb());
       },
-      onStompError: frame => {
+      onStompError: (frame) => {
         console.error('[STOMP] Error:', frame.headers['message'], frame.body);
         this.state = 'idle';
         this.pendingCallbacks = [];
@@ -78,16 +79,16 @@ class ChatSocketService {
     onMessageReceived: (msg: any) => void,
   ) {
     if (!this.client || this.state !== 'connected') {
-      console.warn('[STOMP] Cannot subscribe – client not connected');
+      console.warn('[STOMP] Cannot subscribe — client not connected');
       return;
     }
 
-    // Unsubscribe from previous topic if switching rooms
+    // Unsubscribe from previous topic when switching rooms
     this.currentSubscription?.unsubscribe();
 
     this.currentSubscription = this.client.subscribe(
       `/topic/conversation/${conversationId}`,
-      message => {
+      (message) => {
         if (message.body) {
           onMessageReceived(JSON.parse(message.body));
         }

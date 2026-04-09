@@ -1,17 +1,19 @@
 // src/api/recommendationApi.ts
 import axios from 'axios';
+import { SERVICE_PATHS } from '../config/env';
 import storage from '../utils/storage';
 
 /**
- * Dedicated Axios client for the recommendation-service.
- * Base URL points directly at recommendation-service (port 8088).
+ * Dedicated Axios client for recommendation-service.
+ * Routes through API Gateway: {GATEWAY}/recommendation/api/v1
  *
- * On Android Emulator: 10.0.2.2 maps to the host machine's localhost.
+ * On Android Emulator: 10.0.2.2 → host machine's localhost.
+ * Configure API_GATEWAY_URL in src/config/env.ts for other environments.
  */
 const recommendationAxiosClient = axios.create({
-  baseURL: 'http://10.0.2.2:8088/api/v1',
+  baseURL: SERVICE_PATHS.recommendation,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 5_000, // 5 s — recommendations are non-critical; fail fast
+  timeout: 8_000, // fail fast — recommendations are non-critical
 });
 
 recommendationAxiosClient.interceptors.request.use(
@@ -55,7 +57,7 @@ export interface TodayRecommendationResponse {
 export const recommendationApi = {
   /**
    * Fetch personalised book IDs for a user.
-   * Returns an empty array for cold-start users (no recommendations yet).
+   * Returns an empty array for cold-start users.
    */
   getRecommendations: async (
     userId: string,
@@ -74,9 +76,8 @@ export const recommendationApi = {
   },
 
   /**
-   * Fetch similar book IDs for a given bookId (used on Book Detail screen).
-   * Uses Content-Based Filtering — vector similarity on title, description, authors, category.
-   * Returns an empty array if the book is not indexed yet or on network error.
+   * Fetch similar book IDs for a given bookId (Book Detail screen).
+   * Uses Content-Based Filtering — vector similarity.
    */
   getSimilarBooks: async (
     bookId: string,
@@ -95,9 +96,8 @@ export const recommendationApi = {
   },
 
   /**
-   * Fetch short-term 'Today's Picks' based on the user's recent session activity.
-   * The list is rebuilt fresh after every VIEW / FAVORITE / etc. interaction,
-   * and cached with a 24h TTL on the server between refreshes.
+   * Fetch Today's Picks based on user's recent session activity.
+   * Cached 24h on server; invalidated on each interaction event.
    */
   getTodayRecommendations: async (
     userId: string,

@@ -19,14 +19,8 @@ import {
 import { COLORS, SPACING } from '../../constants/theme';
 import { useTodayRecommendations } from '../../hooks/useTodayRecommendations';
 import { Book } from '../../types';
+import { resolveMediaUrl } from '../../config/env';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const resolveCoverUrl = (raw?: string): string => {
-  if (!raw) return '';
-  if (raw.startsWith('http')) return raw;
-  return `http://10.0.2.2:8888/file/legacy/covers/${raw}`;
-};
 
 // Map source value to a human-readable badge label
 const sourceLabel: Record<string, string | undefined> = {
@@ -86,7 +80,7 @@ const TodayRecsSection = ({ userId, onBookPress, limit = 10 }: Props) => {
               <Image
                 source={{
                   uri:
-                    resolveCoverUrl(item.coverUrl || (item as any).coverImage) ||
+                    resolveMediaUrl(item.coverUrl || (item as any).coverImage, 'covers') ||
                     'https://via.placeholder.com/100x150.png?text=No+Cover',
                 }}
                 style={styles.cover}

@@ -1,6 +1,7 @@
 // src/services/search.service.ts
 import { Book } from '../types/index';
 import bookAxiosClient from '../api/bookAxiosClient';
+import { resolveMediaUrl } from '../config/env';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,10 +56,7 @@ export const searchService = {
       const items: any[] = resp?.result ?? resp ?? [];
 
       return items.map((item: any) => {
-        let coverUrl: string = item.coverImage ?? item.coverUrl ?? '';
-        if (coverUrl && !coverUrl.startsWith('http')) {
-          coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
-        }
+        let coverUrl: string = resolveMediaUrl(item.coverImage ?? item.coverUrl, 'covers');
         return {
           id:            String(item.id),
           title:         item.title ?? '',
@@ -92,10 +90,7 @@ export const searchService = {
       const dataList: any[] = resp?.result ?? [];
 
       return dataList.map((item: any) => {
-        let coverUrl: string = item.coverImage ?? '';
-        if (coverUrl && !coverUrl.startsWith('http')) {
-          coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
-        }
+        let coverUrl: string = resolveMediaUrl(item.coverImage, 'covers');
         return {
           id:            String(item.id),
           title:         item.title,

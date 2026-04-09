@@ -16,15 +16,10 @@ import { DEFAULT_AVATAR } from '../../constants/theme';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import TodayRecsSection from '../../components/book/TodayRecsSection';
+import { resolveMediaUrl } from '../../config/env';
 
 const { width } = Dimensions.get('window');
 
-// Helper: resolve cover URL to full http path
-const resolveCoverUrl = (raw?: string): string => {
-  if (!raw) return '';
-  if (raw.startsWith('http')) return raw;
-  return `http://10.0.2.2:8888/file/legacy/covers/${raw}`;
-};
 
 const SearchScreen = ({ navigation }: any) => {
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -126,7 +121,7 @@ const SearchScreen = ({ navigation }: any) => {
       onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
     >
       <Image
-        source={{ uri: resolveCoverUrl(item.coverUrl || item.coverImage) || 'https://via.placeholder.com/100x150.png?text=No+Cover' }}
+      source={{ uri: resolveMediaUrl(item.coverUrl || item.coverImage, 'covers') || 'https://via.placeholder.com/100x150.png?text=No+Cover' }}
         style={styles.bookCover}
       />
       <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
@@ -317,7 +312,7 @@ const SearchScreen = ({ navigation }: any) => {
               onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
             >
               <Image
-                source={{ uri: resolveCoverUrl(item.coverUrl) || 'https://via.placeholder.com/50x75.png?text=No+Cover' }}
+                source={{ uri: resolveMediaUrl(item.coverUrl, 'covers') || 'https://via.placeholder.com/50x75.png?text=No+Cover' }}
                 style={styles.resultCover}
               />
               <View style={styles.resultInfo}>

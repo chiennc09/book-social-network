@@ -7,6 +7,7 @@ import { bookApi } from '../../api/bookApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import { resolveReaderUrl, API_GATEWAY_URL } from '../../config/env';
 
 const ReaderScreen = ({ route, navigation }: any) => {
   const { bookId, url, lastPosition } = route.params || {};
@@ -22,11 +23,8 @@ const ReaderScreen = ({ route, navigation }: any) => {
   // Biến cờ lưu vị trí mới nhất
   const currentPosition = useRef<string | undefined>(lastPosition);
 
-  // Xử lý URL (Thêm prefix nếu chỉ là tên file)
-  let loadUrl = url || '';
-  if (loadUrl && !loadUrl.startsWith('http')) {
-     loadUrl = `http://10.0.2.2:8888/file/legacy/epubs/${loadUrl}`;
-  }
+  // Resolve reader URL (full MinIO URL or legacy relative path)
+  let loadUrl = resolveReaderUrl(url);
   
   // Quan trọng: Mã hoá URI để xử lý các khoảng trắng (spaces) trong tên file
   loadUrl = encodeURI(loadUrl);
@@ -223,7 +221,7 @@ const ReaderScreen = ({ route, navigation }: any) => {
          <WebView
            ref={webViewRef}
            originWhitelist={['*', 'http://*', 'https://*', 'file://*']}
-           source={{ html: epubViewerHtml, baseUrl: 'http://10.0.2.2:8888' }} // Cần baseUrl để CORS
+           source={{ html: epubViewerHtml, baseUrl: API_GATEWAY_URL }} // Needed for CORS
            style={styles.webview}
            onMessage={handleMessage}
            javaScriptEnabled={true}

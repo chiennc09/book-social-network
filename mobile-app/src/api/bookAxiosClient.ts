@@ -1,47 +1,56 @@
-// src/api/bookAxiosClient.ts
 import axios from 'axios';
+import { SERVICE_PATHS } from '../config/env';
 import storage from '../utils/storage';
 
+/**
+ * Dedicated Axios client for book-service.
+ * Routes through API Gateway: {GATEWAY}/books
+ *
+ * Separate from the identity axiosClient because:
+ *  - Different base URL prefix
+ *  - Intercepts response.data directly (Spring returns ApiResponse wrapper)
+ */
 const bookAxiosClient = axios.create({
-  baseURL: 'http://10.0.2.2:8085/books', // Cổng 8085 cho Service sách
+  baseURL: SERVICE_PATHS.books,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30_000,
 });
 
-// Request Interceptor: Attach Token
+// ── Request Interceptor: attach JWT ─────────────────────────────────────────
 bookAxiosClient.interceptors.request.use(
   async (config) => {
-    const token = await storage.getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const token = await storage.getToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('[bookAxiosClient] Failed to get token', error);
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
-// Response Interceptor: Xử lý dữ liệu trả về và lỗi 401
+// ── Response Interceptor: unwrap Spring ApiResponse ─────────────────────────
 bookAxiosClient.interceptors.response.use(
   (response) => {
-    // API Spring Boot trả về cấu trúc ApiResponse { code, result, message }
-    // Trả về data trực tiếp để dễ xử lý
-    if (response && response.data) {
-        return response.data;
-    }
+    // Spring returns { code, result, message } — pass through data so that
+    // callers can access both resp.result and resp.data depending on the screen
+    if (response?.data) return response.data;
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
 
-    // TODO: Xử lý refresh token tương tự interceptor của identity hoặc gọi hàm dùng chung
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // originalRequest._retry = true;
-      // Implement refresh token if needed, or redirect to login.
-      // Vì logic refresh có ở axiosClient (Identity), ta có thể tận dụng hoặc để nó logout.
+      // Token expired — book calls rely on the identity client to handle refresh;
+      // here we just propagate 401 cleanly so the app can redirect to login.
     }
     return Promise.reject(error.response?.data || error);
-  }
+  },
 );
 
 export default bookAxiosClient;

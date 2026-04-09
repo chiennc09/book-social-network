@@ -7,37 +7,59 @@ spring:
   cloud:
     gateway:
       routes:
+        # ── Identity Service ─────────────────────────────────────────────────────
         - id: identity_service
           uri: ${IDENTITY_SERVICE_URL:http://localhost:8080}
           predicates:
             - Path=/identity/**
 
+        # ── Profile Service ──────────────────────────────────────────────────────
         - id: profile_service
           uri: ${PROFILE_SERVICE_URL:http://localhost:8091}
           predicates:
             - Path=/profile/**
 
+        # ── Notification Service ─────────────────────────────────────────────────
         - id: notification_service
           uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/notification/**
 
+        # ── Post Service ─────────────────────────────────────────────────────────
         - id: post_service
           uri: ${POST_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/post/**
 
+        # ── File Service ─────────────────────────────────────────────────────────
         - id: file_service
           uri: ${FILE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/file/**
 
+        # ── Book Service ─────────────────────────────────────────────────────────
         - id: book_service
           uri: ${BOOK_SERVICE_URL:http://localhost:8085}
           predicates:
             - Path=/books/**
 
+        # ── Chat Service (REST) ──────────────────────────────────────────────────
         - id: chat_service
           uri: ${CHAT_SERVICE_URL:http://localhost:8086}
           predicates:
             - Path=/chat/**
+
+        # ── Chat Service (WebSocket) — lb:ws:// for load-balanced or ws:// for single
+        - id: chat_service_ws
+          uri: ${CHAT_SERVICE_WS_URL:ws://localhost:8086}
+          predicates:
+            - Path=/chat/ws/**
+
+        # ── Recommendation Service ───────────────────────────────────────────────
+        # StripPrefix=1 strips /recommendation so FastAPI receives /api/v1/...
+        - id: recommendation_service
+          uri: ${RECOMMENDATION_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/recommendation/**
+          filters:
+            - StripPrefix=1

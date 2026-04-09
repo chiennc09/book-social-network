@@ -10,15 +10,10 @@ import { COLORS, SPACING } from '../../constants/theme';
 import { bookApi } from '../../api/bookApi';
 import { Book } from '../../types/index';
 import { RootStackParamList } from '../../types/navigation';
-
-const resolveCoverUrl = (raw?: string): string => {
-  if (!raw) return '';
-  if (raw.startsWith('http')) return raw;
-  return `http://10.0.2.2:8888/file/legacy/covers/${raw}`;
-};
+import { resolveMediaUrl } from '../../config/env';
 
 const mapBookResponse = (item: any): Book => {
-  const coverUrl = resolveCoverUrl(item.coverImage ?? item.coverUrl);
+  const coverUrl = resolveMediaUrl(item.coverImage ?? item.coverUrl, 'covers');
   return {
     id:            String(item.id),
     title:         item.title ?? '',

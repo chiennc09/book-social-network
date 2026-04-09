@@ -7,9 +7,9 @@ spring:
     name: post-service
   data:
     mongodb:
-      uri: mongodb://root:root@localhost:27017/post-service?authSource=admin
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/post-service?authSource=admin}
 
 app:
   services:
     profile:
-      url: http://localhost:8091/profile
+      url: ${APP_SERVICES_PROFILE_URL:http://localhost:8091/profile}

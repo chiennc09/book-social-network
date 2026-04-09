@@ -8,13 +8,13 @@ spring:
     name: book-service
   data:
     mongodb:
-      uri: mongodb://root:root@localhost:27017/book-service?authSource=admin
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/book-service?authSource=admin}
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
   kafka:
-    bootstrap-servers: localhost:9094
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -22,5 +22,5 @@ spring:
 app:
   services:
     profile:
-      url: http://localhost:8091/profile
-  base-url: http://10.0.2.2:8085
+      url: ${APP_SERVICES_PROFILE_URL:http://localhost:8091/profile}
+  base-url: ${APP_BASE_URL:http://localhost:8085}

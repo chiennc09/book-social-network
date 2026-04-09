@@ -8,6 +8,7 @@ import { Book } from '../../types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import { resolveMediaUrl } from '../../config/env';
 
 const NewThreadScreen = ({ navigation }: any) => {
   const [content, setContent] = useState('');
@@ -46,10 +47,7 @@ const NewThreadScreen = ({ navigation }: any) => {
          const res: any = await bookApi.search(text);
          const dataList = res.data?.result || res.result?.data || res.result || [];
          setBookResults(dataList.map((item: any) => {
-             let coverUrl = item.coverImage || item.coverUrl;
-             if (coverUrl && !coverUrl.startsWith('http')) {
-                coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
-             }
+             const coverUrl = resolveMediaUrl(item.coverImage || item.coverUrl, 'covers');
              return {
                  id: item.id,
                  title: item.title,

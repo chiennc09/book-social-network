@@ -1,4 +1,5 @@
 import { bookApi, ReadStatus } from '../api/bookApi';
+import { resolveMediaUrl } from '../config/env';
 
 export interface LibraryBook {
   id: string;
@@ -29,10 +30,7 @@ export const libraryService = {
 
       // Map to LibraryBook UI interface
       return dataList.map((item: any) => {
-        let coverUrl = item.coverImage;
-        if (coverUrl && !coverUrl.startsWith('http')) {
-           coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
-        }
+        let coverUrl = resolveMediaUrl(item.coverImage, 'covers');
         return {
           id: item.id,
           title: item.title,

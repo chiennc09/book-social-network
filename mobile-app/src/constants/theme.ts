@@ -14,4 +14,5 @@ export const SPACING = {
   xl: 32,
 };
 
-export const DEFAULT_AVATAR = 'http://10.0.2.2:8888/file/media/download/avatars/default-avatar.jpg';
+import { SERVICE_PATHS } from '../config/env';
+export const DEFAULT_AVATAR = `${SERVICE_PATHS.file}/media/download/avatars/default-avatar.jpg`;
