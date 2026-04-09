@@ -128,6 +128,9 @@ services:
       - SPRING_DATASOURCE_PASSWORD=root
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - APP_SERVICES_PROFILE=http://profile-service:8091/profile
+      # JWT secret key — must match JWT_SIGNER_KEY in ALL services that verify JWT locally
+      # Change this in production to a long, random HMAC-SHA512 secret
+      - JWT_SIGNER_KEY=1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij
     depends_on:
       kafka:
         condition: service_healthy
@@ -162,6 +165,9 @@ services:
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/notification-service?authSource=admin
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # Email provider — set BREVO_API_KEY to your real key (keep secret!)
+      - BREVO_API_URL=https://api.brevo.com
+      - BREVO_API_KEY=${BREVO_API_KEY:-xkeysib-placeholder-replace-me}
     depends_on:
       kafka:
         condition: service_healthy
@@ -253,6 +259,7 @@ services:
     ports:
       - '8888:8888'
     environment:
+      # Route destinations
       - IDENTITY_SERVICE_URL=http://identity-service:8080
       - PROFILE_SERVICE_URL=http://profile-service:8091
       - NOTIFICATION_SERVICE_URL=http://notification-service:8082
@@ -260,6 +267,8 @@ services:
       - FILE_SERVICE_URL=http://file-service:8084
       - BOOK_SERVICE_URL=http://book-service:8085
       - CHAT_SERVICE_URL=http://chat-service:8086
+      # WebSocket route must use ws:// scheme
+      - CHAT_SERVICE_WS_URL=ws://chat-service:8086
       - RECOMMENDATION_SERVICE_URL=http://recommendation-service:8000
     depends_on:
       - identity-service

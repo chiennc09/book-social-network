@@ -12,7 +12,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -20,9 +20,11 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 jwt:
-  signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
-  valid-duration: 3600 # in second
-  refreshable-duration: 36000 # in seconds
+  # IMPORTANT: Change this key in production! Must be a strong, secret HMAC-SHA512 key.
+  # Set via environment variable JWT_SIGNER_KEY to keep secrets out of source code.
+  signerKey: "${JWT_SIGNER_KEY:1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij}"
+  valid-duration: ${JWT_VALID_DURATION:3600}       # seconds — 1 hour
+  refreshable-duration: ${JWT_REFRESHABLE_DURATION:36000}  # seconds — 10 hours
 
 app:
   services:

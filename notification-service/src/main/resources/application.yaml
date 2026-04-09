@@ -2,6 +2,7 @@ server:
   port: 8082
   servlet:
     context-path: /notification
+
 spring:
   application:
     name: notification-service
@@ -17,7 +18,8 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+
 notification:
   email:
-    brevo-url: https://api.brevo.com
-    brevo-apikey: "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"
+    brevo-url: ${BREVO_API_URL:https://api.brevo.com}
+    brevo-apikey: "${BREVO_API_KEY:}"

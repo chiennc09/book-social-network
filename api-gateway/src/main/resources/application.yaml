@@ -49,17 +49,27 @@ spring:
           predicates:
             - Path=/chat/**
 
-        # ── Chat Service (WebSocket) — lb:ws:// for load-balanced or ws:// for single
+        # ── Chat Service (WebSocket STOMP) ───────────────────────────────────────
+        # WebSocket upgrade uses ws:// scheme; auth is checked inside STOMP CONNECT frame
         - id: chat_service_ws
           uri: ${CHAT_SERVICE_WS_URL:ws://localhost:8086}
           predicates:
             - Path=/chat/ws/**
 
-        # ── Recommendation Service ───────────────────────────────────────────────
-        # StripPrefix=1 strips /recommendation so FastAPI receives /api/v1/...
+        # ── Recommendation Service (Python FastAPI) ──────────────────────────────
+        # StripPrefix=1: /recommendation/api/v1/... → /api/v1/... on FastAPI side
         - id: recommendation_service
           uri: ${RECOMMENDATION_SERVICE_URL:http://localhost:8000}
           predicates:
             - Path=/recommendation/**
           filters:
             - StripPrefix=1
+
+# ── Internal service URLs used by Gateway itself ─────────────────────────────
+app:
+  identity:
+    # URL the Gateway uses to call identity-service for JWT introspect.
+    # MUST be the internal Docker network address when running in Docker.
+    # Docker:    http://identity-service:8080
+    # Local dev: http://localhost:8080  (default)
+    service-url: ${IDENTITY_SERVICE_URL:http://localhost:8080}
