@@ -20,12 +20,17 @@ import java.util.UUID;
 
 @Repository
 public class FileRepository {
-    @Value("${app.file.storage-dir}")
+    @Value("${app.file.storage-dir:./upload}")
     String storageDir;
 
-    @Value("${app.file.download-prefix}")
+    @Value("${app.file.download-prefix:http://localhost:8888/file/media/download/}")
     String urlPrefix;
 
+    /**
+     * Deprecated: File storage is now handled by MinIOStorageAdapter.uploadFile()
+     * This method is no longer used as files are stored in MinIO, not on local disk
+     */
+    @Deprecated
     public FileInfo store(MultipartFile file, String type) throws IOException {
         /// Xác định path folder lưu file
         Path baseFolder = Paths.get(storageDir);
@@ -35,13 +40,15 @@ public class FileRepository {
             Files.createDirectories(folder);
         }
 
-        /// Lấy tên định dạng file (Đuôi)
-        String fileExtension = StringUtils
-                .getFilenameExtension(file.getOriginalFilename());
+        /// Lấy tên định dạng gốc
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null) {
+            originalFilename = originalFilename.replaceAll("\\s+", "_");
+        } else {
+            originalFilename = "file";
+        }
 
-        String fileName = Objects.isNull(fileExtension)
-                ? UUID.randomUUID().toString()
-                : UUID.randomUUID() + "." + fileExtension;
+        String fileName = UUID.randomUUID().toString() + "_" + originalFilename;
 
         /// Lấy đường dẫn hoàn chỉnh file mong muốn
         Path filePath = folder.resolve(fileName).normalize().toAbsolutePath();
@@ -59,11 +66,12 @@ public class FileRepository {
                 .build();
     }
 
+    /**
+     * Deprecated: File reading is now handled by MinIOStorageAdapter.downloadFile()
+     * This method is no longer used as files are stored in MinIO, not on local disk
+     */
+    @Deprecated
     public Resource read(FileMgmt fileMgmt) {
-        Path filePath = Path.of(fileMgmt.getPath());
-        if (!Files.exists(filePath)) {
-            throw new RuntimeException("File not found: " + fileMgmt.getPath());
-        }
-        return new org.springframework.core.io.FileSystemResource(filePath);
+        throw new RuntimeException("Local disk file reading is deprecated. Use MinIOStorageAdapter.downloadFile() instead.");
     }
 }

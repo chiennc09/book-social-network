@@ -1,7 +1,7 @@
 // src/services/book.service.ts
 import { Book } from '../types';
-
 import { bookApi } from '../api/bookApi';
+import { resolveMediaUrl, resolveReaderUrl } from '../config/env';
 
 export interface Review {
   id: string;
@@ -37,11 +37,8 @@ export const bookService = {
       const data: any = (bookResp as any).result;
       const reviewsData = (reviewsResp as any).result || [];
 
-      // Xử lý URL ảnh bìa
-      let coverUrl = data.coverImage;
-      if (coverUrl && !coverUrl.startsWith('http')) {
-         coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
-      }
+      // Resolve cover URL (full MinIO URL or legacy relative path)
+      let coverUrl = resolveMediaUrl(data.coverImage, 'covers');
 
       // Mapping từ BookResponse sang BookDetail để tương thích UI hiện tại
       // Chú ý sau này sẽ cập nhật UI theo cấu trúc thật của DB
@@ -97,6 +94,27 @@ export const bookService = {
     } catch (error) {
       console.error('Error fetching book details:', error);
       throw error;
+    }
+  },
+
+  async getBookBasicInfo(id: string): Promise<Book> {
+    try {
+      const resp = await bookApi.getById(id);
+      const data: any = (resp as any).result;
+
+      let coverUrl = resolveMediaUrl(data.coverImage, 'covers');
+
+      return {
+        id: data.id,
+        title: data.title,
+        authors: data.authors,
+        author: data.authors?.[0] || 'Unknown',
+        coverUrl: coverUrl,
+        averageRating: data.averageRating || 0,
+      } as Book;
+    } catch (error) {
+       console.error('Error fetching book basic info:', error);
+       throw error;
     }
   }
 };

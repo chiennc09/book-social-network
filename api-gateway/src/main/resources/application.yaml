@@ -1,48 +1,96 @@
 server:
   port: 8888
 
-#app:
-#  api-prefix: /api/v1
-
 spring:
   application:
     name: api-gateway
+  # ── Multipart / File Upload ────────────────────────────────────────────────
+  # Spring Cloud Gateway (WebFlux/Netty) must be configured to read and forward
+  # multipart data. Without this, the reactive layer buffers the entire body
+  # (up to maxInMemorySize) before forwarding — and may drop the multipart boundary.
+  codec:
+    max-in-memory-size: ${GATEWAY_MAX_IN_MEMORY_SIZE:209715200}  # 200 MB
+  servlet:
+    multipart:
+      enabled: false   # Gateway is reactive (WebFlux), NOT servlet — keep disabled
   cloud:
     gateway:
+      # ── Global HTTP client settings ────────────────────────────────────────
+      httpclient:
+        # Increase response timeout for large file uploads
+        response-timeout: 120s
+        connect-timeout: 5000   # 5s connection timeout
+        # Pool config — allow concurrent uploads
+        pool:
+          max-connections: 200
+          acquire-timeout: 45000
       routes:
+        # ── Identity Service ─────────────────────────────────────────────────────
         - id: identity_service
-          uri: http://localhost:8080
+          uri: ${IDENTITY_SERVICE_URL:http://localhost:8080}
           predicates:
             - Path=/identity/**
-#          filters:
-#            - StripPrefix=2
+
+        # ── Profile Service ──────────────────────────────────────────────────────
         - id: profile_service
-          uri: http://localhost:8091
+          uri: ${PROFILE_SERVICE_URL:http://localhost:8091}
           predicates:
             - Path=/profile/**
-#          filters:
-#            - StripPrefix=2
+
+        # ── Notification Service ─────────────────────────────────────────────────
         - id: notification_service
-          uri: http://localhost:8082
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/notification/**
-#          filters:
-#            - StripPrefix=2
+
+        # ── Post Service ─────────────────────────────────────────────────────────
         - id: post_service
-          uri: http://localhost:8083
+          uri: ${POST_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/post/**
-#          filters:
-#            - StripPrefix=2
+
+        # ── File Service ─────────────────────────────────────────────────────────
+        # 'PreserveHostHeader' ensures Content-Type with boundary is forwarded intact
         - id: file_service
-          uri: http://localhost:8084
+          uri: ${FILE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/file/**
-#          filters:
-#            - StripPrefix=2
+          filters:
+            - PreserveHostHeader
+
+        # ── Book Service ─────────────────────────────────────────────────────────
         - id: book_service
-          uri: http://localhost:8085
+          uri: ${BOOK_SERVICE_URL:http://localhost:8085}
           predicates:
             - Path=/books/**
-        #   filters:
-        #      - StripPrefix=2
+
+        # ── Chat Service (REST) ──────────────────────────────────────────────────
+        - id: chat_service
+          uri: ${CHAT_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/chat/**
+
+        # ── Chat Service (WebSocket STOMP) ───────────────────────────────────────
+        # WebSocket upgrade uses ws:// scheme; auth is checked inside STOMP CONNECT frame
+        - id: chat_service_ws
+          uri: ${CHAT_SERVICE_WS_URL:ws://localhost:8086}
+          predicates:
+            - Path=/chat/ws/**
+
+        # ── Recommendation Service (Python FastAPI) ──────────────────────────────
+        # StripPrefix=1: /recommendation/api/v1/... → /api/v1/... on FastAPI side
+        - id: recommendation_service
+          uri: ${RECOMMENDATION_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/recommendation/**
+          filters:
+            - StripPrefix=1
+
+# ── Internal service URLs used by Gateway itself ─────────────────────────────
+app:
+  identity:
+    # URL the Gateway uses to call identity-service for JWT introspect.
+    # MUST be the internal Docker network address when running in Docker.
+    # Docker:    http://identity-service:8080
+    # Local dev: http://localhost:8080  (default)
+    service-url: ${IDENTITY_SERVICE_URL:http://localhost:8080}

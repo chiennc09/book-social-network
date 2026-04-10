@@ -24,6 +24,9 @@ export const bookApi = {
   // Đọc sách: trả về thông tin sách + link (epubPath, pdfPath) + tiến trình
   readBook: (id: string) => bookAxiosClient.get(`/${id}/read`),
 
+  // Lấy thông tin cơ bản không làm tăng view
+  getById: (id: string) => bookAxiosClient.get(`/${id}`),
+
   // Cập nhật tiến trình đọc
   updateProgress: (id: string, position: string, percent: number) =>
     bookAxiosClient.post(`/${id}/progress`, null, { params: { position, percent } }),
@@ -49,4 +52,12 @@ export const bookApi = {
 
   getReviews: (id: string) =>
     bookAxiosClient.get(`/${id}/reviews`),
+
+  // Books filtered by category — used by GenreBooksScreen
+  getByCategory: (categoryId: string) =>
+    bookAxiosClient.get(`/category/${categoryId}`),
+
+  // Trending books — top N by views in last `days` days
+  getTrending: (days = 3, limit = 10) =>
+    bookAxiosClient.get('/trending', { params: { days, limit } }),
 };

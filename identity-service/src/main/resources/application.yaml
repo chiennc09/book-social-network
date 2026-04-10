@@ -5,25 +5,27 @@ server:
 
 spring:
   datasource:
-    url: "jdbc:mysql://localhost:3306/identity_service"
+    url: "${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/identity_service}"
     driverClassName: "com.mysql.cj.jdbc.Driver"
-    username: root
-    password: root
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
   kafka:
-    bootstrap-servers: localhost:9094
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 jwt:
-  signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
-  valid-duration: 3600 # in second
-  refreshable-duration: 36000 # in seconds
+  # IMPORTANT: Change this key in production! Must be a strong, secret HMAC-SHA512 key.
+  # Set via environment variable JWT_SIGNER_KEY to keep secrets out of source code.
+  signerKey: "${JWT_SIGNER_KEY:1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij}"
+  valid-duration: ${JWT_VALID_DURATION:3600}       # seconds — 1 hour
+  refreshable-duration: ${JWT_REFRESHABLE_DURATION:36000}  # seconds — 10 hours
 
 app:
   services:
-    profile: http://localhost:8091/profile
+    profile: ${APP_SERVICES_PROFILE:http://localhost:8091/profile}

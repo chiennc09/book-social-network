@@ -8,9 +8,10 @@ import { bookApi } from '../../api/bookApi';
 // Import Components
 import StickyHeader from '../../components/book/StickyHeader';
 import BookCoverSection from '../../components/book/BookCoverSection';
-import ActionButtons from '../../components/book/ActionButtons'; // Đã có file mới
+import ActionButtons from '../../components/book/ActionButtons';
 import DescriptionSection from '../../components/book/DescriptionSection';
-import ReviewsSection from '../../components/book/ReviewsSection'; // Đã có file mới
+import ReviewsSection from '../../components/book/ReviewsSection';
+import SimilarBooksSection from '../../components/book/SimilarBooksSection';
 
 // Import Modals
 import ShelfModal from '../../components/book/modal/ShelfModal';
@@ -155,8 +156,16 @@ const BookDetailScreen = ({ route, navigation }: any) => {
             </Text>
         </View>
 
-        {/* 5. Đánh giá (Đã có component) */}
+        {/* 5. Đánh giá */}
         <ReviewsSection reviews={book.reviews} ratingAverage={book.ratingAverage} />
+
+        {/* 6. Gợi ý sách tương tự (Content-Based Filtering) */}
+        <SimilarBooksSection
+          bookId={bookId}
+          onBookPress={(newBookId) =>
+            navigation.push('BookDetail', { bookId: newBookId })
+          }
+        />
 
       </Animated.ScrollView>
 

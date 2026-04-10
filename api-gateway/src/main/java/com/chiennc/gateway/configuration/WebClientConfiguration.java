@@ -1,6 +1,7 @@
 package com.chiennc.gateway.configuration;
 
 import com.chiennc.gateway.repository.IdentityClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -14,15 +15,28 @@ import java.util.List;
 
 @Configuration
 public class WebClientConfiguration {
+
+    /**
+     * Internal URL of identity-service used by the Gateway to verify JWT tokens.
+     *
+     * In Docker:       http://identity-service:8080/identity
+     * Local dev:       http://localhost:8080/identity
+     *
+     * Configured via IDENTITY_SERVICE_URL environment variable.
+     * context-path '/identity' is part of the service, so we append it here.
+     */
+    @Value("${app.identity.service-url:http://localhost:8080}/identity")
+    private String identityServiceUrl;
+
     @Bean
-    WebClient webClient(){
+    WebClient webClient() {
         return WebClient.builder()
-                .baseUrl("http://localhost:8080/identity")
+                .baseUrl(identityServiceUrl)
                 .build();
     }
 
     @Bean
-    CorsWebFilter corsWebFilter(){
+    CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
         corsConfiguration.setAllowedOrigins(List.of("*"));
         corsConfiguration.setAllowedHeaders(List.of("*"));
@@ -34,9 +48,12 @@ public class WebClientConfiguration {
         return new CorsWebFilter(urlBasedCorsConfigurationSource);
     }
 
-    /// Register IdentityClient với HttpServiceProxyFactory để thực hiện request với config webClient
+    /**
+     * Register IdentityClient with HttpServiceProxyFactory to perform introspect
+     * calls using the configured WebClient.
+     */
     @Bean
-    IdentityClient identityClient(WebClient webClient){
+    IdentityClient identityClient(WebClient webClient) {
         HttpServiceProxyFactory httpServiceProxyFactory = HttpServiceProxyFactory
                 .builderFor(WebClientAdapter.create(webClient)).build();
 

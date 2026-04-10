@@ -1,6 +1,7 @@
 import axiosClient from './axiosClient';
+import { SERVICE_PATHS } from '../config/env';
 
-const BASE_URL = 'http://10.0.2.2:8086/chat';
+const BASE_URL = SERVICE_PATHS.chat;
 
 export const chatApi = {
   // Get all conversations for the logic user

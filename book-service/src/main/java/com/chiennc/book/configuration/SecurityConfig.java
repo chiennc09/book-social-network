@@ -16,8 +16,10 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final String[] PUBLIC_ENDPOINTS = {
-        "/book/**"
+    private static final String[] PUBLIC_GET_ENDPOINTS = {
+        "/books**",        // general book fetch/search (unauthenticated reads)
+        "/trending",       // trending books — no auth required
+        "/categories",     // genre list — no auth required
     };
 
     private final CustomJwtDecoder customJwtDecoder;
@@ -28,7 +30,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity.authorizeHttpRequests(request -> request.requestMatchers(HttpMethod.GET, PUBLIC_ENDPOINTS)
+        httpSecurity.authorizeHttpRequests(request -> request.requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS)
                 .permitAll()
                 .anyRequest()
                 .authenticated());

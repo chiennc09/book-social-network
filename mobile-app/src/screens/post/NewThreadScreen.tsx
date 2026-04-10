@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, ActivityIndicator, Modal, FlatList } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  SafeAreaView, Image, ActivityIndicator, Modal, FlatList,
+  KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { postApi } from '../../api/postApi';
 import { bookApi } from '../../api/bookApi';
@@ -8,20 +12,45 @@ import { Book } from '../../types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import { resolveMediaUrl } from '../../config/env';
+import { profileApi } from '../../api/profileApi';
 
 const NewThreadScreen = ({ navigation }: any) => {
-  const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  // Book Search Modal State
+  const [content, setContent]         = useState('');
+  const [loading, setLoading]         = useState(false);
   const [showBookModal, setShowBookModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [bookResults, setBookResults] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [searching, setSearching] = useState(false);
-  
-  const { user } = useSelector((state: RootState) => state.auth);
+  const [searching, setSearching]     = useState(false);
 
+  // ── Avatar ──────────────────────────────────────────────────────────────────
+  // Redux user only has {id, username, scope} — no avatar field.
+  // We fetch the full profile once on mount to get the real avatar URL.
+  const { user } = useSelector((state: RootState) => state.auth);
+  const [profileAvatar, setProfileAvatar] = useState<string>(DEFAULT_AVATAR);
+  const [displayName, setDisplayName]     = useState<string>(user?.username || '');
+
+  useEffect(() => {
+    // Check if Redux user already has avatar patched in (from updateUserAvatar action)
+    const reduxAvatar = (user as any)?.avatar;
+    if (reduxAvatar) {
+      setProfileAvatar(reduxAvatar);
+    }
+
+    // Always fetch fresh profile (avatar may have changed)
+    profileApi.getMyProfile()
+      .then((res: any) => {
+        const data = res?.result ?? res?.data?.result ?? res?.data ?? res;
+        if (data?.avatar) setProfileAvatar(data.avatar);
+        if (data?.displayName || data?.username) {
+          setDisplayName(data.displayName || data.username);
+        }
+      })
+      .catch(() => {/* silently ignore, already have fallback */});
+  }, []);
+
+  // ── Post ────────────────────────────────────────────────────────────────────
   const handlePost = async () => {
     if (!content.trim()) return;
     setLoading(true);
@@ -30,59 +59,78 @@ const NewThreadScreen = ({ navigation }: any) => {
         content,
         bookId: selectedBook?.id,
       });
-      eventEmitter.emit(EventNames.POST_CREATED, resp);
+      // Emit the raw API response body (ApiResponse<Post>) so HomeScreen extracts .result
+      eventEmitter.emit(EventNames.POST_CREATED, (resp as any)?.data ?? resp);
       navigation.goBack();
     } catch (error) {
-       console.error(error);
-       setLoading(false);
+      console.error('createPost error:', error);
+      setLoading(false);
     }
   };
 
-  const handleSearchBook = async (text: string) => {
+  // ── Book search (debounced) ─────────────────────────────────────────────────
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchBook = useCallback((text: string) => {
     setSearchQuery(text);
-    if (text.length > 2) {
-       setSearching(true);
-      try {
-         const res: any = await bookApi.search(text);
-         const dataList = res.data?.result || res.result?.data || res.result || [];
-         setBookResults(dataList.map((item: any) => {
-             let coverUrl = item.coverImage || item.coverUrl;
-             if (coverUrl && !coverUrl.startsWith('http')) {
-                coverUrl = `http://10.0.2.2:8888/file/legacy/covers/${coverUrl}`;
-             }
-             return {
-                 id: item.id,
-                 title: item.title,
-                 authors: item.authors,
-                 author: item.authors?.[0] || 'Unknown',
-                 coverUrl: coverUrl,
-                 averageRating: item.averageRating || 0,
-             };
-         }));
-       } catch(e) {}
-       setSearching(false);
-    } else {
-       setBookResults([]);
-    }
-  };
+    if (searchTimer.current) clearTimeout(searchTimer.current);
 
+    if (text.length < 2) {
+      setBookResults([]);
+      return;
+    }
+
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res: any = await bookApi.search(text);
+        const dataList: any[] = res?.data?.result ?? res?.result ?? res?.data ?? [];
+        setBookResults(
+          dataList.map((item: any) => ({
+            id:            item.id,
+            title:         item.title,
+            authors:       item.authors,
+            author:        item.authors?.[0] ?? 'Unknown',
+            coverUrl:      resolveMediaUrl(item.coverImage ?? item.coverUrl, 'covers'),
+            averageRating: item.averageRating ?? 0,
+          })),
+        );
+      } catch (_) {}
+      setSearching(false);
+    }, 350);
+  }, []);
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelText}>Hủy</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bài viết mới</Text>
-        <View style={{ width: 30 }} /> 
-      </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelText}>Hủy</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Bài viết mới</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-      <View style={styles.content}>
-        <View style={styles.row}>
-           <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
-           <View style={styles.inputContainer}>
-              <Text style={styles.username}>{(user as any)?.displayName || user?.username}</Text>
-              <TextInput 
-                placeholder="Có gì mới?" 
+        {/* Body */}
+        <View style={styles.body}>
+          <View style={styles.row}>
+            {/* Avatar */}
+            <Image
+              source={{ uri: profileAvatar }}
+              style={styles.avatar}
+              defaultSource={{ uri: DEFAULT_AVATAR }}
+            />
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.username}>{displayName}</Text>
+
+              <TextInput
+                placeholder="Có gì mới?"
                 placeholderTextColor={COLORS.textSecondary}
                 style={styles.input}
                 multiline
@@ -90,131 +138,246 @@ const NewThreadScreen = ({ navigation }: any) => {
                 value={content}
                 onChangeText={setContent}
               />
-              
-              {/* Vùng Book Preview */}
+
+              {/* Book preview chip */}
               {selectedBook && (
-                <View style={styles.bookPreview}>
-                   <Image source={{ uri: selectedBook.coverUrl || selectedBook.coverImage }} style={styles.bookPreviewCover} />
-                   <View style={styles.bookPreviewInfo}>
-                     <Text style={styles.bookPreviewTitle} numberOfLines={1}>{selectedBook.title}</Text>
-                     <Text style={styles.bookPreviewAuthor} numberOfLines={1}>{selectedBook.author || (selectedBook.authors ? selectedBook.authors[0] : 'Unknown')}</Text>
-                   </View>
-                   <TouchableOpacity onPress={() => setSelectedBook(null)} style={{padding: 5}}>
-                      <Icon name="x" size={18} color={COLORS.textSecondary} />
-                   </TouchableOpacity>
+                <View style={styles.bookChip}>
+                  <Image
+                    source={{ uri: selectedBook.coverUrl ?? selectedBook.coverImage }}
+                    style={styles.chipCover}
+                  />
+                  <View style={styles.chipInfo}>
+                    <Text style={styles.chipTitle} numberOfLines={1}>
+                      {selectedBook.title}
+                    </Text>
+                    <Text style={styles.chipAuthor} numberOfLines={1}>
+                      {selectedBook.author ?? selectedBook.authors?.[0] ?? 'Unknown'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setSelectedBook(null)} style={styles.chipRemove}>
+                    <Icon name="x" size={16} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
                 </View>
               )}
 
-              {/* Toolbar Icons */}
+              {/* Toolbar */}
               <View style={styles.toolbar}>
-                 <Icon name="image" size={20} color={COLORS.textSecondary} style={styles.toolIcon} />
-                 <Icon name="camera" size={20} color={COLORS.textSecondary} style={styles.toolIcon} />
-                 <Icon name="mic" size={20} color={COLORS.textSecondary} style={styles.toolIcon} />
-                 <TouchableOpacity onPress={() => setShowBookModal(true)}>
-                    <Icon name="book" size={20} color={selectedBook ? COLORS.primary : COLORS.textSecondary} style={styles.toolIcon} /> 
-                 </TouchableOpacity>
+                <Icon name="image"  size={20} color={COLORS.textSecondary} style={styles.toolIcon} />
+                <Icon name="camera" size={20} color={COLORS.textSecondary} style={styles.toolIcon} />
+                <Icon name="mic"    size={20} color={COLORS.textSecondary} style={styles.toolIcon} />
+                <TouchableOpacity
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  onPress={() => setShowBookModal(true)}
+                >
+                  <Icon
+                    name="book"
+                    size={20}
+                    color={selectedBook ? COLORS.primary : COLORS.textSecondary}
+                    style={styles.toolIcon}
+                  />
+                </TouchableOpacity>
               </View>
-           </View>
+            </View>
+          </View>
         </View>
-      </View>
-      
-      <View style={styles.footer}>
-         <TouchableOpacity 
-            style={[styles.postBtn, (!content.trim() || loading) && { opacity: 0.5 }]}
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.postBtn, (!content.trim() || loading) && { opacity: 0.45 }]}
             onPress={handlePost}
             disabled={!content.trim() || loading}
-         >
-            {loading ? <ActivityIndicator color="black" /> : <Text style={styles.postBtnText}>Đăng</Text>}
-         </TouchableOpacity>
-      </View>
+          >
+            {loading
+              ? <ActivityIndicator color="black" size="small" />
+              : <Text style={styles.postBtnText}>Đăng</Text>}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
 
-      {/* Book Search Modal */}
-      <Modal visible={showBookModal} animationType="slide" transparent>
+      {/* ── Book Search Modal ────────────────────────────────────────────────
+          IMPORTANT: Modal must be a sibling of KeyboardAvoidingView (outside it)
+          so it renders above everything and its TouchableOpacity are not clipped.
+      ─────────────────────────────────────────────────────────────────────── */}
+      <Modal
+        visible={showBookModal}
+        animationType="slide"
+        transparent
+        statusBarTranslucent      // Android: render above status bar
+        onRequestClose={() => setShowBookModal(false)}
+      >
         <View style={styles.modalOverlay}>
-           <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                 <Text style={styles.modalTitle}>Đính kèm Sách</Text>
-                 <TouchableOpacity onPress={() => setShowBookModal(false)}>
-                    <Icon name="x" size={24} color={COLORS.text} />
-                 </TouchableOpacity>
-              </View>
-              <TextInput 
-                style={styles.searchInput}
+          <View style={styles.modalSheet}>
+            {/* Modal header */}
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Đính kèm Sách</Text>
+              <TouchableOpacity
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={() => setShowBookModal(false)}
+              >
+                <Icon name="x" size={22} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search input */}
+            <View style={styles.modalSearchBox}>
+              <Icon name="search" size={16} color={COLORS.textSecondary} style={{ marginLeft: 10 }} />
+              <TextInput
+                style={styles.modalSearchInput}
                 placeholder="Tìm tên sách..."
                 placeholderTextColor={COLORS.textSecondary}
                 value={searchQuery}
                 onChangeText={handleSearchBook}
+                autoFocus={false}
               />
-              {searching ? (
-                <ActivityIndicator color={COLORS.primary} style={{marginTop: 20}} />
-              ) : (
-                <FlatList 
-                  data={bookResults}
-                  keyExtractor={item => item.id}
-                  renderItem={({item}) => (
-                    <TouchableOpacity 
-                      style={styles.bookResultItem}
-                      onPress={() => {
-                        setSelectedBook(item);
-                        setShowBookModal(false);
-                      }}
-                    >
-                      <Image source={{ uri: item.coverUrl || item.coverImage }} style={styles.bookResultCover} />
-                      <View style={{flex: 1}}>
-                        <Text style={styles.bookResultTitle} numberOfLines={1}>{item.title}</Text>
-                        <Text style={styles.bookResultAuthor}>{item.author || (item.authors ? item.authors[0] : 'Unknown')}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                          <Icon name="star" size={14} color="#FFD700" />
-                          <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginLeft: 4 }}>
-                            {item.averageRating && item.averageRating > 0 ? item.averageRating.toFixed(1) : 'Chưa có đánh giá'}
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => { setSearchQuery(''); setBookResults([]); }}>
+                  <Icon name="x-circle" size={16} color={COLORS.textSecondary} style={{ marginRight: 10 }} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Results */}
+            {searching ? (
+              <ActivityIndicator color={COLORS.primary} style={{ marginTop: 24 }} />
+            ) : (
+              <FlatList
+                data={bookResults}
+                keyExtractor={item => item.id}
+                style={{ marginTop: 8 }}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  searchQuery.length > 1
+                    ? <Text style={styles.emptyText}>Không tìm thấy sách nào.</Text>
+                    : <Text style={styles.emptyText}>Nhập ít nhất 2 ký tự để tìm sách.</Text>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.resultItem}
+                    onPress={() => {
+                      setSelectedBook(item);
+                      setSearchQuery('');
+                      setBookResults([]);
+                      setShowBookModal(false);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: item.coverUrl ?? item.coverImage }}
+                      style={styles.resultCover}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.resultAuthor}>
+                        {item.author ?? (item.authors?.[0] ?? 'Unknown')}
+                      </Text>
+                      {(item.averageRating ?? 0) > 0 && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                          <Icon name="star" size={12} color="#FFD700" />
+                          <Text style={styles.resultRating}>
+                            {item.averageRating!.toFixed(1)}
                           </Text>
                         </View>
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                  style={{marginTop: 10}}
-                />
-              )}
-           </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 };
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: SPACING.m, alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: '#333' },
-  cancelText: { color: COLORS.text, fontSize: 16 },
+
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: SPACING.m, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#333',
+  },
+  cancelText:  { color: COLORS.text, fontSize: 16 },
   headerTitle: { color: COLORS.text, fontWeight: 'bold', fontSize: 16 },
-  content: { padding: SPACING.m, flex: 1 },
-  row: { flexDirection: 'row' },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
+
+  body: { flex: 1, padding: SPACING.m },
+  row:  { flexDirection: 'row' },
+
+  avatar: {
+    width: 42, height: 42, borderRadius: 21,
+    marginRight: 12, backgroundColor: '#333',
+  },
   inputContainer: { flex: 1 },
-  username: { color: COLORS.text, fontWeight: 'bold', marginBottom: 4 },
-  input: { color: COLORS.text, fontSize: 16, minHeight: 100, textAlignVertical: 'top' },
-  toolbar: { flexDirection: 'row', marginTop: 10 },
-  toolIcon: { marginRight: 20 },
-  footer: { padding: SPACING.m, alignItems: 'flex-end' },
-  postBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
-  postBtnText: { color: 'black', fontWeight: 'bold' },
+  username: { color: COLORS.text, fontWeight: '700', fontSize: 15, marginBottom: 4 },
+  input:    { color: COLORS.text, fontSize: 16, minHeight: 100, textAlignVertical: 'top' },
 
-  bookPreview: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', padding: 10, borderRadius: 8, marginTop: 10, borderWidth: 1, borderColor: '#333' },
-  bookPreviewCover: { width: 30, height: 45, borderRadius: 4, marginRight: 10 },
-  bookPreviewInfo: { flex: 1 },
-  bookPreviewTitle: { color: COLORS.text, fontWeight: '600', fontSize: 14 },
-  bookPreviewAuthor: { color: COLORS.textSecondary, fontSize: 12 },
+  // Book chip
+  bookChip: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#1A1A1A', padding: 10, borderRadius: 10,
+    marginTop: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#333',
+  },
+  chipCover:  { width: 32, height: 48, borderRadius: 4, marginRight: 10 },
+  chipInfo:   { flex: 1 },
+  chipTitle:  { color: COLORS.text, fontWeight: '600', fontSize: 13 },
+  chipAuthor: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+  chipRemove: { padding: 6 },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: COLORS.background, height: '80%', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-  searchInput: { backgroundColor: '#1E1E1E', color: COLORS.text, padding: 10, borderRadius: 8, fontSize: 16 },
-  bookResultItem: { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#333', alignItems: 'center' },
-  bookResultCover: { width: 40, height: 60, marginRight: 10, borderRadius: 4 },
-  bookResultTitle: { color: COLORS.text, fontSize: 14, fontWeight: 'bold' },
-  bookResultAuthor: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }
+  // Toolbar
+  toolbar:  { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+  toolIcon: { marginRight: 22 },
+
+  footer: { paddingHorizontal: SPACING.m, paddingBottom: SPACING.m, alignItems: 'flex-end' },
+  postBtn: {
+    backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 9,
+    borderRadius: 20, minWidth: 72, alignItems: 'center',
+  },
+  postBtnText: { color: 'black', fontWeight: 'bold', fontSize: 15 },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#111',
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    paddingHorizontal: 20, paddingBottom: 30,
+    maxHeight: '82%',
+  },
+  modalHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: '#444', alignSelf: 'center', marginTop: 10, marginBottom: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14,
+  },
+  modalTitle: { color: COLORS.text, fontSize: 17, fontWeight: 'bold' },
+
+  modalSearchBox: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#1E1E1E', borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#333',
+  },
+  modalSearchInput: {
+    flex: 1, color: COLORS.text, paddingVertical: 10, paddingHorizontal: 8, fontSize: 15,
+  },
+
+  emptyText: { color: COLORS.textSecondary, textAlign: 'center', marginTop: 30, fontSize: 14 },
+
+  resultItem: {
+    flexDirection: 'row', paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#2a2a2a',
+    alignItems: 'center',
+  },
+  resultCover:  { width: 44, height: 64, marginRight: 12, borderRadius: 5, backgroundColor: '#333' },
+  resultTitle:  { color: COLORS.text, fontSize: 14, fontWeight: 'bold' },
+  resultAuthor: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+  resultRating: { color: COLORS.textSecondary, fontSize: 12, marginLeft: 4 },
 });
 
 export default NewThreadScreen;

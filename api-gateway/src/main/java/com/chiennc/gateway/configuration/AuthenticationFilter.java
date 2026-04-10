@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -27,18 +28,30 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PACKAGE, makeFinal = true)
-
-/// Add filter check security
 public class AuthenticationFilter implements GlobalFilter, Ordered {
+
     IdentityService identityService;
     ObjectMapper objectMapper;
 
+    /**
+     * Public endpoints that bypass JWT verification.
+     *
+     * Rules (regex matched against full request path):
+     *  - /identity/auth/**        — login, register, introspect, refresh, logout
+     *  - /identity/users/registration
+     *  - /notification/email/send — webhook / external sender, no auth needed
+     *  - /file/media/download/**  — public file download by URL
+     *  - /chat/ws/**              — WebSocket STOMP upgrade (auth handled inside STOMP CONNECT frame)
+     *  - /recommendation/**       — recommendation reads are public (personalised but not protected)
+     */
     @NonFinal
     private String[] publicEndpoints = {
             "/identity/auth/.*",
             "/identity/users/registration",
             "/notification/email/send",
-            "/file/media/download/.*"
+            "/file/media/download/.*",
+            "/chat/ws/.*",
+            "/recommendation/.*",
     };
 
     @Override
@@ -47,22 +60,21 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         if (isPublicEndpoint(exchange.getRequest()))
             return chain.filter(exchange);
 
-        /// Get token từ authorization header
+        // Get token from Authorization header
         List<String> authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION);
         if (CollectionUtils.isEmpty(authHeader))
             return unauthenticated(exchange.getResponse());
 
-        /// Get token - trim 'Bearer ' phía trước
+        // Strip 'Bearer ' prefix
         String token = authHeader.getFirst().replace("Bearer ", "");
 
-        /// Verify token
+        // Verify token via identity-service introspect
         return identityService.introspect(token).flatMap(introspectResponse -> {
             if (introspectResponse.getResult().isValid())
                 return chain.filter(exchange);
             else
                 return unauthenticated(exchange.getResponse());
         }).onErrorResume(throwable -> unauthenticated(exchange.getResponse()));
-        /// Bất cứ lỗi gì cũng cho về unauthenticated
     }
 
     @Override
@@ -70,19 +82,18 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         return -1;
     }
 
-    /// equal path public endpoint
-    private boolean isPublicEndpoint(ServerHttpRequest request){
+    private boolean isPublicEndpoint(ServerHttpRequest request) {
         return Arrays.stream(publicEndpoints)
                 .anyMatch(s -> request.getURI().getPath().matches(s));
     }
 
-    Mono<Void> unauthenticated(ServerHttpResponse response){
+    Mono<Void> unauthenticated(ServerHttpResponse response) {
         ApiResponse<?> apiResponse = ApiResponse.builder()
                 .code(1401)
                 .message("Unauthenticated")
                 .build();
-        /// Set body response
-        String body = null;
+
+        String body;
         try {
             body = objectMapper.writeValueAsString(apiResponse);
         } catch (JsonProcessingException e) {
@@ -96,4 +107,3 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
                 Mono.just(response.bufferFactory().wrap(body.getBytes())));
     }
 }
-

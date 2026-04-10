@@ -24,10 +24,15 @@ export const authService = {
   // Hàm đăng nhập
   async login(username: string, password: string) {
     try {
-      const response = await authApi.login({ username, password }) as unknown as LoginResponse;
-      
-      if (response && response.code === 1000) {
-        const { token } = response.result;
+      const response = await authApi.login({ username, password });
+      const data = (response as any).data as LoginResponse;
+
+      if (data && (data.code === 1000 || !!data.result?.token)) {
+        const token = data.result?.token || (data as any).token;
+        if (!token) {
+          throw new Error('Token đăng nhập không tồn tại');
+        }
+
         // Lưu token vào storage
         await storage.setToken(token);
         
@@ -43,8 +48,12 @@ export const authService = {
           },
         };
       }
+
       throw new Error('Đăng nhập thất bại');
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
       throw error;
     }
   },

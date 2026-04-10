@@ -1,5 +1,6 @@
 import axiosClient from './axiosClient';
 import { Post } from '../types';
+import { SERVICE_PATHS } from '../config/env';
 
 export interface PageResponse<T> {
   currentPage: number;
@@ -9,8 +10,7 @@ export interface PageResponse<T> {
   data: T[];
 }
 
-// User yêu cầu đổi sang port 8083
-const BASE_URL = 'http://10.0.2.2:8083/post';
+const BASE_URL = SERVICE_PATHS.post;
 
 export const postApi = {
   createPost: (data: { content: string; bookId?: string; isRepost?: boolean; originalPostId?: string }) => {

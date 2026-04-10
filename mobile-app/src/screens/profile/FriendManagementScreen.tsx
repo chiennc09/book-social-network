@@ -1,180 +1,326 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, SafeAreaView } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
+  Image, SafeAreaView, TextInput, Keyboard,
+} from 'react-native';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { profileApi } from '../../api/profileApi';
 import { UserProfile } from '../../types/user';
 
+type Tab = 'friends' | 'requests' | 'search';
+
 const FriendManagementScreen = ({ navigation }: any) => {
-  const [activeTab, setActiveTab] = useState<'friends' | 'requests'>('friends');
-  
-  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [activeTab, setActiveTab] = useState<Tab>('friends');
+
+  const [friends, setFriends]   = useState<UserProfile[]>([]);
   const [incoming, setIncoming] = useState<UserProfile[]>([]);
   const [outgoing, setOutgoing] = useState<UserProfile[]>([]);
-  
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]   = useState(true);
 
+  // ── Search state ──────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery]       = useState('');
+  const [searchResults, setSearchResults]   = useState<UserProfile[]>([]);
+  const [searchLoading, setSearchLoading]   = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<TextInput>(null);
+
+  // ── Load friend data ──────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [friendsRes, incomingRes, outgoingRes]: any = await Promise.all([
         profileApi.getFriends(),
         profileApi.getIncomingRequests(),
-        profileApi.getOutgoingRequests()
+        profileApi.getOutgoingRequests(),
       ]);
-      setFriends(friendsRes.result || friendsRes.data?.result || friendsRes.data || []);
-      setIncoming(incomingRes.result || incomingRes.data?.result || incomingRes.data || []);
-      setOutgoing(outgoingRes.result || outgoingRes.data?.result || outgoingRes.data || []);
+      setFriends(friendsRes.result   || friendsRes.data?.result   || friendsRes.data   || []);
+      setIncoming(incomingRes.result || incomingRes.data?.result  || incomingRes.data  || []);
+      setOutgoing(outgoingRes.result || outgoingRes.data?.result  || outgoingRes.data  || []);
     } catch (e) {
-      console.error("Failed to load friend data", e);
+      console.error('Failed to load friend data', e);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
+  // ── Search with debounce ──────────────────────────────────────────────────
+  const handleSearch = (text: string) => {
+    setSearchQuery(text);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (!text.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchTimerRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res: any = await profileApi.searchUsers(text.trim());
+        setSearchResults(res?.result || res?.data?.result || res?.data || []);
+      } catch (e) {
+        console.error('Search users error', e);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+  };
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAccept = async (userId: string) => {
-    try {
-      await profileApi.acceptFriend(userId);
-      fetchData(); // reload
-    } catch (e) { console.error(e); }
+    try { await profileApi.acceptFriend(userId); fetchData(); } catch (e) {}
   };
 
   const handleRemove = async (userId: string) => {
-    try {
-      await profileApi.removeFriend(userId);
-      fetchData(); // reload
-    } catch (e) { console.error(e); }
+    try { await profileApi.removeFriend(userId); fetchData(); } catch (e) {}
   };
 
+  const handleAddFriend = async (userId: string) => {
+    try {
+      await profileApi.sendFriendRequest(userId);
+      // Mark as pending in search results
+      setSearchResults(prev =>
+        prev.map(u => (u.userId === userId || u.id === userId) ? { ...u, _requestSent: true } as any : u),
+      );
+    } catch (e) { console.error('Add friend error', e); }
+  };
+
+  // ── Switch to search tab ──────────────────────────────────────────────────
+  const openSearchTab = () => {
+    setActiveTab('search');
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  // ── Render helpers ────────────────────────────────────────────────────────
   const renderFriendItem = ({ item }: { item: UserProfile }) => (
-    <View style={styles.userRow}>
+    <TouchableOpacity
+      style={styles.userRow}
+      onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
+    >
       <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
       <View style={styles.userInfo}>
         <Text style={styles.displayName}>{item.displayName || item.username}</Text>
         <Text style={styles.username}>@{item.username}</Text>
       </View>
-      <TouchableOpacity style={styles.btnRemove} onPress={() => handleRemove(item.userId || item.id)}>
+      <TouchableOpacity style={styles.btnOutline} onPress={() => handleRemove(item.userId || item.id)}>
         <Text style={styles.btnTextOutline}>Hủy bạn</Text>
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
-  const renderRequestItem = ({ item, isOutgoing }: { item: UserProfile, isOutgoing: boolean }) => (
-    <View style={styles.userRow}>
+  const renderRequestItem = ({ item }: { item: UserProfile & { _kind?: string } }) => (
+    <TouchableOpacity
+      style={styles.userRow}
+      onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
+    >
       <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
       <View style={styles.userInfo}>
         <Text style={styles.displayName}>{item.displayName || item.username}</Text>
         <Text style={styles.username}>@{item.username}</Text>
       </View>
-      {isOutgoing ? (
+      {item._kind === 'out' ? (
         <View style={styles.btnPending}>
           <Text style={styles.btnTextSecondary}>Đang chờ</Text>
         </View>
       ) : (
-        <View style={{flexDirection: 'row', gap: 10}}>
-           <TouchableOpacity style={styles.btnAccept} onPress={() => handleAccept(item.userId || item.id)}>
-             <Text style={styles.btnTextPrimary}>Chấp nhận</Text>
-           </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.btnPrimary} onPress={() => handleAccept(item.userId || item.id)}>
+          <Text style={styles.btnTextPrimary}>Chấp nhận</Text>
+        </TouchableOpacity>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
-  const getActiveData = () => {
-     if (activeTab === 'friends') return friends;
-     return [...incoming.map(i => ({...i, _kind: 'in'})), ...outgoing.map(o => ({...o, _kind: 'out'}))];
+  const renderSearchItem = ({ item }: { item: UserProfile & { _requestSent?: boolean } }) => {
+    const isFriend  = friends.some(f => f.userId === item.userId || f.id === item.id);
+    const isPending = outgoing.some(o => o.userId === item.userId || o.id === item.id) || item._requestSent;
+
+    return (
+      <TouchableOpacity
+        style={styles.userRow}
+        onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
+      >
+        <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
+        <View style={styles.userInfo}>
+          <Text style={styles.displayName}>{item.displayName || item.username}</Text>
+          <Text style={styles.username}>@{item.username}</Text>
+        </View>
+        {isFriend ? (
+          <View style={styles.btnPending}><Text style={styles.btnTextSecondary}>Bạn bè</Text></View>
+        ) : isPending ? (
+          <View style={styles.btnPending}><Text style={styles.btnTextSecondary}>Đã gửi</Text></View>
+        ) : (
+          <TouchableOpacity style={styles.btnPrimary} onPress={() => handleAddFriend(item.userId || item.id)}>
+            <Icon name="user-plus" size={14} color={COLORS.background} style={{ marginRight: 4 }} />
+            <Text style={styles.btnTextPrimary}>Kết bạn</Text>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
   };
+
+  const getRequestData = () => [
+    ...incoming.map(i => ({ ...i, _kind: 'in' })),
+    ...outgoing.map(o => ({ ...o, _kind: 'out' })),
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-left" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bạn bè</Text>
+        <TouchableOpacity onPress={openSearchTab} style={styles.searchIconBtn}>
+          <Icon name="user-plus" size={22} color={COLORS.text} />
+        </TouchableOpacity>
       </View>
 
+      {/* Tabs */}
       <View style={styles.tabs}>
-        <TouchableOpacity 
-          style={[styles.tabItem, activeTab === 'friends' && styles.activeTab]}
-          onPress={() => setActiveTab('friends')}
-        >
-          <Text style={activeTab === 'friends' ? styles.activeTabText : styles.tabText}>Bạn bè ({friends.length})</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tabItem, activeTab === 'requests' && styles.activeTab]}
-          onPress={() => setActiveTab('requests')}
-        >
-          <Text style={activeTab === 'requests' ? styles.activeTabText : styles.tabText}>Lời mời ({incoming.length})</Text>
-        </TouchableOpacity>
+        {([
+          { key: 'friends',  label: `Bạn bè (${friends.length})` },
+          { key: 'requests', label: `Lời mời (${incoming.length})` },
+          { key: 'search',   label: 'Tìm kiếm' },
+        ] as const).map(tab => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.tabItem, activeTab === tab.key && styles.activeTab]}
+            onPress={() => {
+              setActiveTab(tab.key);
+              if (tab.key === 'search') setTimeout(() => inputRef.current?.focus(), 100);
+            }}
+          >
+            <Text style={activeTab === tab.key ? styles.activeTabText : styles.tabText}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {loading ? (
-         <View style={styles.loader}>
-            <ActivityIndicator size="large" color={COLORS.text} />
-         </View>
+      {/* Search Bar — shown when search tab is active */}
+      {activeTab === 'search' && (
+        <View style={styles.searchBar}>
+          <Icon name="search" size={18} color={COLORS.textSecondary} style={{ marginLeft: 10 }} />
+          <TextInput
+            ref={inputRef}
+            style={styles.searchInput}
+            placeholder="Tìm tên người dùng..."
+            placeholderTextColor={COLORS.textSecondary}
+            value={searchQuery}
+            onChangeText={handleSearch}
+            returnKeyType="search"
+            autoCapitalize="none"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
+              <Icon name="x-circle" size={18} color={COLORS.textSecondary} style={{ marginRight: 10 }} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Content */}
+      {loading && activeTab !== 'search' ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={COLORS.text} />
+        </View>
+      ) : activeTab === 'friends' ? (
+        <FlatList
+          data={friends}
+          keyExtractor={item => `friend-${item.userId || item.id}`}
+          renderItem={renderFriendItem}
+          ListEmptyComponent={<EmptyState text="Chưa có bạn bè nào." />}
+        />
+      ) : activeTab === 'requests' ? (
+        <FlatList
+          data={getRequestData() as any[]}
+          keyExtractor={item => `req-${item.userId || item.id}-${item._kind}`}
+          renderItem={renderRequestItem}
+          ListEmptyComponent={<EmptyState text="Không có lời mời kết bạn nào." />}
+        />
       ) : (
-         <FlatList
-           data={getActiveData() as any}
-           keyExtractor={(item) => item.userId || item.id + (item._kind || '')}
-           renderItem={({ item }) => {
-              if (activeTab === 'friends') return renderFriendItem({ item });
-              return renderRequestItem({ item, isOutgoing: item._kind === 'out' });
-           }}
-           ListEmptyComponent={
-             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Chưa có ai ở đây cả.</Text>
-             </View>
-           }
-         />
+        /* Search tab */
+        searchLoading ? (
+          <View style={styles.loader}><ActivityIndicator color={COLORS.text} /></View>
+        ) : (
+          <FlatList
+            data={searchResults}
+            keyExtractor={item => `search-${item.userId || item.id}`}
+            renderItem={renderSearchItem as any}
+            contentContainerStyle={{ paddingBottom: 40 }}
+            ListEmptyComponent={
+              searchQuery.length > 0
+                ? <EmptyState text="Không tìm thấy người dùng nào." />
+                : <EmptyState text="Nhập tên để tìm kiếm bạn bè." />
+            }
+          />
+        )
       )}
     </SafeAreaView>
   );
 };
 
+const EmptyState = ({ text }: { text: string }) => (
+  <View style={styles.emptyContainer}>
+    <Icon name="users" size={40} color={COLORS.textSecondary} style={{ marginBottom: 12 }} />
+    <Text style={styles.emptyText}>{text}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
+
   header: {
     flexDirection: 'row', alignItems: 'center', padding: SPACING.m,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
-  backButton: { marginRight: SPACING.m },
-  headerTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
+  backButton:    { marginRight: SPACING.m },
+  searchIconBtn: { marginLeft: 'auto' },
+  headerTitle:   { color: COLORS.text, fontSize: 18, fontWeight: 'bold', flex: 1 },
+
   tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  activeTab: { borderBottomWidth: 1, borderBottomColor: COLORS.text },
-  activeTabText: { color: COLORS.text, fontWeight: 'bold' },
-  tabText: { color: COLORS.textSecondary, fontWeight: '600' },
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyContainer: { alignItems: 'center', marginTop: 50 },
-  emptyText: { color: COLORS.textSecondary, fontSize: 16 },
-  
+  tabItem:        { flex: 1, alignItems: 'center', paddingVertical: 12 },
+  activeTab:      { borderBottomWidth: 2, borderBottomColor: COLORS.text },
+  activeTabText:  { color: COLORS.text, fontWeight: 'bold' },
+  tabText:        { color: COLORS.textSecondary, fontWeight: '600' },
+
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#1A1A1A', margin: SPACING.m, borderRadius: 10,
+    borderWidth: 1, borderColor: '#333',
+  },
+  searchInput: { flex: 1, color: COLORS.text, paddingVertical: 10, paddingHorizontal: 8, fontSize: 15 },
+
+  loader:         { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyContainer: { alignItems: 'center', marginTop: 60 },
+  emptyText:      { color: COLORS.textSecondary, fontSize: 15, marginTop: 8 },
+
   userRow: {
-    flexDirection: 'row', alignItems: 'center', padding: SPACING.m, borderBottomWidth: 1, borderBottomColor: COLORS.border + '50'
+    flexDirection: 'row', alignItems: 'center', padding: SPACING.m,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border + '50',
   },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#333' },
-  userInfo: { flex: 1, marginLeft: 15 },
-  displayName: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
-  username: { color: COLORS.textSecondary, fontSize: 14, marginTop: 2 },
-  
-  btnRemove: {
-    borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8
+  avatar:      { width: 50, height: 50, borderRadius: 25, backgroundColor: '#333' },
+  userInfo:    { flex: 1, marginLeft: 12 },
+  displayName: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
+  username:    { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
+
+  btnPrimary: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.text, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8,
   },
-  btnTextOutline: { color: COLORS.text, fontWeight: '600' },
-  
-  btnAccept: {
-    backgroundColor: COLORS.text, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8
+  btnTextPrimary: { color: COLORS.background, fontWeight: 'bold', fontSize: 13 },
+
+  btnOutline: {
+    borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
   },
-  btnTextPrimary: { color: COLORS.background, fontWeight: 'bold' },
-  
-  btnPending: {
-    backgroundColor: 'transparent', paddingHorizontal: 16, paddingVertical: 6
-  },
-  btnTextSecondary: { color: COLORS.textSecondary, fontWeight: '600' }
+  btnTextOutline: { color: COLORS.text, fontWeight: '600', fontSize: 13 },
+
+  btnPending: { paddingHorizontal: 12, paddingVertical: 6 },
+  btnTextSecondary: { color: COLORS.textSecondary, fontWeight: '600' },
 });
 
 export default FriendManagementScreen;

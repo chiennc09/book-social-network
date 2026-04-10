@@ -18,11 +18,13 @@ public class BookResponse {
     String title;
     List<String> authors;
     String description;
-    String category;
+    String categoryId;
+    com.chiennc.book.entity.Category category;
     String coverImage;
     String pdfPath;
     String epubPath;
-    boolean isPublic;
+    @com.fasterxml.jackson.annotation.JsonProperty("isPublic")
+    Boolean isPublic;
     int totalViews;
     int totalPages;
     double averageRating;

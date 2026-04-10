@@ -43,14 +43,53 @@ public class BookController {
         return ApiResponse.<List<BookResponse>>builder().result(bookService.search(q)).build();
     }
 
+    @PostMapping("/sync-qdrant")
+    ApiResponse<String> syncToQdrant() {
+        bookService.syncAllBooksToQdrant();
+        return ApiResponse.<String>builder().message("Sync triggered").build();
+    }
+
+    /**
+     * Public endpoint — no auth required.
+     * Returns top-N trending books by view count over the last `days` days.
+     *
+     * @param days  look-back window in days (default 7, max 365)
+     * @param limit max number of books to return (default 10, max 50)
+     */
+    @GetMapping("/trending")
+    ApiResponse<List<BookResponse>> getTrending(
+            @RequestParam(defaultValue = "3")  int days,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.<List<BookResponse>>builder()
+                .result(bookService.getTrendingBooks(days, limit))
+                .build();
+    }
+
+    /**
+     * Books by genre/category — public, no auth required.
+     * Returns all books in the given category sorted by total views.
+     */
+    @GetMapping("/category/{categoryId}")
+    ApiResponse<List<BookResponse>> getByCategory(@PathVariable String categoryId) {
+        return ApiResponse.<List<BookResponse>>builder()
+                .result(bookService.getBooksByCategory(categoryId))
+                .build();
+    }
+
+    @GetMapping("/{id}")
+    ApiResponse<BookResponse> getById(@PathVariable String id) {
+        return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();
+    }
+
     // 2. Upload file PDF/EPUB và Cover (Now expects URLs from file-service)
     @PostMapping("/{id}/upload")
-    ApiResponse<String> upload(@PathVariable String id,
+    ApiResponse<BookResponse> upload(@PathVariable String id,
                                @RequestParam(required = false) String coverUrl,
                                @RequestParam(required = false) String pdfUrl,
                                @RequestParam(required = false) String epubUrl) {
         bookService.uploadFiles(id, coverUrl, pdfUrl, epubUrl);
-        return ApiResponse.<String>builder().result("Files uploaded successfully").build();
+
+        return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();
     }
 
     // 3. Chức năng Đọc sách (Trả về link file + Lịch sử đọc cũ)

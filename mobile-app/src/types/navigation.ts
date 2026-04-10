@@ -21,11 +21,13 @@ export type RootStackParamList = {
   EditProfile: undefined;
   NewThread: undefined;
   CommentScreen: { postId: string };
-  BookDetail: undefined;
+  BookDetail: { bookId?: string };
   Reader: { bookId: string; url: string; lastPosition?: string };
   Challenge: undefined;
   FriendManagement: undefined;
   UserProfile: { userId: string };
   ChatList: undefined;
   ChatRoom: { conversationId: string, conversationName?: string };
+  GenreBooks: { genreId: string; genreName: string };
+  AllGenres: undefined;
 };

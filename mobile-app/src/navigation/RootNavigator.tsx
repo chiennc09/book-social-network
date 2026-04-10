@@ -17,6 +17,8 @@ import FriendManagementScreen from '../screens/profile/FriendManagementScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
+import GenreBooksScreen from '../screens/search/GenreBooksScreen';
+import AllGenresScreen from '../screens/search/AllGenresScreen';
 
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../constants/theme';
@@ -67,6 +69,8 @@ const RootNavigator = () => {
            <Stack.Screen name="UserProfile" component={UserProfileScreen} />
            <Stack.Screen name="ChatList" component={ChatListScreen} />
            <Stack.Screen name="ChatRoom" component={ChatRoomScreen} />
+           <Stack.Screen name="GenreBooks" component={GenreBooksScreen} />
+           <Stack.Screen name="AllGenres" component={AllGenresScreen} />
         </Stack.Group>
 
       </Stack.Navigator>
