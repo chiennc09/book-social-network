@@ -17,6 +17,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import TodayRecsSection from '../../components/book/TodayRecsSection';
 import { resolveMediaUrl } from '../../config/env';
+import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
 
 const { width } = Dimensions.get('window');
 
@@ -43,6 +44,7 @@ const SearchScreen = ({ navigation }: any) => {
   const [loadingSearch, setLoadingSearch]   = useState(false);
 
   const inputRef = useRef<TextInput>(null);
+  const { onScroll } = useTabBarScrollControl();
 
   // ── Explore Data Fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -173,7 +175,10 @@ const SearchScreen = ({ navigation }: any) => {
     }
 
     return (
-      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
 
         {/* ── Genres ─────────────────────────────────────────────────── */}
         <View style={styles.sectionHeader}>

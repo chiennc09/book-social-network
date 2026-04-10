@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { libraryService, LibraryBook } from '../../services/library.service';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import ShareBookModal from '../../components/library/ShareBookModal';
+import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
 
 const { width } = Dimensions.get('window');
 
@@ -13,6 +14,7 @@ const LibraryScreen = ({ navigation }: any) => {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [loading, setLoading] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const { onScroll } = useTabBarScrollControl();
 
   // Fetch data khi đổi Tab
   useEffect(() => {
@@ -173,7 +175,9 @@ const LibraryScreen = ({ navigation }: any) => {
                 keyExtractor={(item) => item.id}
                 renderItem={renderBookItem}
                 contentContainerStyle={{ padding: SPACING.m, paddingBottom: 100 }}
-                ListFooterComponent={renderFooter} // Đặt Footer button ở cuối danh sách cuộn
+                ListFooterComponent={renderFooter}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <Icon name="book" size={40} color="#333" />

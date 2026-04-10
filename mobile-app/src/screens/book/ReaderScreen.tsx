@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
 import Icon from 'react-native-vector-icons/Feather';
@@ -9,29 +9,34 @@ import { RootState } from '../../redux/store';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import { resolveReaderUrl, API_GATEWAY_URL } from '../../config/env';
 
+const PROGRESS_SYNC_INTERVAL_MS = 30_000; // auto-sync every 30s
+
 const ReaderScreen = ({ route, navigation }: any) => {
   const { bookId, url, lastPosition } = route.params || {};
   const [loading, setLoading] = useState(true);
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const webViewRef = useRef<WebView>(null);
-  
-  // Thay đổi: Nhận token từ Redux
+
   const { token } = useSelector((state: RootState) => state.auth);
-  
   const [errorText, setErrorText] = useState<string>('');
-  
-  // Biến cờ lưu vị trí mới nhất
+
+  // Refs: always track the LATEST values without causing re-renders
   const currentPosition = useRef<string | undefined>(lastPosition);
+  const currentPercent  = useRef<number>(0);
+  const locationsReady  = useRef<boolean>(false);   // true once epubjs locations are generated
 
-  // Resolve reader URL (full MinIO URL or legacy relative path)
+  // Resolve & encode URL
   let loadUrl = resolveReaderUrl(url);
-  
-  // Quan trọng: Mã hoá URI để xử lý các khoảng trắng (spaces) trong tên file
   loadUrl = encodeURI(loadUrl);
-
   const isPdf = loadUrl?.toLowerCase().endsWith('.pdf');
 
-  // HTML inject epubjs với logic fetch thủ công để kèm Header Auth
+  // ── EPUB viewer HTML ──────────────────────────────────────────────────────
+  // Key changes vs old version:
+  //   1. Generate locations FIRST, THEN display(startPosition).
+  //      This ensures the "relocated" event fires with correct percent from page 1.
+  //   2. Tap left 50% → prev() ; tap right 50% → next()  (no dead center zone)
+  //   3. After every page turn, post message with type='progress' so RN can sync.
+  //   4. Post 'locationsReady' once generate() finishes so we know percent is valid.
   const epubViewerHtml = `
     <!DOCTYPE html>
     <html>
@@ -41,127 +46,170 @@ const ReaderScreen = ({ route, navigation }: any) => {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
         <style>
-            body { margin: 0; padding: 0; display: flex; text-align: center; background-color: #f5f5f5; color: #333; }
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 0; background-color: #f5f5f5; color: #333; }
             #viewer { width: 100vw; height: 100vh; overflow: hidden; }
         </style>
     </head>
     <body>
         <div id="viewer"></div>
         <script>
-            try {
-                var fileUrl = "${loadUrl}";
-                var accessToken = "${token || ''}";
-                
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'debug', message: "Fetching " + fileUrl }));
+        (function() {
+            var fileUrl      = "${loadUrl}";
+            var accessToken  = "${token || ''}";
+            var startCfi     = ${lastPosition ? `"${lastPosition}"` : 'null'};
 
-                var headers = {};
-                if (accessToken) {
-                    headers["Authorization"] = "Bearer " + accessToken;
-                }
-
-                fetch(fileUrl, { headers: headers })
-                .then(function(response) {
-                    if (!response.ok) {
-                        throw new Error("HTTP Status " + response.status + " " + response.statusText);
-                    }
-                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'debug', message: "Fetch OK, reading ArrayBuffer..." }));
-                    return response.arrayBuffer();
-                })
-                .then(function(buffer) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'debug', message: "Buffer loaded, parsing EPUB..." }));
-                    
-                    var book = ePub();
-                    book.open(buffer).then(function() {
-                        var rendition = book.renderTo("viewer", { 
-                            width: "100%", height: "100%", spread: "none" 
-                        });
-                        
-                        var startPosition = "${lastPosition}" !== "undefined" && "${lastPosition}" !== "null" ? "${lastPosition}" : undefined;
-                        rendition.display(startPosition);
-
-                        rendition.on("relocated", function(location) {
-                            var percent = book.locations.percentageFromCfi(location.start.cfi);
-                            var percentNum = percent ? Math.round(percent * 100) : 0;
-                            
-                            window.ReactNativeWebView.postMessage(JSON.stringify({
-                                type: 'relocated',
-                                position: location.start.cfi,
-                                percent: percentNum
-                            }));
-                        });
-
-                        book.ready.then(function() {
-                            return book.locations.generate(1600);
-                        }).then(function() {
-                            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
-                        }).catch(function(err) {
-                            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "Locations error: " + err.toString() }));
-                        });
-
-                        // Swipe handler using rendition hooks
-                        var xDown = null;
-                        rendition.on("touchstart", function(event) {
-                            xDown = event.changedTouches[0].clientX;
-                        });
-                        rendition.on("touchend", function(event) {
-                            if (xDown === null) return;
-                            var xUp = event.changedTouches[0].clientX;
-                            var xDiff = xDown - xUp;
-                            if (xDiff > 50) rendition.next(); 
-                            else if (xDiff < -50) rendition.prev(); 
-                            else {
-                                 // Click/Tap navigation
-                                 if (xUp < window.innerWidth * 0.3) rendition.prev();
-                                 else if (xUp > window.innerWidth * 0.7) rendition.next();
-                            }
-                            xDown = null;
-                        });
-                    }).catch(function(err) {
-                        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "Book open error: " + err.toString() }));
-                    });
-                })
-                .catch(function(err) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "Network/Fetch error: " + err.toString() }));
-                });
-            } catch (e) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "Init error: " + e.toString() }));
+            function log(msg) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'debug', message: msg }));
             }
+
+            var headers = accessToken ? { "Authorization": "Bearer " + accessToken } : {};
+
+            fetch(fileUrl, { headers: headers })
+            .then(function(r) {
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                return r.arrayBuffer();
+            })
+            .then(function(buffer) {
+                var book = ePub();
+                book.open(buffer).then(function() {
+
+                    var rendition = book.renderTo("viewer", {
+                        width: "100%", height: "100%", spread: "none"
+                    });
+
+                    // ── Step 1: Generate locations first ──────────────────
+                    //   Generating before display() ensures that when the
+                    //   'relocated' event fires, percentageFromCfi is accurate.
+                    log("Generating locations...");
+                    book.ready
+                    .then(function() { return book.locations.generate(1600); })
+                    .then(function() {
+                        log("Locations ready, displaying...");
+                        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'locationsReady' }));
+
+                        // ── Step 2: Display at saved position ─────────────
+                        rendition.display(startCfi || undefined);
+                    })
+                    .catch(function(e) {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "Locations: " + e }));
+                        rendition.display(startCfi || undefined);
+                    });
+
+                    // ── Relocated handler ─────────────────────────────────
+                    rendition.on("relocated", function(location) {
+                        var pct = 0;
+                        try {
+                            var raw = book.locations.percentageFromCfi(location.start.cfi);
+                            pct = raw ? Math.round(raw * 100) : 0;
+                        } catch(e) {}
+
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                            type: 'relocated',
+                            position: location.start.cfi,
+                            percent: pct
+                        }));
+                    });
+
+                    // ── Touch / Swipe navigation ──────────────────────────
+                    //   Swipe: dx > 50 → next, dx < -50 → prev
+                    //   Tap:   left 50% → prev, right 50% → next
+                    var xDown = null, yDown = null;
+
+                    rendition.on("touchstart", function(ev) {
+                        xDown = ev.changedTouches[0].clientX;
+                        yDown = ev.changedTouches[0].clientY;
+                    });
+
+                    rendition.on("touchend", function(ev) {
+                        if (xDown === null) return;
+                        var xUp   = ev.changedTouches[0].clientX;
+                        var yUp   = ev.changedTouches[0].clientY;
+                        var xDiff = xDown - xUp;
+                        var yDiff = Math.abs(yDown - yUp);
+
+                        // Ignore mostly-vertical movements (scroll inside iframe)
+                        if (yDiff > Math.abs(xDiff) * 1.5) { xDown = null; return; }
+
+                        if (xDiff > 50) {
+                            rendition.next();
+                        } else if (xDiff < -50) {
+                            rendition.prev();
+                        } else {
+                            // Tap: split screen 50/50 — LEFT = prev, RIGHT = next
+                            if (xUp < window.innerWidth * 0.5) rendition.prev();
+                            else rendition.next();
+                        }
+                        xDown = null; yDown = null;
+                    });
+
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+
+                }).catch(function(e) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "open: " + e }));
+                });
+            })
+            .catch(function(e) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', error: "fetch: " + e }));
+            });
+        })();
         </script>
     </body>
     </html>
   `;
 
-  // Xử lý message gửi từ WebView (epubjs)
-  const handleMessage = (event: any) => {
+  // ── Message handler ───────────────────────────────────────────────────────
+  const handleMessage = useCallback((event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'ready') {
+
+      if (data.type === 'locationsReady') {
+        locationsReady.current = true;
+      } else if (data.type === 'ready') {
         setLoading(false);
       } else if (data.type === 'relocated') {
-        setLoading(false); // Dòng này dự phòng trường hợp 'ready' không được gọi
+        setLoading(false);
         currentPosition.current = data.position;
-        setProgressPercent(data.percent);
+        currentPercent.current  = data.percent;
+        // Only show non-zero percent once locations are generated
+        if (locationsReady.current || data.percent > 0) {
+          setProgressPercent(data.percent);
+        }
       } else if (data.type === 'error') {
-        console.warn('WebView EPUB Error:', data.error);
+        console.warn('ReaderScreen EPUB error:', data.error);
         setErrorText(data.error);
-        setLoading(false); 
+        setLoading(false);
       } else if (data.type === 'debug') {
-        console.log('EPUB Debug:', data.message);
+        console.log('EPUB:', data.message);
       }
-    } catch(e) {}
-  };
+    } catch (_) {}
+  }, []);
 
-  // Nút Back - lưu tiến trình trước khi thoát
+  // ── Periodic auto-save (every 30s) ───────────────────────────────────────
+  useEffect(() => {
+    if (!bookId) return;
+    const timer = setInterval(async () => {
+      if (currentPosition.current && locationsReady.current) {
+        try {
+          await bookApi.updateProgress(bookId, currentPosition.current, currentPercent.current);
+        } catch (_) {}
+      }
+    }, PROGRESS_SYNC_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [bookId]);
+
+  // ── Back button — save before exit ───────────────────────────────────────
   const handleBack = async () => {
     if (currentPosition.current && bookId) {
-       try {
-           // Gửi tiến trình mới nhất lên server
-           await bookApi.updateProgress(bookId, currentPosition.current, progressPercent);
-           // Emit sự kiện cập nhật Library ngay lập tức
-           eventEmitter.emit(EventNames.BOOK_PROGRESS_UPDATED, { bookId, progressPercent });
-       } catch (error) {
-           console.error("Lỗi khi lưu tiến trình", error);
-       }
+      try {
+        await bookApi.updateProgress(bookId, currentPosition.current, currentPercent.current);
+        eventEmitter.emit(EventNames.BOOK_PROGRESS_UPDATED, {
+          bookId,
+          progressPercent: currentPercent.current,
+        });
+      } catch (e) {
+        console.error('Failed to save progress', e);
+      }
     }
     navigation.goBack();
   };
@@ -169,66 +217,65 @@ const ReaderScreen = ({ route, navigation }: any) => {
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      
+
       {/* Header Overlay */}
       <View style={styles.headerOverlay}>
         <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
           <Icon name="arrow-left" size={24} color="#FFF" />
         </TouchableOpacity>
-        <View style={styles.progressBadge}>
-          <Text style={styles.progressText}>{progressPercent}%</Text>
-        </View>
+        {locationsReady.current || progressPercent > 0 ? (
+          <View style={styles.progressBadge}>
+            <Text style={styles.progressText}>{progressPercent}%</Text>
+          </View>
+        ) : null}
       </View>
 
-      {/* Loading */}
+      {/* Loading overlay */}
       {loading && !errorText && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={{color: 'white', marginTop: 10}}>Đang tải nội dung sách...</Text>
+          <Text style={{ color: 'white', marginTop: 10 }}>Đang tải nội dung sách...</Text>
         </View>
       )}
 
-      {/* Error View */}
-      {errorText ? (
-         <View style={[styles.loadingOverlay, { backgroundColor: '#ffebe6', padding: 20 }]}>
-             <Icon name="alert-triangle" size={40} color="red" style={{marginBottom: 10}} />
-             <Text style={{color: 'red', fontWeight: 'bold', fontSize: 16, textAlign: 'center'}}>
-                 Không thể tải sách
-             </Text>
-             <Text style={{color: '#333', textAlign: 'center', marginTop: 10}}>
-                 Chi tiết lỗi: {errorText}
-             </Text>
-             <Text style={{color: '#666', fontSize: 10, textAlign: 'center', marginTop: 10}}>
-                 URL: {loadUrl}
-             </Text>
-         </View>
-      ) : null}
+      {/* Error view */}
+      {!!errorText && (
+        <View style={[styles.loadingOverlay, { backgroundColor: '#ffebe6', padding: 20 }]}>
+          <Icon name="alert-triangle" size={40} color="red" style={{ marginBottom: 10 }} />
+          <Text style={{ color: 'red', fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
+            Không thể tải sách
+          </Text>
+          <Text style={{ color: '#333', textAlign: 'center', marginTop: 10 }}>
+            {errorText}
+          </Text>
+          <Text style={{ color: '#666', fontSize: 10, textAlign: 'center', marginTop: 10 }}>
+            URL: {loadUrl}
+          </Text>
+        </View>
+      )}
 
       {/* Viewer */}
       {isPdf ? (
-         <WebView
-           source={{ uri: `https://docs.google.com/viewer?url=${encodeURIComponent(loadUrl)}&embedded=true` }}
-           style={styles.webview}
-           onLoadEnd={() => setLoading(false)}
-           onError={(e) => {
-              console.warn("PDF Webview load error", e.nativeEvent);
-              setLoading(false);
-           }}
-           startInLoadingState={true}
-           renderLoading={() => <View />} // Đã custom loading ở trên
-         />
+        <WebView
+          source={{ uri: `https://docs.google.com/viewer?url=${encodeURIComponent(loadUrl)}&embedded=true` }}
+          style={styles.webview}
+          onLoadEnd={() => setLoading(false)}
+          onError={() => setLoading(false)}
+          startInLoadingState
+          renderLoading={() => <View />}
+        />
       ) : (
-         <WebView
-           ref={webViewRef}
-           originWhitelist={['*', 'http://*', 'https://*', 'file://*']}
-           source={{ html: epubViewerHtml, baseUrl: API_GATEWAY_URL }} // Needed for CORS
-           style={styles.webview}
-           onMessage={handleMessage}
-           javaScriptEnabled={true}
-           domStorageEnabled={true}
-           allowFileAccess={true}
-           allowUniversalAccessFromFileURLs={true}
-         />
+        <WebView
+          ref={webViewRef}
+          originWhitelist={['*', 'http://*', 'https://*', 'file://*']}
+          source={{ html: epubViewerHtml, baseUrl: API_GATEWAY_URL }}
+          style={styles.webview}
+          onMessage={handleMessage}
+          javaScriptEnabled
+          domStorageEnabled
+          allowFileAccess
+          allowUniversalAccessFromFileURLs
+        />
       )}
     </View>
   );
@@ -239,20 +286,18 @@ const styles = StyleSheet.create({
   webview: { flex: 1, backgroundColor: 'transparent' },
   headerOverlay: {
     position: 'absolute', top: 30, left: 10, right: 10, zIndex: 10,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  backBtn: {
-    backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20
-  },
+  backBtn: { backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20 },
   progressBadge: {
-    backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 15
+    backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 15,
   },
   progressText: { color: 'white', fontWeight: 'bold' },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center', alignItems: 'center', zIndex: 5
-  }
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center', alignItems: 'center', zIndex: 5,
+  },
 });
 
 export default ReaderScreen;
-

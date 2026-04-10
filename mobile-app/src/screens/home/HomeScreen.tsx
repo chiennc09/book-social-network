@@ -1,13 +1,14 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Text, SafeAreaView, RefreshControl, Image, Animated } from 'react-native';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { feedService } from '../../services/feed.service';
 import FeedItem from '../../components/feed/FeedItem';
-import { userService } from '../../services/user.service'; // Lấy info user hiện tại
+import { userService } from '../../services/user.service';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
 
 const HomeScreen = ({ route, navigation }: any) => {
   const filterParam = route.params?.filter || 'foryou'; // Nhận từ Drawer
@@ -26,7 +27,10 @@ const HomeScreen = ({ route, navigation }: any) => {
   // Animation cho nút FAB
   const scrollY = useRef(new Animated.Value(0)).current;
   const [showFAB, setShowFAB] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(0)).current; // Opacity 0 ban đầu
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Hook điều khiển BottomTab auto-hide khi cuộn
+  const { onScroll: onTabBarScroll } = useTabBarScrollControl();
 
   const fetchFeed = async (pageNum = 1) => {
     try {
@@ -69,12 +73,12 @@ const HomeScreen = ({ route, navigation }: any) => {
          setPosts(prev => prev.filter(p => p.id !== data.id));
      });
      
-     const subCreate = eventEmitter.on(EventNames.POST_CREATED, async (data: any) => {
-         // Data trả về từ createPost (response.result hoặc data trực tiếp tùy Cấu trúc API, giả sử data chính là bài post)
-         // Map the post similar to feedService mapping
-         const item = data.result || data;
+     const subCreate = eventEmitter.on(EventNames.POST_CREATED, async (apiResp: any) => {
+         // apiResp shape: { code, result: { id, content, userId, bookId, ... } }
+         const item = apiResp?.result ?? apiResp;
+         if (!item?.id) return; // guard — ignore malformed events
          
-         // Đợi xíu lấy Book info nếu có (Optimistic UI không nhất thiết, nhưng có thì đẹp)
+         // Resolve book details if attached
          let bookObj = undefined;
          if (item.bookId) {
             try {
@@ -83,20 +87,22 @@ const HomeScreen = ({ route, navigation }: any) => {
             } catch(e) {}
          }
          
+         // Use authUser directly — it's already in Redux and always up-to-date
          const newPost = {
             id: item.id,
             user: {
               id: item.userId,
-              username: item.username,
-              displayName: item.username, 
-              avatar: currentUser?.avatar || DEFAULT_AVATAR,
-              badges: currentUser?.badges || [],
+              username: item.username || authUser?.username,
+              displayName: (authUser as any)?.displayName || authUser?.username,
+              // Avatar priority: Redux authUser → currentUser → fallback
+              avatar: (authUser as any)?.avatar || currentUser?.avatar || DEFAULT_AVATAR,
+              badges: (authUser as any)?.badges || currentUser?.badges || [],
             },
-            content: item.content,
+            content: item.content || '',
             book: bookObj,
             likesCount: 0,
             commentsCount: 0,
-            repostsCount: item.isRepost ? 1 : 0, 
+            repostsCount: 0,
             timestamp: 'Vừa xong',
             isLiked: false,
             isRepost: item.isRepost || false,
@@ -109,23 +115,24 @@ const HomeScreen = ({ route, navigation }: any) => {
          subDelete.remove();
          subCreate.remove();
      }
-  }, [currentUser]);
+  }, [currentUser, authUser]);
 
-  // Xử lý hiệu ứng hiện/ẩn FAB khi cuộn
-  const handleScroll = (event: any) => {
+  // Xử lý hiệu ứng hiện/ẩn FAB + BottomTab khi cuộn
+  const handleScroll = useCallback((event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
-    
-    // Nếu cuộn xuống quá 100px thì hiện FAB
+
+    // FAB visibility
     if (offsetY > 100 && !showFAB) {
       setShowFAB(true);
       Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    } 
-    // Nếu quay về gần đỉnh thì ẩn FAB
-    else if (offsetY <= 100 && showFAB) {
+    } else if (offsetY <= 100 && showFAB) {
       setShowFAB(false);
       Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     }
-  };
+
+    // BottomTab auto-hide
+    onTabBarScroll(event);
+  }, [showFAB, fadeAnim, onTabBarScroll]);
 
   const onRefresh = () => {
     setRefreshing(true);
