@@ -32,10 +32,10 @@ const SettingsDrawerContent = ({ navigation }: any) => {
 
   const handleItemPress = (item: any) => {
     if (item.id === 'logout') {
-      dispatch(logoutUser());
+      // Close the drawer first, then logout so navigation resets cleanly
+      navigation.closeDrawer?.();
+      setTimeout(() => dispatch(logoutUser()), 120);
     } else {
-      // Xử lý điều hướng các mục khác ở đây
-      // navigation.navigate(item.route);
       console.log('Pressed:', item.label);
     }
   };

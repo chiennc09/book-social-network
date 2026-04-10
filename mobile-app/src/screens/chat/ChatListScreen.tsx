@@ -4,6 +4,8 @@ import { chatApi } from '../../api/chatApi';
 import { profileApi } from '../../api/profileApi';
 import { DEFAULT_AVATAR, COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
+import FloatingTabBar from '../../components/navigation/FloatingTabBar';
+import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
 
 const ChatListScreen = ({ navigation }: any) => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -14,6 +16,7 @@ const ChatListScreen = ({ navigation }: any) => {
   const [friends, setFriends] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const { onScroll } = useTabBarScrollControl();
 
   useEffect(() => {
     fetchConversations();
@@ -128,6 +131,9 @@ const ChatListScreen = ({ navigation }: any) => {
         data={conversations}
         keyExtractor={item => item.id}
         renderItem={renderItem}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: 80 }}
         ListEmptyComponent={<Text style={styles.emptyText}>Chưa có cuộc trò chuyện nào</Text>}
       />
 
@@ -165,6 +171,7 @@ const ChatListScreen = ({ navigation }: any) => {
             )}
          </View>
       </Modal>
+      <FloatingTabBar activeTab="Chatbot" />
     </SafeAreaView>
   );
 };

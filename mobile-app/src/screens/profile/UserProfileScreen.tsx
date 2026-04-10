@@ -9,6 +9,8 @@ import { chatApi } from '../../api/chatApi';
 import { UserProfile } from '../../types/user';
 import FeedItem from '../../components/feed/FeedItem';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import FloatingTabBar from '../../components/navigation/FloatingTabBar';
+import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
 
 const UserProfileScreen = ({ route, navigation }: any) => {
   const { userId } = route.params;
@@ -23,6 +25,7 @@ const UserProfileScreen = ({ route, navigation }: any) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reposts'>('posts');
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const { onScroll } = useTabBarScrollControl();
 
   const fetchProfileAndPosts = async (pageNum = 1) => {
     try {
@@ -73,11 +76,17 @@ const UserProfileScreen = ({ route, navigation }: any) => {
 
   const handleInteract = async (action: string) => {
     if (!user) return;
+    const targetId = user.userId || user.id;
     try {
-      if (action === 'ADD') await profileApi.sendFriendRequest(user.userId || user.id);
-      if (action === 'ACCEPT') await profileApi.acceptFriend(user.userId || user.id);
-      if (action === 'REMOVE') await profileApi.removeFriend(user.userId || user.id);
-      fetchProfileAndPosts(1); // reload trạng thái 
+      if (action === 'ADD')    await profileApi.sendFriendRequest(targetId);
+      if (action === 'ACCEPT') {
+        await profileApi.acceptFriend(targetId);
+        // Auto-create the DIRECT chat room — idempotent if already exists
+        chatApi.createConversation({ participantIds: [targetId], type: 'DIRECT' })
+          .catch(e => console.warn('[UserProfile] chatApi.createConversation failed:', e));
+      }
+      if (action === 'REMOVE') await profileApi.removeFriend(targetId);
+      fetchProfileAndPosts(1);
     } catch (e) {
       console.error(e);
     }
@@ -247,8 +256,11 @@ const UserProfileScreen = ({ route, navigation }: any) => {
         onRefresh={onRefresh}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={COLORS.text} /> : null}
       />
+      <FloatingTabBar />
     </SafeAreaView>
   );
 };

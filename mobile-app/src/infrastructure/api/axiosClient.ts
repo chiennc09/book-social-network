@@ -1,21 +1,28 @@
 import axios from 'axios';
-import { SERVICE_PATHS, API_GATEWAY_URL } from '../../config/env';
+import { SERVICE_PATHS } from '../../config/env';
 import storage from '../../utils/storage';
 
 /**
  * Primary Axios client — all calls go through the API Gateway.
  * Base URL: {GATEWAY}/identity  (used for auth + generic calls)
- *
- * To switch between emulator / real device / production:
- *   edit src/config/env.ts  ← single file
  */
 const axiosClient = axios.create({
   baseURL: SERVICE_PATHS.identity,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
   timeout: 30_000,
 });
+
+// ── Auth navigator reference ─────────────────────────────────────────────────
+// Allows axiosClient to trigger logout/redirect without importing React Navigation
+// directly (which would create a circular dependency).
+interface AuthNavigator {
+  resetToAuth: () => void;
+}
+let _authNavigator: AuthNavigator | null = null;
+
+export function setAuthNavigator(navigator: AuthNavigator) {
+  _authNavigator = navigator;
+}
 
 // ── Request Interceptor: attach JWT ─────────────────────────────────────────
 axiosClient.interceptors.request.use(
@@ -44,7 +51,12 @@ axiosClient.interceptors.response.use(
 
       try {
         const oldToken = await storage.getToken();
-        if (!oldToken) return Promise.reject(error);
+        if (!oldToken) {
+          // No refresh token — force logout
+          await storage.clearTokens();
+          _authNavigator?.resetToAuth();
+          return Promise.reject(error);
+        }
 
         const response = await axios.post(
           `${SERVICE_PATHS.identity}/auth/refresh`,
@@ -58,8 +70,13 @@ axiosClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${result.token}`;
           return axiosClient(originalRequest);
         }
+
+        // Refresh succeeded but no token in response — something is wrong
+        throw new Error('Refresh token returned no token');
       } catch (refreshError) {
+        // Refresh failed → session truly expired → force logout
         await storage.clearTokens();
+        _authNavigator?.resetToAuth();
         return Promise.reject(refreshError);
       }
     }

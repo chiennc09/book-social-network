@@ -7,6 +7,8 @@ import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { profileApi } from '../../api/profileApi';
 import { UserProfile } from '../../types/user';
+import FloatingTabBar from '../../components/navigation/FloatingTabBar';
+import { chatApi } from '../../api/chatApi';
 
 type Tab = 'friends' | 'requests' | 'search';
 
@@ -70,8 +72,19 @@ const FriendManagementScreen = ({ navigation }: any) => {
   };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
+  /**
+   * Accept friend request AND auto-create a DIRECT chat room immediately.
+   * This way, the chat room appears in ChatList right away — user just taps to chat.
+   */
   const handleAccept = async (userId: string) => {
-    try { await profileApi.acceptFriend(userId); fetchData(); } catch (e) {}
+    try {
+      await profileApi.acceptFriend(userId);
+      // Fire-and-forget: create the conversation room in the background.
+      // If it already exists the backend returns the existing one (idempotent).
+      chatApi.createConversation({ participantIds: [userId], type: 'DIRECT' })
+        .catch(e => console.warn('[handleAccept] chatApi.createConversation failed:', e));
+      fetchData();
+    } catch (e) { console.error('Accept friend error', e); }
   };
 
   const handleRemove = async (userId: string) => {
@@ -260,6 +273,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
           />
         )
       )}
+      <FloatingTabBar />
     </SafeAreaView>
   );
 };

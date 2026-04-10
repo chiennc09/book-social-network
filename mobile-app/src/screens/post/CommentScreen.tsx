@@ -7,6 +7,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import FeedItem from '../../components/feed/FeedItem';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 
 // Sub-component cho mỗi Comment để có thể quản lý Replies riêng tư
 const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigation }: { item: any, level?: number, rootId?: string, onReplyClick: (username: string, parentId: string) => void, authUser?: any, navigation: any }) => {
@@ -231,6 +232,7 @@ const CommentScreen = ({ route, navigation }: any) => {
             </TouchableOpacity>
          </View>
       </KeyboardAvoidingView>
+      <FloatingTabBar activeTab="Home" />
     </SafeAreaView>
   );
 };

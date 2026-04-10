@@ -7,6 +7,7 @@ import { Badge, UserProfile } from '../../types/user';
 import { userService } from '../../services/user.service';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 
 const ChallengeScreen = ({ navigation }: any) => {
   const [activeTab, setActiveTab] = useState<'badges' | 'leaderboard'>('badges');
@@ -191,6 +192,7 @@ const ChallengeScreen = ({ navigation }: any) => {
            )
         )}
       </View>
+      <FloatingTabBar activeTab="Library" />
     </SafeAreaView>
   );
 };
