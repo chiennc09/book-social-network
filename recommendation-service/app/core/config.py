@@ -8,6 +8,12 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     MONGODB_URL: str = "mongodb://localhost:27017"
     DATABASE_NAME: str = "recommendation-service"
+
+    # MongoDB URL for the book-service database.
+    # Used to validate that recommended bookIds still exist (prevent stale recommendations).
+    # In Docker: mongodb://root:root@host.docker.internal:27017/book-service?authSource=admin
+    BOOK_SERVICE_MONGODB_URL: str = "mongodb://localhost:27017"
+
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_COLLECTION_NAME: str = "books"
     EMBEDDING_MODEL_NAME: str = "intfloat/multilingual-e5-small"

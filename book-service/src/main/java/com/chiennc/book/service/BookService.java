@@ -189,6 +189,10 @@ public class BookService {
 
     public void delete(String id) {
         bookRepository.deleteById(id);
+        // Notify recommendation-service via Kafka to:
+        //   1. Remove the book vector from Qdrant
+        //   2. Invalidate any Redis recommendation caches referencing this book
+        bookEventProducer.publishBookDeleted(id);
     }
 
     public BookResponse getById(String id) {
@@ -250,7 +254,7 @@ public class BookService {
             if (book.getPdfPath().startsWith("http")) {
                 response.setPdfPath(book.getPdfPath());
             } else {
-                response.setPdfPath("http://10.0.2.2:8888/file/legacy/pdfs/" + book.getPdfPath());
+                response.setPdfPath(baseUrl.replaceFirst("/books$", "") + "/file/legacy/pdfs/" + book.getPdfPath());
             }
         }
 
@@ -258,7 +262,7 @@ public class BookService {
             if (book.getCoverImage().startsWith("http")) {
                 response.setCoverImage(book.getCoverImage());
             } else {
-                response.setCoverImage("http://10.0.2.2:8888/file/legacy/covers/" + book.getCoverImage());
+                response.setCoverImage(baseUrl.replaceFirst("/books$", "") + "/file/legacy/covers/" + book.getCoverImage());
             }
         }
 
@@ -266,7 +270,7 @@ public class BookService {
             if (book.getEpubPath().startsWith("http")) {
                 response.setEpubPath(book.getEpubPath());
             } else {
-                response.setEpubPath("http://10.0.2.2:8888/file/legacy/epubs/" + book.getEpubPath());
+                response.setEpubPath(baseUrl.replaceFirst("/books$", "") + "/file/legacy/epubs/" + book.getEpubPath());
             }
         }
 

@@ -100,6 +100,8 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - REDIS_URL=redis://redis:6379
       - MONGODB_URL=mongodb://root:root@host.docker.internal:27017/recommendation-service?authSource=admin
+      # Used to validate that recommended bookIds still exist (prevent stale recs after deletion)
+      - BOOK_SERVICE_MONGODB_URL=mongodb://root:root@host.docker.internal:27017/book-service?authSource=admin
       - QDRANT_URL=http://qdrant:6333
     depends_on:
       kafka:
@@ -231,7 +233,10 @@ services:
       - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/book-service?authSource=admin
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - APP_SERVICES_PROFILE_URL=http://profile-service:8091/profile
-      - APP_BASE_URL=http://localhost:8085
+      # Base URL used to build legacy file paths — must be accessible from mobile
+      # Android emulator → host → Gateway: http://10.0.2.2:8888/books
+      # Real device (same WiFi): replace 10.0.2.2 with your LAN IP
+      - APP_BASE_URL=http://10.0.2.2:8888/books
     depends_on:
       kafka:
         condition: service_healthy
