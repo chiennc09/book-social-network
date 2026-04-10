@@ -4,8 +4,26 @@ server:
 spring:
   application:
     name: api-gateway
+  # ── Multipart / File Upload ────────────────────────────────────────────────
+  # Spring Cloud Gateway (WebFlux/Netty) must be configured to read and forward
+  # multipart data. Without this, the reactive layer buffers the entire body
+  # (up to maxInMemorySize) before forwarding — and may drop the multipart boundary.
+  codec:
+    max-in-memory-size: ${GATEWAY_MAX_IN_MEMORY_SIZE:209715200}  # 200 MB
+  servlet:
+    multipart:
+      enabled: false   # Gateway is reactive (WebFlux), NOT servlet — keep disabled
   cloud:
     gateway:
+      # ── Global HTTP client settings ────────────────────────────────────────
+      httpclient:
+        # Increase response timeout for large file uploads
+        response-timeout: 120s
+        connect-timeout: 5000   # 5s connection timeout
+        # Pool config — allow concurrent uploads
+        pool:
+          max-connections: 200
+          acquire-timeout: 45000
       routes:
         # ── Identity Service ─────────────────────────────────────────────────────
         - id: identity_service
@@ -32,10 +50,13 @@ spring:
             - Path=/post/**
 
         # ── File Service ─────────────────────────────────────────────────────────
+        # 'PreserveHostHeader' ensures Content-Type with boundary is forwarded intact
         - id: file_service
           uri: ${FILE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/file/**
+          filters:
+            - PreserveHostHeader
 
         # ── Book Service ─────────────────────────────────────────────────────────
         - id: book_service

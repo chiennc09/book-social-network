@@ -17,6 +17,7 @@ const EditProfileScreen = ({ navigation, route }: any) => {
   const [isPrivate, setIsPrivate] = useState(currentUser.isPrivate || false);
   const [saving, setSaving] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<any>(null); // full image picker asset
 
   const handleSelectImage = async () => {
     try {
@@ -33,7 +34,9 @@ const EditProfileScreen = ({ navigation, route }: any) => {
       }
 
       if (result.assets && result.assets.length > 0) {
-        setAvatarUri(result.assets[0].uri || null);
+        const asset = result.assets[0];
+        setAvatarUri(asset.uri || null);
+        setSelectedAsset(asset); // store full asset for upload
       }
     } catch (error) {
        console.error(error);
@@ -46,18 +49,13 @@ const EditProfileScreen = ({ navigation, route }: any) => {
         let uploadedAvatarUrl = currentUser.avatar;
 
         if (avatarUri && avatarUri !== currentUser.avatar) {
-           const formData = new FormData();
-           formData.append('file', {
-             uri: avatarUri,
-             name: 'avatar.jpg',
-             type: 'image/jpeg'
-           } as any);
-           
+           // Use the stored asset object for proper RN multipart upload
+           const asset = selectedAsset ?? { uri: avatarUri, fileName: 'avatar.jpg', type: 'image/jpeg' };
            try {
-              const res: any = await fileApi.upload(formData, 'avatars');
-              uploadedAvatarUrl = res.data?.result?.url || res.result?.url;
+              const uploaded = await fileApi.uploadFromImagePicker(asset, 'avatars');
+              uploadedAvatarUrl = uploaded?.url;
            } catch (err) {
-              console.error("Upload avatar failed", err);
+              console.error('Upload avatar failed', err);
               Alert.alert('Lỗi', 'Lỗi khi tải ảnh đại diện lên');
               setSaving(false);
               return;

@@ -99,41 +99,28 @@ const ShareBookModal: React.FC<ShareBookModalProps> = ({ visible, onClose, onSuc
       let pdfUrl = '';
       let epubUrl = '';
 
-      // 1. Upload Cover
+      // 1. Upload Cover (image picked via document picker)
       if (coverFile) {
-        const coverData = new FormData();
-        coverData.append('file', {
-          uri: coverFile.uri,
-          type: coverFile.type || 'image/jpeg',
-          name: coverFile.fileName || 'cover.jpg'
-        } as any);
-        const resp: any = await fileApi.upload(coverData as any, 'covers');
-        if (resp && resp.result && resp.result.url) {
-          coverUrl = resp.result.url.split('/').pop() || '';
+        const resp = await fileApi.uploadFromDocumentPicker(coverFile, 'covers');
+        if (resp?.url) {
+          // Store only the MinIO full URL — resolveMediaUrl handles display
+          coverUrl = resp.url;
         }
       }
 
-      // 2. Upload Document
+      // 2. Upload Document (PDF or EPUB)
       if (bookFile) {
-        const docData = new FormData();
-        docData.append('file', {
-          uri: bookFile.uri,
-          type: bookFile.type || 'application/pdf',
-          name: bookFile.name || 'document.pdf'
-        } as any);
-        
-        let typePath = 'pdfs';
-        const docName = bookFile.name || '';
-        const docType = bookFile.type || '';
-        if (docName.toLowerCase().endsWith('.epub') || docType === 'application/epub+zip') {
-           typePath = 'epubs';
-        }
+        const docName = (bookFile.name as string) || '';
+        const docType = (bookFile.type as string) || 'application/pdf';
+        const typePath =
+          docName.toLowerCase().endsWith('.epub') || docType === 'application/epub+zip'
+            ? 'epubs'
+            : 'pdfs';
 
-        const resp: any = await fileApi.upload(docData as any, typePath);
-        if (resp && resp.result && resp.result.url) {
-          const extractedFileName = resp.result.url.split('/').pop() || '';
-          if (typePath === 'epubs') epubUrl = extractedFileName;
-          else pdfUrl = extractedFileName;
+        const resp = await fileApi.uploadFromDocumentPicker(bookFile, typePath);
+        if (resp?.url) {
+          if (typePath === 'epubs') epubUrl = resp.url;
+          else pdfUrl = resp.url;
         }
       }
 

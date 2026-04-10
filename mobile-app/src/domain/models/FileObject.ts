@@ -19,9 +19,16 @@ export interface FileObject {
 
 /**
  * FileUploadRequest - payload for upload API
+ *
+ * NOTE: In React Native, files are NOT Web File/Blob objects.
+ * Use the RNFileDescriptor format from FileStorageApiAdapter.
+ * This interface is kept for legacy compatibility only.
+ *
+ * @deprecated Use RNFileDescriptor from FileStorageApiAdapter directly.
  */
 export interface FileUploadRequest {
-  file: File | Blob;
+  /** React Native file URI (content:// or file://) or Web File/Blob */
+  file: { uri: string; name: string; type: string } | File | Blob;
   fileCategory: string;
   onProgress?: (percent: number) => void;
 }
