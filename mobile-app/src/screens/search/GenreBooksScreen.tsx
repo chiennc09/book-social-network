@@ -11,6 +11,8 @@ import { bookApi } from '../../api/bookApi';
 import { Book } from '../../types/index';
 import { RootStackParamList } from '../../types/navigation';
 import { resolveMediaUrl } from '../../config/env';
+import FloatingTabBar from '../../components/navigation/FloatingTabBar';
+import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
 
 const mapBookResponse = (item: any): Book => {
   const coverUrl = resolveMediaUrl(item.coverImage ?? item.coverUrl, 'covers');
@@ -40,6 +42,7 @@ const GenreBooksScreen = ({ route, navigation }: Props) => {
   const [books, setBooks]     = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
+  const { onScroll } = useTabBarScrollControl();
 
   const fetchBooks = useCallback(async () => {
     setLoading(true);
@@ -126,8 +129,11 @@ const GenreBooksScreen = ({ route, navigation }: Props) => {
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         />
       )}
+      <FloatingTabBar activeTab="Search" />
     </SafeAreaView>
   );
 };
@@ -146,7 +152,7 @@ const styles = StyleSheet.create({
     flex: 1, textAlign: 'center',
   },
 
-  list: { paddingHorizontal: SPACING.m, paddingVertical: SPACING.m, paddingBottom: 60 },
+  list: { paddingHorizontal: SPACING.m, paddingVertical: SPACING.m, paddingBottom: 90 },
 
   bookItem: {
     flexDirection: 'row', alignItems: 'center',

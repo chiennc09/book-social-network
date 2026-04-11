@@ -180,7 +180,7 @@ const SearchScreen = ({ navigation }: any) => {
         scrollEventThrottle={16}
       >
 
-        {/* ── Genres ─────────────────────────────────────────────────── */}
+        {/* ── Genres — show only top 6 ───────────────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>KHÁM PHÁ THỂ LOẠI</Text>
           <TouchableOpacity onPress={() => navigation.navigate('AllGenres')}>
@@ -189,15 +189,32 @@ const SearchScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.genreGrid}>
-          {genres.map((genre) => (
-            <TouchableOpacity
-              key={genre.id}
-              style={[styles.genreItem, { backgroundColor: genre.color }]}
-              onPress={() => navigation.navigate('GenreBooks', { genreId: genre.id, genreName: genre.name })}
-            >
-              <Text style={styles.genreText}>{genre.name}</Text>
-            </TouchableOpacity>
-          ))}
+          {genres.slice(0, 6).map((genre, index) => {
+            // Curated harmonious palette for 6 slots
+            const PALETTE = [
+              { bg: '#E94057', icon: 'heart',       glyph: '❤' },
+              { bg: '#6C63FF', icon: 'zap',         glyph: '⚡' },
+              { bg: '#F27121', icon: 'sun',         glyph: '☀' },
+              { bg: '#11998e', icon: 'leaf',        glyph: '🌿' },
+              { bg: '#2193b0', icon: 'globe',       glyph: '🌍' },
+              { bg: '#8E2DE2', icon: 'star',        glyph: '✦' },
+            ];
+            const palette = PALETTE[index % PALETTE.length];
+            return (
+              <TouchableOpacity
+                key={genre.id}
+                style={[styles.genreItem, { backgroundColor: palette.bg }]}
+                onPress={() => navigation.navigate('GenreBooks', { genreId: genre.id, genreName: genre.name })}
+                activeOpacity={0.82}
+              >
+                <View style={styles.genreIconCircle}>
+                  <Icon name={palette.icon} size={16} color="rgba(255,255,255,0.9)" />
+                </View>
+                <Text style={styles.genreText} numberOfLines={1}>{genre.name}</Text>
+                <Icon name="chevron-right" size={14} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* ── Today's Picks — short-term session recommendations ──────── */}
@@ -385,18 +402,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4,
   },
 
-  // Genre Grid
+  // Genre Grid — 2-column layout, pill buttons
   genreGrid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    paddingHorizontal: SPACING.m, justifyContent: 'space-between', gap: 10,
+    paddingHorizontal: SPACING.m,
+    gap: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   genreItem: {
     width: (width - SPACING.m * 2 - 10) / 2,
-    height: 60, borderRadius: 8,
-    justifyContent: 'center', paddingLeft: 12,
-    marginBottom: 8,
+    height: 64,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    marginBottom: 4,
+    // Subtle shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  genreText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  genreIconCircle: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center', alignItems: 'center',
+    marginRight: 10,
+  },
+  genreText: { color: 'white', fontWeight: '700', fontSize: 13, flex: 1 },
 
   // Horizontal Book Card
   bookCardHorizontal: { width: 100, marginRight: 16 },

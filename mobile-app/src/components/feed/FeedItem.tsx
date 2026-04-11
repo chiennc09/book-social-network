@@ -82,18 +82,29 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
   };
 
   const handleMoreOptions = () => {
-    // Chỉ chủ bài post mới được xoá
-    if (post.user.id === (currentUser as any)?.id) {
-       Alert.alert("Tùy chọn", "Bạn muốn làm gì với bài viết này?", [
-         { text: "Hủy", style: "cancel" },
-         { text: "Xóa bài viết", style: "destructive", onPress: async () => {
+    const myId = (currentUser as any)?.id || (currentUser as any)?.userId;
+    // Compare by id or username — backend may return either
+    const isOwner =
+      myId && (
+        post.user.id === myId ||
+        post.userId  === myId ||
+        post.user.username === (currentUser as any)?.username
+      );
+
+    if (isOwner) {
+      Alert.alert('Tùy chọn', 'Bạn muốn làm gì với bài viết này?', [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa bài viết', style: 'destructive', onPress: async () => {
             try {
-               await postApi.deletePost(post.id);
-               eventEmitter.emit(EventNames.POST_DELETED, { id: post.id });
-            } catch(e) { console.error("Lỗi xóa bài", e); }
-         }}
-       ]);
+              await postApi.deletePost(post.id);
+              eventEmitter.emit(EventNames.POST_DELETED, { id: post.id });
+            } catch (e) { console.error('Lỗi xóa bài', e); }
+          },
+        },
+      ]);
     }
+    // Non-owners: no-op (could add "Report" etc in future)
   };
 
   return (

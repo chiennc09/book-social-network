@@ -14,9 +14,10 @@ export type BottomTabParamList = {
 };
 
 export type RootStackParamList = {
-  Auth: undefined;      // Luồng chưa đăng nhập
-  Main: undefined;      // Luồng chính (chứa Bottom Tabs)
-  
+  Auth: undefined;
+  Register: undefined;
+  Main: undefined;
+
   // Các màn hình Modal hoặc Fullscreen khác
   EditProfile: undefined;
   NewThread: undefined;
