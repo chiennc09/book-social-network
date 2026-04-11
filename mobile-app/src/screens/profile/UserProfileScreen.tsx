@@ -258,6 +258,7 @@ const UserProfileScreen = ({ route, navigation }: any) => {
         onEndReachedThreshold={0.5}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: 80 }}
         ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={COLORS.text} /> : null}
       />
       <FloatingTabBar />

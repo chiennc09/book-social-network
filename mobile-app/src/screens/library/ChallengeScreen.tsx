@@ -177,7 +177,7 @@ const ChallengeScreen = ({ navigation }: any) => {
                 data={badges}
                 keyExtractor={item => item.code}
                 renderItem={renderBadgeItem}
-                contentContainerStyle={{ paddingBottom: 50 }}
+                contentContainerStyle={{ paddingBottom: 90 }}
                 showsVerticalScrollIndicator={false}
               />
            ) : (
@@ -185,7 +185,7 @@ const ChallengeScreen = ({ navigation }: any) => {
                 data={leaderboard}
                 keyExtractor={item => item.userId || item.id}
                 renderItem={renderLeaderboardItem}
-                contentContainerStyle={{ paddingBottom: 50 }}
+                contentContainerStyle={{ paddingBottom: 90 }}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={<Text style={{ color: COLORS.textSecondary, textAlign: 'center', marginTop: 20 }}>Chưa có dữ liệu xếp hạng</Text>}
               />

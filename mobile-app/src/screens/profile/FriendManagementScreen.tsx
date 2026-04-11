@@ -246,6 +246,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
           data={friends}
           keyExtractor={item => `friend-${item.userId || item.id}`}
           renderItem={renderFriendItem}
+          contentContainerStyle={{ paddingBottom: 80 }}
           ListEmptyComponent={<EmptyState text="Chưa có bạn bè nào." />}
         />
       ) : activeTab === 'requests' ? (
@@ -253,6 +254,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
           data={getRequestData() as any[]}
           keyExtractor={item => `req-${item.userId || item.id}-${item._kind}`}
           renderItem={renderRequestItem}
+          contentContainerStyle={{ paddingBottom: 80 }}
           ListEmptyComponent={<EmptyState text="Không có lời mời kết bạn nào." />}
         />
       ) : (

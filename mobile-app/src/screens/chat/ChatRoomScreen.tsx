@@ -15,7 +15,6 @@ import Icon from 'react-native-vector-icons/Feather';
 import { chatApi } from '../../api/chatApi';
 import { chatSocketService } from '../../services/chatSocket.service';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
-import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -231,7 +230,6 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-      <FloatingTabBar activeTab="Chatbot" />
     </SafeAreaView>
   );
 };

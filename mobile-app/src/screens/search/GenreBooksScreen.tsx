@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     flex: 1, textAlign: 'center',
   },
 
-  list: { paddingHorizontal: SPACING.m, paddingVertical: SPACING.m, paddingBottom: 60 },
+  list: { paddingHorizontal: SPACING.m, paddingVertical: SPACING.m, paddingBottom: 90 },
 
   bookItem: {
     flexDirection: 'row', alignItems: 'center',

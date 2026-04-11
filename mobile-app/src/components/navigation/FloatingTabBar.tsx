@@ -1,14 +1,17 @@
 /**
- * FloatingTabBar — animated bottom tab bar for non-tab screens.
+ * FloatingTabBar — animated bottom tab bar for non-modal screens.
  *
- * Behaviour mirrors BottomTabNavigator's AnimatedTabBar:
- *   - Subscribes to tabScrollBus; hides (slides down) on 'down', reveals (springs up) on 'up'.
- *   - Always revealed when user taps a tab icon.
+ * Behaviour matches BottomTabNavigator's AnimatedTabBar:
+ *   - Subscribes to tabScrollBus; slides down on 'down', springs up on 'up'.
+ *   - Uses pointerEvents="none" when fully hidden so it NEVER blocks touch events.
  *
  * Usage:
  *   <FloatingTabBar activeTab="Search" />   ← place at the BOTTOM of SafeAreaView
+ *
+ * ⚠️  Do NOT use this on modal screens (slide_from_bottom). Those already have a
+ *    back gesture. Only add to screens with animation: 'slide_from_right'.
  */
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, Animated, Platform,
 } from 'react-native';
@@ -32,7 +35,7 @@ const TABS: { name: TabName; icon: string }[] = [
   { name: 'ProfileTab', icon: 'user'           },
 ];
 
-const TAB_HEIGHT = 60;
+const TAB_HEIGHT = 56;
 
 const FloatingTabBar = ({ activeTab }: Props) => {
   const navigation   = useNavigation<any>();
@@ -40,12 +43,15 @@ const FloatingTabBar = ({ activeTab }: Props) => {
   const bottomInset  = insets.bottom;
   const totalHeight  = TAB_HEIGHT + bottomInset;
 
-  const translateY = useRef(new Animated.Value(0)).current;
-  const isHidden   = useRef(false);
+  const translateY   = useRef(new Animated.Value(0)).current;
+  const isHidden     = useRef(false);
+  // Track visibility for pointerEvents — avoids blocking touch when hidden
+  const [hidden, setHidden] = useState(false);
 
   const show = useCallback(() => {
     if (!isHidden.current) return;
     isHidden.current = false;
+    setHidden(false);
     Animated.spring(translateY, {
       toValue: 0,
       useNativeDriver: true,
@@ -59,9 +65,11 @@ const FloatingTabBar = ({ activeTab }: Props) => {
     isHidden.current = true;
     Animated.timing(translateY, {
       toValue: totalHeight,
-      duration: 240,
+      duration: 220,
       useNativeDriver: true,
-    }).start();
+    }).start(({ finished }) => {
+      if (finished) setHidden(true);
+    });
   }, [translateY, totalHeight]);
 
   useEffect(() => {
@@ -79,6 +87,8 @@ const FloatingTabBar = ({ activeTab }: Props) => {
 
   return (
     <Animated.View
+      // pointerEvents="none" when hidden: the bar doesn't intercept any touch
+      pointerEvents={hidden ? 'none' : 'box-none'}
       style={[
         styles.container,
         {
@@ -101,7 +111,7 @@ const FloatingTabBar = ({ activeTab }: Props) => {
             <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
               <Icon
                 name={tab.icon}
-                size={24}
+                size={23}
                 color={isActive ? COLORS.text : '#525252'}
               />
             </View>
@@ -140,7 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.text,
   },
   iconWrap: {
-    width: 46, height: 40, borderRadius: 14,
+    width: 44, height: 38, borderRadius: 13,
     alignItems: 'center', justifyContent: 'center',
   },
   iconWrapActive: {

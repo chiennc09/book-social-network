@@ -21,7 +21,6 @@ import ShareToChatModal from '../../components/book/modal/ShareToChatModal';
 
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
-import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 
 const BookDetailScreen = ({ route, navigation }: any) => {
   const { bookId } = route.params || {};
@@ -233,7 +232,6 @@ const BookDetailScreen = ({ route, navigation }: any) => {
         }}
       />
       
-      <FloatingTabBar activeTab="Library" />
     </View>
   );
 };
