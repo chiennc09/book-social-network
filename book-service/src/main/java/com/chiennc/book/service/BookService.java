@@ -11,13 +11,11 @@ import com.chiennc.book.repository.BookRankingRepository;
 import com.chiennc.book.repository.BookRepository;
 import com.chiennc.book.exception.AppException;
 import com.chiennc.book.exception.ErrorCode;
-import com.chiennc.book.exception.ErrorCode;
 import com.chiennc.book.entity.BookFavorite;
 import com.chiennc.book.entity.BookReview;
 import com.chiennc.book.dto.request.ReviewRequest;
 import com.chiennc.book.dto.response.ReviewResponse;
 import com.chiennc.book.dto.response.UserProfileResponse;
-import com.chiennc.book.exception.ErrorCode;
 import com.chiennc.book.utils.TextUtils;
 import com.chiennc.book.repository.httpclient.ProfileClient;
 import com.chiennc.book.repository.BookReviewRepository;
@@ -28,9 +26,7 @@ import com.chiennc.event.dto.BookCompletedEvent;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -39,8 +35,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -234,44 +228,19 @@ public class BookService {
         return response;
     }
 
-    @NonFinal
-    @Value("${app.base-url}")
-    String baseUrl;
 
     public BookResponse getBookToRead(String bookId) {
         String userId = getUserId();
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
 
-        // Map sang response
+        // Map sang response — file paths are now relative object keys (e.g. "covers/uuid.jpg").
+        // Each client (mobile/web/admin) builds the full URL by prepending its configured
+        // MINIO_PUBLIC_URL/{bucket}/ prefix via resolveMediaUrl() / resolveReaderUrl().
+        // No server-side URL rewriting needed.
         BookResponse response = bookMapper.toBookResponse(book);
         if (book.getCategoryId() != null) {
             categoryRepository.findById(book.getCategoryId()).ifPresent(response::setCategory);
-        }
-
-        // QUAN TRỌNG: Chuyển tên file thành URL đầy đủ để Frontend gọi
-        if (book.getPdfPath() != null) {
-            if (book.getPdfPath().startsWith("http")) {
-                response.setPdfPath(book.getPdfPath());
-            } else {
-                response.setPdfPath(baseUrl.replaceFirst("/books$", "") + "/file/legacy/pdfs/" + book.getPdfPath());
-            }
-        }
-
-        if (book.getCoverImage() != null) {
-            if (book.getCoverImage().startsWith("http")) {
-                response.setCoverImage(book.getCoverImage());
-            } else {
-                response.setCoverImage(baseUrl.replaceFirst("/books$", "") + "/file/legacy/covers/" + book.getCoverImage());
-            }
-        }
-
-        if (book.getEpubPath() != null) {
-            if (book.getEpubPath().startsWith("http")) {
-                response.setEpubPath(book.getEpubPath());
-            } else {
-                response.setEpubPath(baseUrl.replaceFirst("/books$", "") + "/file/legacy/epubs/" + book.getEpubPath());
-            }
         }
 
         // Lấy lịch sử đọc cũ (nếu có)
@@ -286,11 +255,11 @@ public class BookService {
 
         // Lấy lịch sử yêu thích
         response.setFavorited(bookFavoriteRepository.existsByUserIdAndBookId(userId, bookId));
-        
+
         // Lấy lịch sử đánh giá
-        bookReviewRepository.findByUserIdAndBookId(userId, bookId).ifPresent(review -> {
-            response.setUserRating(review.getRating());
-        });
+        bookReviewRepository.findByUserIdAndBookId(userId, bookId).ifPresent(review ->
+            response.setUserRating(review.getRating())
+        );
 
         // Ghi nhận vào bảng xếp hạng ngày
         increaseRankingCount(bookId);

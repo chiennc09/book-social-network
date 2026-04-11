@@ -198,11 +198,19 @@ public class MinIOStorageAdapter implements ObjectStoragePort {
     public String generatePublicUrl(String objectKey, int expirationHours) {
         try {
             if (expirationHours == 0) {
-                // Return permanent URL format (not presigned)
-                return minioProperties.getPublicUrl() + "/" + minioProperties.getBucketName() + "/" + objectKey;
+                // ── Production-ready: return only the relative object key ──────────────
+                // The DB stores the raw objectKey (e.g. "covers/uuid_filename.jpg").
+                // Each client (mobile, web, admin) builds the full URL by prepending
+                // its own configured MINIO_PUBLIC_URL:
+                //   full URL = {MINIO_PUBLIC_URL}/{bucket}/{objectKey}
+                //
+                // This avoids hardcoding any domain/IP in the database and makes it
+                // trivial to switch between local dev, staging, and production CDN.
+                log.debug("Returning relative object key (production mode): {}", objectKey);
+                return objectKey;
             }
-            
-            // Generate presigned URL valid for specified hours
+
+            // Generate presigned URL valid for specified hours (e.g. for temporary links)
             log.debug("Generating presigned URL for object: {}", objectKey);
             return minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()

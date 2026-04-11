@@ -4,7 +4,20 @@
  * ═══════════════════════════════════════════════════════════════════
  *
  *  SINGLE SOURCE OF TRUTH for all external URLs.
- *  Change the values below when switching environments:
+ *
+ *  ─── URL ARCHITECTURE ────────────────────────────────────────────
+ *
+ *  Files are stored in MinIO with RELATIVE object keys (e.g. "covers/uuid.jpg").
+ *  The DB never stores full URLs — only the relative path.
+ *
+ *  Full URL is built here on the client side:
+ *    {MINIO_PUBLIC_URL}/{MINIO_BUCKET}/{objectKey}
+ *
+ *  This means switching environments only requires changing the two
+ *  values below (API_GATEWAY_URL and MINIO_PUBLIC_URL) — no backend
+ *  changes, no DB migration.
+ *
+ *  ─── ENVIRONMENTS ────────────────────────────────────────────────
  *
  *  ① Android Emulator (default):
  *      API_GATEWAY_URL  = 'http://10.0.2.2:8888'
@@ -17,9 +30,6 @@
  *  ③ Production:
  *      API_GATEWAY_URL  = 'https://api.yourdomain.com'
  *      MINIO_PUBLIC_URL = 'https://cdn.yourdomain.com'
- *
- *  ENV variable override (React Native doesn't ship .env by default
- *  without react-native-config, but we support it via process.env):
  */
 
 /** Base URL for the API Gateway — all REST calls must go through here */
@@ -27,25 +37,27 @@ export const API_GATEWAY_URL: string =
   (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) ||
   'http://10.0.2.2:8888';
 
-/** WebSocket base URL (same host, different scheme) */
+/** WebSocket base URL (same host, ws:// scheme) */
 export const WS_GATEWAY_URL: string =
   API_GATEWAY_URL.replace(/^http/, 'ws');
 
 /**
- * MinIO public URL — base URL where files are served from.
- * Files uploaded via file-service are stored in MinIO and their
- * public URL is built as: {MINIO_PUBLIC_URL}/{bucket}/{objectKey}
+ * MinIO public URL — base URL where MinIO is accessible FROM THIS CLIENT.
  *
- * For Android emulator this must be 10.0.2.2 (not localhost or minio).
+ * ⚠️  This is NOT stored in the database.
+ *     The DB only stores relative object keys (e.g. "covers/uuid.jpg").
+ *     This URL is used ONLY by resolveMediaUrl() to build the display URL.
+ *
+ * Android emulator → 10.0.2.2 maps to the host machine's localhost.
  */
 export const MINIO_PUBLIC_URL: string =
   (typeof process !== 'undefined' && process.env?.REACT_APP_MINIO_URL) ||
   'http://10.0.2.2:9000';
 
-/** MinIO bucket name (must match server-side config) */
+/** MinIO bucket name (must match server-side MINIO_BUCKET_NAME env) */
 export const MINIO_BUCKET = 'book-social-network';
 
-// ─── Service path prefixes (route through Gateway) ──────────────────────────
+// ─── Service path prefixes (all routed through Gateway) ──────────────────────
 
 export const SERVICE_PATHS = {
   identity:        `${API_GATEWAY_URL}/identity`,
@@ -59,44 +71,53 @@ export const SERVICE_PATHS = {
   recommendation:  `${API_GATEWAY_URL}/recommendation/api/v1`,
 } as const;
 
-// ─── Media URL resolver ──────────────────────────────────────────────────────
+// ─── Media URL resolver ───────────────────────────────────────────────────────
 
 type MediaCategory = 'covers' | 'epubs' | 'pdfs' | 'avatars' | 'others';
 
 /**
- * Resolve a media URL for display or loading.
+ * Resolve a media file path to a fully-qualified URL for display/loading.
  *
  * Handles three cases:
- *  1. Already a full URL (http/https) → return as-is (MinIO URL from DB)
- *  2. Relative path (legacy local storage) → prefix with MinIO public URL
- *  3. Falsy → return empty string
+ *  1. Relative object key (production standard)
+ *       e.g. "covers/uuid_photo.jpg"
+ *       → {MINIO_PUBLIC_URL}/{MINIO_BUCKET}/covers/uuid_photo.jpg
  *
- * @param url      Raw URL or relative path from server response
- * @param category File category (used for legacy path construction)
- * @returns        Full accessible URL
+ *  2. Already a full URL (http/https) — legacy data or presigned URL
+ *       → returned as-is. If the domain contains 10.0.2.2 and we're NOT
+ *         in emulator mode, the URL is normalised with MINIO_PUBLIC_URL's host.
+ *
+ *  3. Falsy → empty string
+ *
+ * @param url      Raw value from server response (objectKey or legacy full URL)
+ * @param category File category — used for legacy path construction only
+ * @returns        Full accessible URL for this client's environment
  */
 export function resolveMediaUrl(
   url: string | null | undefined,
-  category: MediaCategory = 'covers',
+  _category: MediaCategory = 'covers',
 ): string {
   if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url; // Already a full MinIO URL
-  }
-  // Legacy relative path — construct MinIO URL
-  return `${MINIO_PUBLIC_URL}/${MINIO_BUCKET}/${category}/${url}`;
-}
 
-/**
- * Resolve an EPUB/PDF path for the reader.
- * Falls back to the download-via-gateway endpoint if needed.
- */
-export function resolveReaderUrl(url: string | null | undefined): string {
-  if (!url) return '';
+  // Already a full URL (legacy data or presigned URL)
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
-  // Determine category from extension
-  const category: MediaCategory = url.toLowerCase().endsWith('.epub') ? 'epubs' : 'pdfs';
-  return `${MINIO_PUBLIC_URL}/${MINIO_BUCKET}/${category}/${url}`;
+
+  // Relative object key (standard): build full URL using this client's config
+  // Format: {MINIO_PUBLIC_URL}/{MINIO_BUCKET}/{objectKey}
+  // e.g. http://10.0.2.2:9000/book-social-network/covers/uuid_photo.jpg
+  return `${MINIO_PUBLIC_URL}/${MINIO_BUCKET}/${url}`;
+}
+
+/**
+ * Resolve an EPUB or PDF object key for the reader component.
+ *
+ * Uses resolveMediaUrl() — readers can prefetch files as standard HTTP URLs.
+ * Falls back to gateway download endpoint only if needed.
+ *
+ * @param url Raw value from server (objectKey or legacy full URL)
+ */
+export function resolveReaderUrl(url: string | null | undefined): string {
+  return resolveMediaUrl(url);
 }

@@ -2,6 +2,7 @@ server:
   port: 8084
   servlet:
     context-path: /file
+
 spring:
   application:
     name: file-service
@@ -14,19 +15,13 @@ spring:
       max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:200MB}
       max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:210MB}
 
-# MinIO Configuration
+# ── MinIO Configuration ────────────────────────────────────────────────────────
+# MINIO_ENDPOINT: internal Docker network URL (service-to-service only)
+# Files are stored with RELATIVE object keys (e.g. "covers/uuid_name.jpg").
+# The public URL is NOT stored in the DB — clients reconstruct it from their own config.
 minio:
-  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  endpoint:    ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key:  ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key:  ${MINIO_SECRET_KEY:minioadmin}
   bucket-name: ${MINIO_BUCKET_NAME:book-social-network}
-  use-ssl: ${MINIO_USE_SSL:false}
-  # Public URL: must be accessible from the client (mobile/browser)
-  # Local dev (emulator): http://10.0.2.2:9000
-  # Local dev (real device): http://<your-lan-ip>:9000
-  # Production: https://minio.yourdomain.com
-  public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
-
-app:
-  file:
-    download-prefix: ${APP_FILE_DOWNLOAD_PREFIX:http://localhost:8888/file/media/download/}
+  use-ssl:     ${MINIO_USE_SSL:false}
