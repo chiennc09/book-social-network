@@ -54,11 +54,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <aside className="admin-sidebar">
         {/* Logo */}
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">📚</div>
+          <div className="sidebar-logo-icon">
+            <BookMarked size={22} color="#fff" />
+          </div>
           <div className="sidebar-logo-text">
             Book<span>Admin</span>
-            <div style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-muted)' }}>
-              Social Network
+            <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', marginTop: 2 }}>
+              Workspace
             </div>
           </div>
         </div>
