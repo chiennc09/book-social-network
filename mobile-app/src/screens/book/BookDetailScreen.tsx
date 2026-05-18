@@ -148,13 +148,6 @@ const BookDetailScreen = ({ route, navigation }: any) => {
         {/* 4. Mô tả */}
         <DescriptionSection description={book.description} />
 
-        {/* --- View Count Thống kê hiển thị dưới Description --- */}
-        <View style={{ paddingHorizontal: 20, marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
-            <Icon name="eye" size={14} color={COLORS.textSecondary} />
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginLeft: 6 }}>
-                {book.totalViews || 0} lượt xem sách
-            </Text>
-        </View>
 
         {/* 5. Đánh giá */}
         <ReviewsSection reviews={book.reviews} ratingAverage={book.ratingAverage} />

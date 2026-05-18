@@ -27,6 +27,7 @@ export const profileApi = {
   // ----- Friends Management -----
   sendFriendRequest: (toUserId: string) => axiosClient.post(`${BASE_URL}/friend/request?toUserId=${toUserId}`),
   acceptFriend: (toUserId: string) => axiosClient.post(`${BASE_URL}/friend/accept?toUserId=${toUserId}`),
+  declineFriend: (toUserId: string) => axiosClient.post(`${BASE_URL}/friend/decline?toUserId=${toUserId}`),
   removeFriend: (toUserId: string) => axiosClient.delete(`${BASE_URL}/friend/remove?toUserId=${toUserId}`),
   getIncomingRequests: () => axiosClient.get(`${BASE_URL}/friend/requests/incoming`),
   getOutgoingRequests: () => axiosClient.get(`${BASE_URL}/friend/requests/outgoing`),

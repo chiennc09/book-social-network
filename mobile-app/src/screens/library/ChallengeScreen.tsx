@@ -9,6 +9,7 @@ import { userService } from '../../services/user.service';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
+import { RankBadge } from '../../components/common/RankBadge';
 
 const ChallengeScreen = ({ navigation }: any) => {
   const [activeTab, setActiveTab] = useState<'badges' | 'leaderboard'>('badges');
@@ -66,26 +67,82 @@ const ChallengeScreen = ({ navigation }: any) => {
     const userBadges = currentUser?.badges || [];
     const isOwned = userBadges.some(b => b.code === item.code);
 
+    const BADGE_COLORS: Record<string, {
+      border: string;
+      bg: string;
+      iconBg: string;
+      text: string;
+    }> = {
+      NEWBIE: {
+        border: '#D39E82',
+        bg: 'rgba(211, 158, 130, 0.05)',
+        iconBg: 'rgba(211, 158, 130, 0.12)',
+        text: '#D39E82',
+      },
+      BOOKWORM: {
+        border: '#8BD3DD',
+        bg: 'rgba(139, 211, 221, 0.05)',
+        iconBg: 'rgba(139, 211, 221, 0.12)',
+        text: '#8BD3DD',
+      },
+      SCHOLAR: {
+        border: '#F5C469',
+        bg: 'rgba(245, 196, 105, 0.05)',
+        iconBg: 'rgba(245, 196, 105, 0.12)',
+        text: '#F5C469',
+      },
+      MASTER: {
+        border: '#C084FC',
+        bg: 'rgba(192, 132, 252, 0.06)',
+        iconBg: 'rgba(192, 132, 252, 0.16)',
+        text: '#C084FC',
+      },
+    };
+
+    const themeColors = BADGE_COLORS[item.code] || {
+      border: '#FFD700',
+      bg: 'rgba(255, 215, 0, 0.05)',
+      iconBg: '#222',
+      text: '#FFD700',
+    };
+
     return (
-      <View style={[styles.badgeCard, isOwned && styles.ownedBadgeCard]}>
+      <View style={[
+        styles.badgeCard, 
+        isOwned && { borderColor: themeColors.border, backgroundColor: themeColors.bg }
+      ]}>
         <View style={styles.badgeLeft}>
            <Animated.View style={[
               styles.iconWrapper, 
-              // Áp dụng animation nếu user sở hữu danh hiệu này
-              isOwned && { transform: [{ scale: pulseAnim }], borderColor: '#FFD700', borderWidth: 2 }
+              isOwned && { 
+                transform: [{ scale: pulseAnim }], 
+                borderColor: themeColors.border, 
+                borderWidth: 2,
+                backgroundColor: themeColors.iconBg 
+              }
            ]}>
               {item.iconUrl ? (
                  <Image source={{ uri: item.iconUrl }} style={styles.badgeImage} />
               ) : (
-                 <Icon name="award" size={32} color={isOwned ? '#FFD700' : (isTopBadge ? '#FFD700' : '#666')} />
+                 <Icon 
+                    name={item.code === 'BOOKWORM' ? 'book-open' : (item.code === 'SCHOLAR' ? 'shield' : (item.code === 'MASTER' ? 'zap' : 'award'))} 
+                    size={30} 
+                    color={isOwned ? themeColors.text : '#555'} 
+                 />
               )}
            </Animated.View>
         </View>
 
         <View style={styles.badgeInfo}>
-           <Text style={[styles.badgeName, isOwned && styles.ownedBadgeName, isTopBadge && !isOwned && styles.topBadgeName]}>{item.name}</Text>
+           <Text style={[
+              styles.badgeName, 
+              isOwned && { color: themeColors.text }
+           ]}>{item.name}</Text>
            <Text style={styles.badgeDescription}>{item.description}</Text>
-           <Text style={[styles.badgeReq, isOwned && { color: '#FFD700' }]}>
+           <Text style={[
+              styles.badgeReq, 
+              isOwned && { color: themeColors.text }
+           ]}>
               {isOwned ? "Đã Mở Khóa" : `Yêu cầu: Đọc ${item.requiredBooks} cuốn`}
            </Text>
         </View>
@@ -120,13 +177,11 @@ const ChallengeScreen = ({ navigation }: any) => {
 
         {/* Hiển thị badge top của user đó */}
         {item.badges && item.badges.length > 0 && (
-          <View style={styles.lbBadgeWrap}>
-             {item.badges[0].iconUrl ? (
-                 <Image source={{ uri: item.badges[0].iconUrl }} style={styles.lbBadgeIcon} />
-             ) : (
-                 <Icon name="award" size={16} color="#FFD700" />
-             )}
-          </View>
+          <RankBadge 
+             badge={item.badges[0]} 
+             showGlow={false} 
+             style={{ marginLeft: 6, paddingVertical: 1, paddingHorizontal: 5 }} 
+          />
         )}
       </View>
     );

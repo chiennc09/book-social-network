@@ -16,6 +16,7 @@ import { chatApi } from '../../api/chatApi';
 import { chatSocketService } from '../../services/chatSocket.service';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { resolveMediaUrl } from '../../config/env';
+import { UserAvatar } from '../../components/common/UserAvatar';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -142,8 +143,9 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
             onPress={() =>
               navigation.push('UserProfile', { userId: item.sender?.userId })
             }>
-            <Image
-              source={{ uri: resolveMediaUrl(item.sender?.avatar, 'avatars') || DEFAULT_AVATAR }}
+            <UserAvatar
+              url={item.sender?.avatar}
+              size={30}
               style={styles.senderAvatar}
             />
           </TouchableOpacity>
@@ -194,8 +196,9 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
           <Icon name="arrow-left" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Image
-            source={{ uri: resolveMediaUrl(conversationAvatar, 'avatars') || DEFAULT_AVATAR }}
+          <UserAvatar
+            url={conversationAvatar}
+            size={36}
             style={styles.headerAvatar}
           />
           <Text style={styles.headerTitle}>{conversationName || 'Chat'}</Text>

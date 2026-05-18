@@ -11,6 +11,7 @@ import FeedItem from '../../components/feed/FeedItem';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
+import { RankBadge } from '../../components/common/RankBadge';
 
 const UserProfileScreen = ({ route, navigation }: any) => {
   const { userId } = route.params;
@@ -202,14 +203,7 @@ const UserProfileScreen = ({ route, navigation }: any) => {
              <View style={styles.badge}><Text style={styles.badgeText}>reads.net</Text></View>
              
              {user?.badges && user.badges.length > 0 && user.badges.map((b, index) => (
-                <Animated.View key={b.code || index} style={[styles.rankBadge, { transform: [{ scale: pulseAnim }] }]}>
-                   {b.iconUrl ? (
-                       <Image source={{uri: b.iconUrl}} style={styles.badgeIcon} />
-                   ) : (
-                       <Icon name="award" size={14} color="#FFD700" style={{marginRight: 4}} />
-                   )}
-                   <Text style={styles.rankBadgeText}>{b.name}</Text>
-                </Animated.View>
+                <RankBadge key={b.code || index} badge={b} />
              ))}
           </View>
           {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}

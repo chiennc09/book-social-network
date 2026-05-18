@@ -9,6 +9,7 @@ import { postApi } from '../../api/postApi';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import { RankBadge } from '../common/RankBadge';
 
 const { width } = Dimensions.get('window');
 
@@ -129,14 +130,11 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
           <View style={styles.headerInfo}>
              <Text style={styles.username}>{post.user.username}</Text>
              {post.userBadges && post.userBadges.length > 0 && (
-                <View style={styles.feedBadge}>
-                   {post.userBadges[0].iconUrl ? (
-                      <Image source={{uri: post.userBadges[0].iconUrl}} style={styles.feedBadgeIcon} />
-                   ) : (
-                      <Icon name="award" size={10} color="#FFD700" />
-                   )}
-                   <Text style={styles.feedBadgeText}>{post.userBadges[0].name}</Text>
-                </View>
+                <RankBadge 
+                   badge={post.userBadges[0]} 
+                   showGlow={false} 
+                   style={{ marginLeft: 6, paddingVertical: 1, paddingHorizontal: 5 }} 
+                />
              )}
              <Text style={styles.dot}>•</Text>
              <Text style={styles.timestamp}>{post.timestamp}</Text>
