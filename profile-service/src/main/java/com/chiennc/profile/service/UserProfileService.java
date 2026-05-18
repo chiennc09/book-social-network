@@ -134,6 +134,10 @@ public class UserProfileService {
         userProfileRepository.acceptFriend(getUserIdByToken(), toUserId);
     }
 
+    public void declineFriend(String toUserId) {
+        userProfileRepository.declineFriendRequest(getUserIdByToken(), toUserId);
+    }
+
     public void removeFriend(String toUserId) {
         userProfileRepository.removeFriend(getUserIdByToken(), toUserId);
     }
@@ -197,7 +201,15 @@ public class UserProfileService {
         if (query == null || query.trim().isEmpty()) {
             return List.of();
         }
+        String myUserId = null;
+        try {
+            myUserId = getUserIdByToken();
+        } catch (Exception e) {
+            // ignore
+        }
+        final String finalMyUserId = myUserId;
         return userProfileRepository.searchUsers(query.trim()).stream()
+                .filter(user -> finalMyUserId == null || !user.getUserId().equals(finalMyUserId))
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
     }

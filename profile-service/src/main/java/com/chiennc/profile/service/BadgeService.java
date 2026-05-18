@@ -39,7 +39,7 @@ public class BadgeService {
                     .code("BOOKWORM")
                     .name("Mọt sách")
                     .description("Đọc 5 cuốn sách")
-                    .requiredBooks(9)
+                    .requiredBooks(5)
                     .build());
             badgeRepository.save(Badge.builder()
                     .code("SCHOLAR")

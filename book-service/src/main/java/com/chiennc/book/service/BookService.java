@@ -208,6 +208,13 @@ public class BookService {
                 response.setFavorited(bookFavoriteRepository.existsByUserIdAndBookId(userId, book.getId()));
                 bookReviewRepository.findByUserIdAndBookId(userId, book.getId())
                         .ifPresent(review -> response.setUserRating(review.getRating()));
+                
+                // Populate shelfStatus from ReadHistory
+                historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, book.getId()).ifPresent(history -> {
+                    if (history.getStatus() != null) {
+                        response.setShelfStatus(history.getStatus().name());
+                    }
+                });
             }
         } catch (Exception e) {
             // Unauthenticated or error parsing token, just ignore
@@ -247,6 +254,9 @@ public class BookService {
         historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId).ifPresent(history -> {
             response.setLastPosition(history.getLastPosition());
             response.setProgressPercent(history.getProgressPercent());
+            if (history.getStatus() != null) {
+                response.setShelfStatus(history.getStatus().name());
+            }
         });
 
         // Tăng view tổng của sách mỗi khi mở đọc
@@ -455,6 +465,7 @@ public class BookService {
         return reviews.stream().map(review -> {
             ReviewResponse response = ReviewResponse.builder()
                     .id(review.getId())
+                    .userId(review.getUserId()) // Set directly from DB record to ensure it is never null!
                     .rating(review.getRating())
                     .content(review.getContent())
                     .likes(review.getLikes())
