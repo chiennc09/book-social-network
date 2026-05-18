@@ -2,6 +2,7 @@ import { Post, Book } from '../types';
 import { postApi } from '../api/postApi';
 import { bookService } from './book.service';
 import { DEFAULT_AVATAR } from '../constants/theme';
+import { resolveMediaUrl } from '../config/env';
 
 export const feedService = {
   async getFeed(filter: string = 'foryou', page: number = 1, size: number = 10): Promise<Post[]> {
@@ -54,7 +55,7 @@ export const feedService = {
             id: item.userId || item.user?.id,
             username: item.username || item.user?.username,
             displayName: item.userDisplayName || item.user?.displayName || item.username, 
-            avatar: item.userAvatar || item.user?.avatar || DEFAULT_AVATAR,
+            avatar: resolveMediaUrl(item.userAvatar || item.user?.avatar, 'avatars') || DEFAULT_AVATAR,
             badges: item.userBadges || item.user?.badges || [],
           },
           userDisplayName: item.userDisplayName || item.user?.displayName || item.username,

@@ -308,7 +308,7 @@ const SearchScreen = ({ navigation }: any) => {
               onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
             >
               <Image
-                source={{ uri: item.avatar || DEFAULT_AVATAR }}
+                source={{ uri: resolveMediaUrl(item.avatar, 'avatars') || DEFAULT_AVATAR }}
                 style={[styles.resultCover, { width: 50, height: 50, borderRadius: 25 }]}
               />
               <View style={styles.resultInfo}>

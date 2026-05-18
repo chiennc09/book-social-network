@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
+import { resolveMediaUrl } from '../../config/env';
 import { profileApi } from '../../api/profileApi';
 import { UserProfile } from '../../types/user';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
@@ -113,7 +114,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
       style={styles.userRow}
       onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
     >
-      <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
+      <Image source={{ uri: resolveMediaUrl(item.avatar, 'avatars') || DEFAULT_AVATAR }} style={styles.avatar} />
       <View style={styles.userInfo}>
         <Text style={styles.displayName}>{item.displayName || item.username}</Text>
         <Text style={styles.username}>@{item.username}</Text>
@@ -129,7 +130,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
       style={styles.userRow}
       onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
     >
-      <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
+      <Image source={{ uri: resolveMediaUrl(item.avatar, 'avatars') || DEFAULT_AVATAR }} style={styles.avatar} />
       <View style={styles.userInfo}>
         <Text style={styles.displayName}>{item.displayName || item.username}</Text>
         <Text style={styles.username}>@{item.username}</Text>
@@ -155,7 +156,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
         style={styles.userRow}
         onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
       >
-        <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
+        <Image source={{ uri: resolveMediaUrl(item.avatar, 'avatars') || DEFAULT_AVATAR }} style={styles.avatar} />
         <View style={styles.userInfo}>
           <Text style={styles.displayName}>{item.displayName || item.username}</Text>
           <Text style={styles.username}>@{item.username}</Text>

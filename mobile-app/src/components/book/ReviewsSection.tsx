@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING } from '../../constants/theme';
 import { Review } from '../../services/book.service';
+import { UserAvatar } from '../common/UserAvatar';
 
 interface Props {
   reviews: Review[];
@@ -33,7 +34,7 @@ const ReviewsSection = ({ reviews, ratingAverage }: Props) => {
                 {/* User Info */}
                 <View style={styles.userRow}>
                     <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: review.user.id })}>
-                        <Image source={{ uri: review.user.avatar }} style={styles.avatar} />
+                        <UserAvatar url={review.user.avatar} size={36} />
                     </TouchableOpacity>
                     <View style={{ marginLeft: 10, flex: 1 }}>
                         <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: review.user.id })} style={{ flexDirection: 'row', alignItems: 'center' }}>

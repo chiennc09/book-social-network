@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
+import { resolveMediaUrl } from '../../config/env';
 import { postApi } from '../../api/postApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
@@ -40,7 +41,7 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigati
       <View style={styles.leftCol}>
         <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: item.userId })}>
            <Image 
-              source={{ uri: (authUser && item.userId === authUser.id && authUser.avatar) ? authUser.avatar : (item.userAvatar || DEFAULT_AVATAR) }} 
+              source={{ uri: (authUser && item.userId === authUser.id && authUser.avatar) ? authUser.avatar : (resolveMediaUrl(item.userAvatar, 'avatars') || DEFAULT_AVATAR) }} 
               style={[styles.avatar, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
            />
         </TouchableOpacity>
@@ -213,7 +214,7 @@ const CommentScreen = ({ route, navigation }: any) => {
       {/* Input luôn ở dưới */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
          <View style={styles.inputContainer}>
-            <Image source={{ uri: (user as any)?.avatarUrl || (user as any)?.avatar || DEFAULT_AVATAR }} style={styles.inputAvatar} />
+            <Image source={{ uri: resolveMediaUrl((user as any)?.avatarUrl || (user as any)?.avatar, 'avatars') || DEFAULT_AVATAR }} style={styles.inputAvatar} />
             <TextInput
                style={styles.input}
                placeholder={`Thêm câu trả lời...`}

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Image, ActivityIndicator, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
+import { resolveMediaUrl } from '../../config/env';
 import { profileApi } from '../../api/profileApi';
 import { Badge, UserProfile } from '../../types/user';
 import { userService } from '../../services/user.service';
@@ -107,7 +108,7 @@ const ChallengeScreen = ({ navigation }: any) => {
     return (
       <View style={[styles.lbCard, isMe && styles.lbCardMe]}>
         <Text style={[styles.lbRank, { color: rankColor }]}>{index + 1}</Text>
-        <Image source={{ uri: (isMe && (authUser as any)?.avatar) ? (authUser as any).avatar : (item.avatar || DEFAULT_AVATAR) }} style={styles.lbAvatar} />
+        <Image source={{ uri: (isMe && (authUser as any)?.avatar) ? (authUser as any).avatar : (resolveMediaUrl(item.avatar, 'avatars') || DEFAULT_AVATAR) }} style={styles.lbAvatar} />
         
         <View style={styles.lbInfo}>
            <Text style={[styles.lbName, isMe && { color: '#FFD700' }]} numberOfLines={1}>{item.displayName || item.username}</Text>

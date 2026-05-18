@@ -42,7 +42,7 @@ const NewThreadScreen = ({ navigation }: any) => {
     profileApi.getMyProfile()
       .then((res: any) => {
         const data = res?.result ?? res?.data?.result ?? res?.data ?? res;
-        if (data?.avatar) setProfileAvatar(data.avatar);
+        if (data?.avatar) setProfileAvatar(resolveMediaUrl(data.avatar, 'avatars'));
         if (data?.displayName || data?.username) {
           setDisplayName(data.displayName || data.username);
         }

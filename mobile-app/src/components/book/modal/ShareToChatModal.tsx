@@ -13,6 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { chatApi } from '../../../api/chatApi';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../../constants/theme';
+import { resolveMediaUrl } from '../../../config/env';
 
 interface BookAttachmentData {
   bookId: string;
@@ -88,7 +89,7 @@ const ShareToChatModal = ({
         onPress={() => handleSelect(item)}
         disabled={isSending}>
         <Image
-          source={{ uri: item.conversationAvatar || DEFAULT_AVATAR }}
+          source={{ uri: resolveMediaUrl(item.conversationAvatar, 'avatars') || DEFAULT_AVATAR }}
           style={styles.avatar}
         />
         <View style={styles.convInfo}>
