@@ -120,7 +120,7 @@ const SearchScreen = ({ navigation }: any) => {
     <TouchableOpacity
       key={item.id + keySuffix}
       style={styles.bookCardHorizontal}
-      onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
+      onPress={() => navigation.navigate('BookDetail', { bookId: item.id, fromSearch: true })}
     >
       <Image
       source={{ uri: resolveMediaUrl(item.coverUrl || item.coverImage, 'covers') || 'https://via.placeholder.com/100x150.png?text=No+Cover' }}
@@ -130,6 +130,7 @@ const SearchScreen = ({ navigation }: any) => {
       <Text style={styles.bookAuthor} numberOfLines={1}>{item.author}</Text>
     </TouchableOpacity>
   );
+
 
   // ── 1. Header Search Input ────────────────────────────────────────────────
   const renderHeader = () => (

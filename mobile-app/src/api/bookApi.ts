@@ -24,8 +24,10 @@ export const bookApi = {
   // Đọc sách: trả về thông tin sách + link (epubPath, pdfPath) + tiến trình
   readBook: (id: string) => bookAxiosClient.get(`/${id}/read`),
 
-  // Lấy thông tin cơ bản không làm tăng view
-  getById: (id: string) => bookAxiosClient.get(`/${id}`),
+  // Lấy thông tin chi tiết sách — TRIGGERS VIEW event (và SEARCH_CLICK nếu fromSearch=true)
+  // Gọi từ BookDetailScreen; không gọi từ danh sách trending/recommendation
+  getById: (id: string, fromSearch = false) =>
+    bookAxiosClient.get(`/${id}`, { params: fromSearch ? { fromSearch: true } : {} }),
 
   // Cập nhật tiến trình đọc
   updateProgress: (id: string, position: string, percent: number) =>

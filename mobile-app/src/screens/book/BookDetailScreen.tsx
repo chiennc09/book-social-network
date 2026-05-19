@@ -23,7 +23,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 
 const BookDetailScreen = ({ route, navigation }: any) => {
-  const { bookId } = route.params || {};
+  const { bookId, fromSearch } = route.params || {};
   const [book, setBook] = useState<BookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -45,11 +45,12 @@ const BookDetailScreen = ({ route, navigation }: any) => {
     const fetch = async () => {
       if (!bookId) return;
       try {
-        const data = await bookService.getBookDetails(bookId);
+        // fromSearch=true → bắn SEARCH_CLICK + VIEW | false → chỉ bắn VIEW
+        const data = await bookService.getBookDetails(bookId, !!fromSearch);
         setBook(data);
         if (data.userRating) setUserRating(data.userRating);
       } catch (error) {
-        console.error("Lỗi khi tải chi tiết sách", error);
+        console.error("Ụi khi tải chi tiết sách", error);
       } finally {
         setLoading(false);
       }

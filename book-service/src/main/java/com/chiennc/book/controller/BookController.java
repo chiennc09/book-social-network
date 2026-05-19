@@ -10,9 +10,9 @@ import com.chiennc.book.service.BookService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
-
 import java.util.List;
 
 @RestController
@@ -77,8 +77,18 @@ public class BookController {
     }
 
     @GetMapping("/{id}")
-    ApiResponse<BookResponse> getById(@PathVariable String id) {
-        return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();
+    ApiResponse<BookResponse> getById(
+            @PathVariable String id,
+            @RequestParam(required = false, defaultValue = "false") boolean fromSearch) {
+        BookResponse response = bookService.getById(id);
+        // Tracking chạy bất đồng bộ — không ảnh hưởng latency trả response
+        trackViewAsync(id, fromSearch);
+        return ApiResponse.<BookResponse>builder().result(response).build();
+    }
+
+    @Async
+    public void trackViewAsync(String bookId, boolean fromSearch) {
+        bookService.trackBookView(bookId, fromSearch);
     }
 
     // 2. Upload file PDF/EPUB và Cover (Now expects URLs from file-service)
