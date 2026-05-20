@@ -15,17 +15,37 @@ ACTION_SCORES = {
     ActionType.VIEW:           1.0,
 }
 
-# VIEW cap: tối đa cộng 3 lần VIEW cho mỗi cặp (userId, bookId) trong 30 ngày
-# Ngăn chặn tích lũy điểm vô hạn khi user đọc sách nhiều phiên
+# ── VIEW Cap ─────────────────────────────────────────────────────────────────
+# Mỗi cặp (userId, bookId) chỉ được cộng điểm VIEW tối đa 3 lần trong 30 ngày.
+# Ngăn chặn người dùng vô tình inflate điểm khi mở lại cùng 1 cuốn sách nhiều lần.
+# Key Redis: view_cap:{userId}:{bookId} → bộ đếm, expire sau 30 ngày.
 _VIEW_CAP_COUNT = 3
-_VIEW_CAP_TTL   = 86_400 * 30      # 30 ngày
+_VIEW_CAP_TTL   = 86_400 * 30      # 30 ngày — reset sau 1 tháng không xem
 
-# Actions that signal direct content interest → tracked in short-term session window
-_SESSION_INTENT_ACTIONS = {ActionType.VIEW, ActionType.SEARCH_CLICK, ActionType.FAVORITE, ActionType.ADD_BOOKSHELF}
+# ── Session Window (Recent Views) ────────────────────────────────────────────
+# Lưu trữ N sách gần đây nhất user tương tác (sliding list trong Redis).
+# Dùng để xây dựng "Today's Picks" theo context hiện tại của user.
+# Key Redis: recent_views:{userId} → list bookId (max _RECENT_VIEWS_MAX phần tử)
+# TTL = 48h: đủ dài để user quay lại sau 1 ngày vẫn có context;
+#            đủ ngắn để không giữ sở thích cũ quá lâu.
+_RECENT_VIEWS_MAX = 10
+_RECENT_VIEWS_TTL = 172_800        # 48 giờ
 
-_RECENT_VIEWS_MAX = 10    # Sliding window size
-_RECENT_VIEWS_TTL = 172_800   # 48h — user returning next day still gets context
-_TODAY_REC_TTL    = 86_400    # 24h — session recommendation list TTL
+# ── Today's Picks Cache ───────────────────────────────────────────────────────
+# Cache kết quả gợi ý ngắn hạn theo session (Today's Picks).
+# Bị xóa ngay khi có hành vi mới (VIEW/FAVORITE/...) để rebuild với context tươi.
+# Key Redis: today_rec:{userId} → JSON list bookId
+# TTL = 1h: nếu user không hoạt động 1h, cache tự hết — request tiếp theo sẽ rebuild.
+_TODAY_REC_TTL    = 3_600            # 1 giờ (safety net, bị delete trước khi expire)
+
+# ── Session intent actions — những action cập nhật sliding window & xóa today_rec ──
+# Không bao gồm UNFAVORITE/RATING/READ_TIME vì chúng không chỉ ra sách mới muốn xem
+_SESSION_INTENT_ACTIONS = {
+    ActionType.VIEW,
+    ActionType.SEARCH_CLICK,
+    ActionType.FAVORITE,
+    ActionType.ADD_BOOKSHELF,
+}
 
 
 async def process_user_behavior(event: UserBehaviorEvent):

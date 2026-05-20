@@ -45,6 +45,17 @@ const SearchScreen = ({ navigation }: any) => {
 
   const inputRef = useRef<TextInput>(null);
   const { onScroll } = useTabBarScrollControl();
+  
+  const searchTimeoutRef = useRef<any>(null);
+  const latestSearchQuery = useRef<string>('');
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // ── Explore Data Fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -91,27 +102,64 @@ const SearchScreen = ({ navigation }: any) => {
   }, [currentUserId]);
 
   // ── Search Handler ────────────────────────────────────────────────────────
-  const handleSearch = async (text: string) => {
-    setSearchText(text);
-    if (text.length > 0) {
-      setLoadingSearch(true);
-      if (searchTab === 'user') {
-        const res: any = await profileApi.searchUsers(text);
-        setSearchUserResults(res.result || res.data?.result || res.data || []);
-      } else {
-        const res = await searchService.searchBooks(text, searchTab);
-        setSearchResults(res);
-      }
-      setLoadingSearch(false);
-    } else {
+  const executeSearch = async (query: string, tab: 'all' | 'title' | 'author' | 'user') => {
+    if (!query.trim()) {
       setSearchResults([]);
       setSearchUserResults([]);
+      setLoadingSearch(false);
+      return;
     }
+
+    setLoadingSearch(true);
+    try {
+      if (tab === 'user') {
+        const res: any = await profileApi.searchUsers(query);
+        if (latestSearchQuery.current === query) {
+          setSearchUserResults(res.result || res.data?.result || res.data || []);
+        }
+      } else {
+        const res = await searchService.searchBooks(query, tab);
+        if (latestSearchQuery.current === query) {
+          setSearchResults(res);
+        }
+      }
+    } catch (err) {
+      console.error("Search failed", err);
+    } finally {
+      if (latestSearchQuery.current === query) {
+        setLoadingSearch(false);
+      }
+    }
+  };
+
+  const handleSearch = (text: string) => {
+    setSearchText(text);
+    latestSearchQuery.current = text;
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!text.trim()) {
+      setSearchResults([]);
+      setSearchUserResults([]);
+      setLoadingSearch(false);
+      return;
+    }
+
+    setLoadingSearch(true);
+    searchTimeoutRef.current = setTimeout(() => {
+      executeSearch(text, searchTab);
+    }, 300);
   };
 
   useEffect(() => {
     if (isSearching && searchText) {
-      handleSearch(searchText);
+      latestSearchQuery.current = searchText;
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      executeSearch(searchText, searchTab);
     }
   }, [searchTab]);
 
@@ -147,7 +195,16 @@ const SearchScreen = ({ navigation }: any) => {
           onChangeText={handleSearch}
         />
         {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => { setSearchText(''); setSearchResults([]); }}>
+          <TouchableOpacity onPress={() => {
+            setSearchText('');
+            setSearchResults([]);
+            setSearchUserResults([]);
+            latestSearchQuery.current = '';
+            if (searchTimeoutRef.current) {
+              clearTimeout(searchTimeoutRef.current);
+            }
+            setLoadingSearch(false);
+          }}>
             <Icon name="x-circle" size={18} color={COLORS.textSecondary} style={{ marginRight: 10 }} />
           </TouchableOpacity>
         )}

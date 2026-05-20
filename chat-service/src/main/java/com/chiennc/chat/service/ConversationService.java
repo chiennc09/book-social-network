@@ -124,11 +124,28 @@ public class ConversationService {
                 .filter(participantInfo -> !participantInfo.getUserId().equals(currentUserId))
                 .findFirst()
                 .ifPresent(participantInfo -> {
-                    conversationResponse.setConversationName(
-                            participantInfo.getDisplayName() != null
-                                    ? participantInfo.getDisplayName()
-                                    : participantInfo.getUsername());
-                    conversationResponse.setConversationAvatar(participantInfo.getAvatar());
+                    String displayName = participantInfo.getDisplayName() != null
+                            ? participantInfo.getDisplayName()
+                            : participantInfo.getUsername();
+                    String avatar = participantInfo.getAvatar();
+
+                    try {
+                        var profileRes = profileClient.getProfile(participantInfo.getUserId());
+                        if (profileRes != null && profileRes.getResult() != null) {
+                            var result = profileRes.getResult();
+                            displayName =
+                                    result.getDisplayName() != null ? result.getDisplayName() : result.getUsername();
+                            avatar = result.getAvatar();
+                        }
+                    } catch (Exception e) {
+                        log.warn(
+                                "Failed to fetch fresh profile for user {} in conversation mapping",
+                                participantInfo.getUserId(),
+                                e);
+                    }
+
+                    conversationResponse.setConversationName(displayName);
+                    conversationResponse.setConversationAvatar(avatar);
                 });
 
         // Attach last message preview

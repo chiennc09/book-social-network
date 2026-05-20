@@ -197,28 +197,6 @@ public class BookService {
         return response;
     }
 
-    /**
-     * Ghi nhận hành vi VIEW khi user xem trang chi tiết sách.
-     * Gọi rời khỏi main flow để không ảnh hưởng latency trả response.
-     * @param bookId ID của sách được xem
-     * @param fromSearch true nếu user click từ kết quả tìm kiếm (bắn thêm SEARCH_CLICK)
-     */
-    public void trackBookView(String bookId, boolean fromSearch) {
-        try {
-            String userId = getUserId();
-            if (userId == null) return;
-            // VIEW: ghi nhận xem trang chi tiết
-            userBehaviorProducer.sendBehaviorEvent(userId, bookId, "VIEW", 1.0);
-            // SEARCH_CLICK: tín hiệu mạnh hơn nếu đến từ tìm kiếm
-            if (fromSearch) {
-                userBehaviorProducer.sendBehaviorEvent(userId, bookId, "SEARCH_CLICK", 3.0);
-            }
-        } catch (Exception e) {
-            // Không để lỗi tracking phá vỡ luồng chính
-            log.warn("Failed to track book view behavior: bookId={}", bookId, e);
-        }
-    }
-
     private BookResponse enrichBookResponse(Book book) {
         BookResponse response = bookMapper.toBookResponse(book);
         if (book.getCategoryId() != null) {
@@ -258,7 +236,14 @@ public class BookService {
     }
 
 
-    public BookResponse getBookToRead(String bookId) {
+    /**
+     * API mở xem chi tiết sách: trả về thông tin sách + lịch sử đọc + link file.
+     * Đây là điểm chính xác để bắn VIEW (và SEARCH_CLICK nếu đến từ tìm kiếm).
+     *
+     * @param bookId     ID sách cần xem
+     * @param fromSearch true khi user click từ danh sách tìm kiếm
+     */
+    public BookResponse getBookToRead(String bookId, boolean fromSearch) {
         String userId = getUserId();
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
@@ -268,7 +253,7 @@ public class BookService {
             categoryRepository.findById(book.getCategoryId()).ifPresent(response::setCategory);
         }
 
-        // Lấy lịch sử đọc cũ (nếu có)
+        // Lấy lịch sử đọc cũ (vị trí, % tiến độ, trạng thái)
         historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId).ifPresent(history -> {
             response.setLastPosition(history.getLastPosition());
             response.setProgressPercent(history.getProgressPercent());
@@ -277,14 +262,12 @@ public class BookService {
             }
         });
 
-        // Tăng view tổng của sách mỗi khi mở đọc
+        // Tăng view tổng của sách (hiển thị trên UI)
         book.setTotalViews(book.getTotalViews() + 1);
         bookRepository.save(book);
 
-        // Lấy lịch sử yêu thích
+        // Lấy trạng thái yêu thích và đánh giá
         response.setFavorited(bookFavoriteRepository.existsByUserIdAndBookId(userId, bookId));
-
-        // Lấy lịch sử đánh giá
         bookReviewRepository.findByUserIdAndBookId(userId, bookId).ifPresent(review ->
             response.setUserRating(review.getRating())
         );
@@ -292,8 +275,17 @@ public class BookService {
         // Ghi nhận vào bảng xếp hạng ngày
         increaseRankingCount(bookId);
 
-        // ⚠️ KHÔNG bắn VIEW ở đây — getBookToRead() chỉ trả về file để đọc
-        // VIEW được bắn trong getById() khi user xem trang chi tiết sách
+        // === BEHAVIOR TRACKING (bất đồng bộ, không block response) ===
+        // VIEW  : ghi nhận user đã mở xem trang chi tiết sách
+        // SEARCH_CLICK: bắn thêm nếu user đến từ kết quả tìm kiếm (tín hiệu intent cao hơn)
+        try {
+            userBehaviorProducer.sendBehaviorEvent(userId, bookId, "VIEW", 1.0);
+            if (fromSearch) {
+                userBehaviorProducer.sendBehaviorEvent(userId, bookId, "SEARCH_CLICK", 3.0);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send behavior event: bookId={}", bookId, e);
+        }
 
         return response;
     }

@@ -107,6 +107,25 @@ public class ChatMessageService {
 
         chatMessageResponse.setMe(userId.equals(chatMessage.getSender().getUserId()));
 
+        if (chatMessage.getSender() != null) {
+            try {
+                var profileRes =
+                        profileClient.getProfile(chatMessage.getSender().getUserId());
+                if (profileRes != null && profileRes.getResult() != null) {
+                    var result = profileRes.getResult();
+                    chatMessageResponse
+                            .getSender()
+                            .setDisplayName(
+                                    result.getDisplayName() != null ? result.getDisplayName() : result.getUsername());
+                    chatMessageResponse.getSender().setAvatar(result.getAvatar());
+                }
+            } catch (Exception e) {
+                log.warn(
+                        "Failed to fetch fresh sender profile for user {}",
+                        chatMessage.getSender().getUserId());
+            }
+        }
+
         return chatMessageResponse;
     }
 }

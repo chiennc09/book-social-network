@@ -30,13 +30,14 @@ export interface BookDetail extends Book {
 export const bookService = {
   async getBookDetails(id: string, fromSearch = false): Promise<BookDetail> {
     try {
-      // Sử dụng getById (GET /{id}) cho trang chi tiết sách
-      // → Backend sẽ bắn VIEW event (và SEARCH_CLICK nếu fromSearch=true)
-      // readBook (GET /{id}/read) chỉ dùng khi mở Reader để đọc thực sự
+      // readBook (GET /{id}/read) = endpoint xem chi tiết sách
+      // → Backend bắn VIEW (+ SEARCH_CLICK nếu fromSearch=true)
+      // getById (GET /{id}) chỉ dùng cho danh sách/cards, không bắn event
       const [bookResp, reviewsResp] = await Promise.all([
-        bookApi.getById(id, fromSearch),
+        bookApi.readBook(id, fromSearch),
         bookApi.getReviews(id).catch(e => ({ result: [] as any[] }))
       ]);
+
       const data: any = (bookResp as any).result;
       const reviewsData = (reviewsResp as any).result || [];
 

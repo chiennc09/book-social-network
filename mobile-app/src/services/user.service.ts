@@ -33,7 +33,9 @@ export const userService = {
         followersCount: profileData.followersCount || 0,
         friendCount: profileData.friendCount || 0,
         totalBooksRead: profileData.totalBooksRead || 0,
-        badges: userBadges
+        badges: userBadges,
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
       };
     } catch (error) {
        console.error("Failed to fetch profile from API", error);
@@ -67,7 +69,9 @@ export const userService = {
         friendCount: profileData.friendCount || 0,
         totalBooksRead: profileData.totalBooksRead || 0,
         relationship: profileData.relationship || 'NONE',
-        badges: userBadges
+        badges: userBadges,
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
       };
     } catch (error) {
        console.error(`Failed to fetch profile for user ${userId}`, error);

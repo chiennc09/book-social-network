@@ -13,6 +13,10 @@ from app.services.embedding_service import (
 import json
 import logging
 
+# TTL cho today_rec:{userId} — ngắn hạn, session-based
+# Phải khớp với _TODAY_REC_TTL trong interaction_service.py
+_TODAY_REC_TTL_SECONDS = 3_600   # 1 giờ
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -184,7 +188,7 @@ async def get_today_recommendations(user_id: str, limit: int = 10):
             valid_ids = await _get_valid_book_ids_from_mongo(cached_ids)
             if valid_ids != cached_ids:
                 # Stale IDs found — update cache
-                await redis_client.set(today_key, json.dumps(valid_ids), ex=settings.REDIS_TTL_SECONDS)
+                await redis_client.set(today_key, json.dumps(valid_ids), ex=_TODAY_REC_TTL_SECONDS)
             return TodayRecommendationResponse(
                 userId=user_id,
                 todayBookIds=valid_ids,
@@ -228,7 +232,7 @@ async def get_today_recommendations(user_id: str, limit: int = 10):
             result_ids = await _get_valid_book_ids_from_mongo(result_ids)
 
         # Write to cache (even empty result, prevents thunder-herd)
-        await redis_client.set(today_key, json.dumps(result_ids), ex=settings.REDIS_TTL_SECONDS)
+        await redis_client.set(today_key, json.dumps(result_ids), ex=_TODAY_REC_TTL_SECONDS)
 
         return TodayRecommendationResponse(
             userId=user_id, todayBookIds=result_ids, source=source

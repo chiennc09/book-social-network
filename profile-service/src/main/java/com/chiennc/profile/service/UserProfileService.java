@@ -102,9 +102,9 @@ public class UserProfileService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         if (request.getBio() != null) profile.setBio(request.getBio());
-        // if (request.getLink() != null) profile.setLink(request.getLink());
         if (request.getAvatar() != null) profile.setAvatar(request.getAvatar());
-        // if (request.getIsPrivate() != null) profile.setIsPrivate(request.getIsPrivate());
+        if (request.getFirstName() != null) profile.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) profile.setLastName(request.getLastName());
 
         profile = userProfileRepository.save(profile);
         return userProfileMapper.toUserProfileResponse(profile);

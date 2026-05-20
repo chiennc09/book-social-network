@@ -11,6 +11,8 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { RankBadge } from '../common/RankBadge';
 
+import { resolveMediaUrl } from '../../config/env';
+
 const { width } = Dimensions.get('window');
 
 interface FeedItemProps {
@@ -25,15 +27,18 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
   const [commentsCount, setCommentsCount] = useState(post.commentsCount || 0);
   const [repostsCount, setRepostsCount] = useState(post.repostsCount || 0);
   const [hasReposted, setHasReposted] = useState(false); // Valid chỉ 1 lần
+  const [content, setContent] = useState(post.content);
+  const [book, setBook] = useState(post.book);
 
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
 
   // Tính toán Avatar: Nếu post này là của user đang đăng nhập, ưu tiên dùng Avatar trong Redux 
   // (để cập nhật tức thời khi đổi ảnh)
   const isMyPost = post.user.id === (currentUser as any)?.id;
-  const displayAvatar = isMyPost && (currentUser as any)?.avatar 
+  const rawAvatar = isMyPost && (currentUser as any)?.avatar 
        ? (currentUser as any).avatar 
        : (post.user.avatar || DEFAULT_AVATAR);
+  const displayAvatar = resolveMediaUrl(rawAvatar, 'avatars');
 
   React.useEffect(() => {
      const subscription = eventEmitter.on(EventNames.POST_UPDATED, (updatedPost: any) => {
@@ -42,6 +47,8 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
            if (updatedPost.isLiked !== undefined) setIsLiked(updatedPost.isLiked);
            if (updatedPost.commentsCount !== undefined) setCommentsCount(updatedPost.commentsCount);
            if (updatedPost.repostsCount !== undefined) setRepostsCount(updatedPost.repostsCount);
+           if (updatedPost.content !== undefined) setContent(updatedPost.content);
+           if (updatedPost.book !== undefined) setBook(updatedPost.book);
         }
      });
      return () => subscription.remove();
@@ -96,6 +103,11 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
       Alert.alert('Tùy chọn', 'Bạn muốn làm gì với bài viết này?', [
         { text: 'Hủy', style: 'cancel' },
         {
+          text: 'Chỉnh sửa bài viết', onPress: () => {
+            navigation.navigate('NewThread', { postToEdit: { id: post.id, content, book } });
+          }
+        },
+        {
           text: 'Xóa bài viết', style: 'destructive', onPress: async () => {
             try {
               await postApi.deletePost(post.id);
@@ -145,21 +157,21 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
         </View>
 
         {/* Nội dung text */}
-        <Text style={styles.content}>{post.content}</Text>
+        <Text style={styles.content}>{content}</Text>
 
         {/* --- BOOK TAGGING CARD --- */}
-        {post.book && (
+        {book && (
           <TouchableOpacity 
              style={styles.bookCard}
-             onPress={() => navigation.navigate('BookDetail', { bookId: post.book?.id })}
+             onPress={() => navigation.navigate('BookDetail', { bookId: book?.id })}
           >
-            <Image source={{ uri: post.book.coverUrl || post.book.coverImage }} style={styles.bookCover} />
+            <Image source={{ uri: book.coverUrl || book.coverImage }} style={styles.bookCover} />
             <View style={styles.bookInfo}>
-              <Text style={styles.bookTitle} numberOfLines={1}>{post.book.title}</Text>
-              <Text style={styles.bookAuthor}>{post.book?.author || (post.book.authors ? post.book.authors[0] : 'Unknown')}</Text>
+              <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
+              <Text style={styles.bookAuthor}>{book?.author || (book.authors ? book.authors[0] : 'Unknown')}</Text>
               <View style={styles.ratingBadge}>
                  <Icon name="star" size={10} color="#FFD700" />
-                 <Text style={styles.ratingText}>{post.book.averageRating || 0}</Text>
+                 <Text style={styles.ratingText}>{book.averageRating || 0}</Text>
               </View>
             </View>
             <Icon name="chevron-right" size={20} color={COLORS.textSecondary} />

@@ -17,6 +17,10 @@ export const postApi = {
     return axiosClient.post(`${BASE_URL}/create`, data);
   },
 
+  updatePost: (postId: string, data: { content: string; bookId?: string }) => {
+    return axiosClient.put(`${BASE_URL}/${postId}`, data);
+  },
+
   getMyPosts: (page: number = 1, size: number = 10) => {
     return axiosClient.get<any, { result: PageResponse<Post> }>(`${BASE_URL}/my-posts`, {
         params: { page, size }

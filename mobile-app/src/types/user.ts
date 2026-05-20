@@ -20,4 +20,6 @@ export interface UserProfile {
   userId?: string; 
   totalBooksRead?: number;
   badges?: Badge[];
+  firstName?: string;
+  lastName?: string;
 }

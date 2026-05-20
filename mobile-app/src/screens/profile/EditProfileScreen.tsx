@@ -19,6 +19,8 @@ const EditProfileScreen = ({ navigation, route }: any) => {
   const [saving, setSaving] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<any>(null); // full image picker asset
+  const [firstName, setFirstName] = useState(currentUser.firstName || '');
+  const [lastName, setLastName] = useState(currentUser.lastName || '');
 
   const handleSelectImage = async () => {
     try {
@@ -68,7 +70,9 @@ const EditProfileScreen = ({ navigation, route }: any) => {
           bio, 
           link, 
           isPrivate,
-          avatar: uploadedAvatarUrl
+          avatar: uploadedAvatarUrl,
+          firstName,
+          lastName,
         });
         
         // Cần dispatch action update Redux store nếu thực tế
@@ -104,8 +108,8 @@ const EditProfileScreen = ({ navigation, route }: any) => {
         {/* Form Group: Username & Avatar (Read-only) */}
         <View style={styles.formGroup}>
             <View style={{flex: 1}}>
-                <Text style={styles.label}>Tên</Text>
-                <Text style={styles.valueLocked}>{currentUser.displayName} ({currentUser.username})</Text>
+                <Text style={styles.label}>Tên đăng nhập</Text>
+                <Text style={styles.valueLocked}>@{currentUser.username}</Text>
             </View>
             {/* Nếu có ảnh thì hiện, ko thì placeholder */}
             <View style={{alignItems: 'center'}}>
@@ -119,6 +123,32 @@ const EditProfileScreen = ({ navigation, route }: any) => {
                  <Text style={{color: '#0095f6', fontSize: 12, fontWeight: 'bold'}}>Đổi ảnh</Text>
               </TouchableOpacity>
             </View>
+        </View>
+        <View style={styles.divider} />
+
+        {/* Họ & Tên đệm Input */}
+        <View style={styles.formGroupVertical}>
+            <Text style={styles.label}>Họ</Text>
+            <TextInput 
+                placeholder="Nhập họ và tên đệm" 
+                placeholderTextColor={COLORS.textSecondary} 
+                style={styles.input} 
+                value={lastName}
+                onChangeText={setLastName}
+            />
+        </View>
+        <View style={styles.divider} />
+
+        {/* Tên Input */}
+        <View style={styles.formGroupVertical}>
+            <Text style={styles.label}>Tên</Text>
+            <TextInput 
+                placeholder="Nhập tên" 
+                placeholderTextColor={COLORS.textSecondary} 
+                style={styles.input} 
+                value={firstName}
+                onChangeText={setFirstName}
+            />
         </View>
         <View style={styles.divider} />
 

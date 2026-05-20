@@ -233,6 +233,19 @@ public class PostService {
         comment = postCommentRepository.save(comment);
         CommentResponse response = commentMapper.toCommentResponse(comment);
         response.setCreated(dateTimeFormatter.format(comment.getCreatedDate()));
+        
+        try {
+            UserProfileResponse profile = profileClient.getProfile(comment.getUserId()).getResult();
+            if (profile != null) {
+                response.setUserAvatar(profile.getAvatar());
+                response.setUsername(profile.getUsername());
+                response.setUserDisplayName(profile.getDisplayName());
+                response.setUserBadges(profile.getBadges());
+            }
+        } catch(Exception e) {
+            log.warn("Could not fetch profile for new comment user {}", comment.getUserId());
+        }
+        
         return response;
     }
 
@@ -302,6 +315,27 @@ public class PostService {
                 .totalElements(pageData.getTotalElements())
                 .data(commentList)
                 .build();
+    }
+
+    public PostResponse updatePost(String postId, PostRequest request) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
+        
+        String currentUserId = getUserIdByToken();
+        if (!post.getUserId().equals(currentUserId)) {
+            throw new RuntimeException("You are not authorized to update this post");
+        }
+
+        if (request.getContent() != null) {
+            post.setContent(request.getContent());
+        }
+        if (request.getBookId() != null) {
+            post.setBookId(request.getBookId());
+        }
+        post.setModifiedDate(Instant.now());
+
+        post = postRepository.save(post);
+        return enrichPostResponse(post, post.getUsername(), null);
     }
 
     public String getUserIdByToken(){

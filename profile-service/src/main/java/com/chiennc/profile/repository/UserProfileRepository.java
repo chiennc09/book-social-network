@@ -52,7 +52,6 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
 	""")
     void declineFriendRequest(String from, String to);
 
-
     /* ================= UNFRIEND ================= */
     @Query("""
 		MATCH (u:user_profile {userId: $from})-[r:FRIEND]-(t:user_profile {userId: $to})

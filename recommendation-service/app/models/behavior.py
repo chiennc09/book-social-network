@@ -4,12 +4,13 @@ from enum import Enum
 from typing import Optional, Union, List
 
 class ActionType(str, Enum):
-    FAVORITE = "FAVORITE"
-    RATING = "RATING"
+    FAVORITE      = "FAVORITE"
+    UNFAVORITE    = "UNFAVORITE"    # Negative signal: bỏ thích sách
+    RATING        = "RATING"
     ADD_BOOKSHELF = "ADD_BOOKSHELF"
-    SEARCH_CLICK = "SEARCH_CLICK"
-    VIEW = "VIEW"
-    READ_TIME = "READ_TIME"
+    SEARCH_CLICK  = "SEARCH_CLICK"
+    VIEW          = "VIEW"
+    READ_TIME     = "READ_TIME"
 
 class UserBehaviorEvent(BaseModel):
     eventId: str

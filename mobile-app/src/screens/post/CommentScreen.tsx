@@ -7,6 +7,7 @@ import { postApi } from '../../api/postApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import FeedItem from '../../components/feed/FeedItem';
+import { userService } from '../../services/user.service';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 
 // Sub-component cho mỗi Comment để có thể quản lý Replies riêng tư
@@ -41,7 +42,14 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigati
       <View style={styles.leftCol}>
         <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: item.userId })}>
            <Image 
-              source={{ uri: (authUser && item.userId === authUser.id && authUser.avatar) ? authUser.avatar : (resolveMediaUrl(item.userAvatar, 'avatars') || DEFAULT_AVATAR) }} 
+              source={{ 
+                uri: resolveMediaUrl(
+                  (authUser && item.userId === (authUser.id || authUser.userId)) 
+                    ? (authUser.avatar || authUser.avatarUrl || item.userAvatar) 
+                    : item.userAvatar, 
+                  'avatars'
+                ) || DEFAULT_AVATAR 
+              }} 
               style={[styles.avatar, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
            />
         </TouchableOpacity>
@@ -124,9 +132,18 @@ const CommentScreen = ({ route, navigation }: any) => {
 
   // Redux auth user for display
   const { user } = useSelector((state: RootState) => state.auth);
+  const [myProfile, setMyProfile] = useState<any>(null);
 
   useEffect(() => {
     fetchComments();
+
+    userService.getProfile()
+      .then(profile => {
+        setMyProfile(profile);
+      })
+      .catch(err => {
+        console.error("Failed to load user profile in CommentScreen", err);
+      });
   }, [postId]);
 
   const fetchComments = async () => {
@@ -194,7 +211,7 @@ const CommentScreen = ({ route, navigation }: any) => {
          <FlatList
            data={comments}
            keyExtractor={(item) => item.id}
-           renderItem={({ item }) => <CommentItem item={item} onReplyClick={handleReplyClick} authUser={user} navigation={navigation} />}
+           renderItem={({ item }) => <CommentItem item={item} onReplyClick={handleReplyClick} authUser={myProfile || user} navigation={navigation} />}
            contentContainerStyle={{ paddingBottom: 80 }}
            ListHeaderComponent={() => (
              <>
@@ -214,7 +231,7 @@ const CommentScreen = ({ route, navigation }: any) => {
       {/* Input luôn ở dưới */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
          <View style={styles.inputContainer}>
-            <Image source={{ uri: resolveMediaUrl((user as any)?.avatarUrl || (user as any)?.avatar, 'avatars') || DEFAULT_AVATAR }} style={styles.inputAvatar} />
+            <Image source={{ uri: myProfile?.avatar || resolveMediaUrl((user as any)?.avatarUrl || (user as any)?.avatar, 'avatars') || DEFAULT_AVATAR }} style={styles.inputAvatar} />
             <TextInput
                style={styles.input}
                placeholder={`Thêm câu trả lời...`}
