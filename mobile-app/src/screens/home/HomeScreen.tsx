@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Text, SafeAreaView, RefreshControl, Image, Animated } from 'react-native';
+import { View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Text, RefreshControl, Image, Animated, StatusBar, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { feedService } from '../../services/feed.service';
@@ -9,13 +10,16 @@ import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
+import { useTheme } from '../../context/ThemeContext';
 
 const HomeScreen = ({ route, navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const filterParam = route.params?.filter || 'foryou'; // Nhận từ Drawer
 
   const [posts, setPosts] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { colors, isDarkMode } = useTheme();
   
   // Lấy avatar hiện tại từ Redux để update realtime
   const { user: authUser } = useSelector((state: RootState) => state.auth);
@@ -150,13 +154,18 @@ const HomeScreen = ({ route, navigation }: any) => {
     }
   };
 
-  // 1. Header Navigation (Logo, Menu) - Giữ nguyên
+  // 1. Header Navigation (Logo, Menu)
   const renderNavHeader = () => (
-    <View style={styles.navHeader}>
+    <View style={[styles.navHeader, { borderBottomColor: colors.border }]}>
       <TouchableOpacity onPress={() => navigation.openDrawer()} style={styles.iconBtn}>
-        <Icon name="menu" size={24} color={COLORS.text} />
+        <Icon name="menu" size={24} color={colors.text} />
       </TouchableOpacity>
-      <Icon name="book-open" size={28} color={COLORS.text} />
+      <View style={styles.logoContainer}>
+        <Icon name="book-open" size={20} color={isDarkMode ? '#00E5FF' : '#00838F'} style={{ marginRight: 6 }} />
+        <Text style={[styles.logoText, { color: colors.text }]}>
+          Book<Text style={{ color: isDarkMode ? '#00E5FF' : '#00838F', fontWeight: 'bold' }}>Social</Text>
+        </Text>
+      </View>
       <View style={{ width: 30 }} />
     </View>
   );
@@ -172,24 +181,24 @@ const HomeScreen = ({ route, navigation }: any) => {
               style={styles.fakeInput}
               onPress={() => navigation.navigate('NewThread')} // Mở modal
            >
-             <Text style={styles.placeholderText}>Có gì mới?</Text>
+             <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>Có gì mới?</Text>
            </TouchableOpacity>
            
-           <TouchableOpacity style={styles.postButtonSmall} disabled>
-              <Text style={styles.postButtonText}>Đăng</Text>
+           <TouchableOpacity style={[styles.postButtonSmall, { backgroundColor: colors.card }]} disabled>
+              <Text style={[styles.postButtonText, { color: isDarkMode ? '#555' : '#888' }]}>Đăng</Text>
            </TouchableOpacity>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {renderNavHeader()}
       
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.text} style={{marginTop: 20}} />
+        <ActivityIndicator size="large" color={colors.text} style={{marginTop: 20}} />
       ) : (
         <View style={{flex: 1}}>
             <FlatList
@@ -200,12 +209,12 @@ const HomeScreen = ({ route, navigation }: any) => {
               // Gắn Header Input vào đây
               ListHeaderComponent={renderInputHeader}
               
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.text} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} colors={[colors.text]} />}
               contentContainerStyle={{ paddingBottom: 80 }}
               
               onEndReached={loadMore}
               onEndReachedThreshold={0.5}
-              ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={COLORS.text} /> : null}
+              ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={colors.text} /> : null}
               
               // Lắng nghe sự kiện cuộn
               onScroll={handleScroll}
@@ -215,16 +224,16 @@ const HomeScreen = ({ route, navigation }: any) => {
             {/* 3. Nút FAB (Floating Action Button) */}
             <Animated.View style={[styles.fabContainer, { opacity: fadeAnim, transform: [{ scale: fadeAnim }] }]}>
                <TouchableOpacity 
-                  style={styles.fab} 
+                  style={[styles.fab, { backgroundColor: colors.primary, borderColor: colors.border }]} 
                   onPress={() => navigation.navigate('NewThread')}
                   activeOpacity={0.8}
                >
-                  <Icon name="plus" size={28} color="black" />
+                  <Icon name="plus" size={28} color={isDarkMode ? 'black' : 'white'} />
                </TouchableOpacity>
             </Animated.View>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -238,6 +247,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5, borderBottomColor: '#333',
   },
   iconBtn: { width: 30, alignItems: 'flex-start' },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    letterSpacing: 0.3,
+  },
 
   // Input Header Styles
   inputHeaderContainer: { paddingHorizontal: SPACING.m, paddingTop: SPACING.m },

@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING } from '../../constants/theme';
 import { appService } from '../../services/app.service';
+import { useTheme } from '../../context/ThemeContext';
 
 const HomeDrawerContent = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [filters, setFilters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState('foryou');
+  const { colors, isDarkMode } = useTheme();
 
   useEffect(() => {
     const fetchFilters = async () => {
@@ -19,22 +23,29 @@ const HomeDrawerContent = ({ navigation }: any) => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Bảng Feed</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Bảng Feed</Text>
         <TouchableOpacity onPress={() => navigation.closeDrawer()}>
-           <Icon name="x" size={24} color={COLORS.textSecondary} />
+           <Icon name="x" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator color={COLORS.text} style={{ marginTop: 20 }} />
+        <ActivityIndicator color={colors.text} style={{ marginTop: 20 }} />
       ) : (
         <View style={styles.list}>
           {filters.map((item) => (
             <TouchableOpacity 
               key={item.id} 
-              style={[styles.item, activeId === item.id && styles.activeItem]}
+              style={[
+                styles.item, 
+                { 
+                  borderColor: colors.border, 
+                  backgroundColor: colors.card 
+                }, 
+                activeId === item.id && { borderColor: colors.text }
+              ]}
               onPress={() => {
                 setActiveId(item.id);
                 navigation.navigate('HomeFeed', { filter: item.id });
@@ -42,30 +53,28 @@ const HomeDrawerContent = ({ navigation }: any) => {
                 setTimeout(() => navigation.closeDrawer(), 100);
               }}
             >
-              <Text style={[styles.itemText, activeId === item.id && styles.activeText]}>
+              <Text style={[styles.itemText, { color: colors.textSecondary }, activeId === item.id && { color: colors.text }]}>
                 {item.label}
               </Text>
-              {activeId === item.id && <Icon name="check" size={18} color={COLORS.text} />}
+              {activeId === item.id && <Icon name="check" size={18} color={colors.text} />}
             </TouchableOpacity>
           ))}
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#181818', padding: SPACING.m }, // Màu nền hơi xám giống ảnh
+  container: { flex: 1, padding: SPACING.m },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.l, paddingHorizontal: SPACING.s },
-  title: { color: COLORS.text, fontSize: 22, fontWeight: 'bold' },
+  title: { fontSize: 22, fontWeight: 'bold' },
   list: { gap: 10 },
   item: { 
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: SPACING.m, borderRadius: 12, borderWidth: 1, borderColor: '#333', backgroundColor: '#000' 
+    padding: SPACING.m, borderRadius: 12, borderWidth: 1
   },
-  activeItem: { borderColor: COLORS.text },
-  itemText: { color: COLORS.textSecondary, fontSize: 16, fontWeight: '600' },
-  activeText: { color: COLORS.text },
+  itemText: { fontSize: 16, fontWeight: '600' },
 });
 
 export default HomeDrawerContent;

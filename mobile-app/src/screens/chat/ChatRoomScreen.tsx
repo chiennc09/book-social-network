@@ -6,11 +6,12 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Feather';
 import { chatApi } from '../../api/chatApi';
 import { chatSocketService } from '../../services/chatSocket.service';
@@ -36,45 +37,57 @@ const BookCard = ({
   book: any;
   onPress: () => void;
   isMe: boolean;
-}) => (
-  <TouchableOpacity
-    style={[styles.bookCard, isMe ? styles.bookCardMe : styles.bookCardThem]}
-    onPress={onPress}
-    activeOpacity={0.85}>
-    <View style={styles.bookCardInner}>
-      {book.coverUrl ? (
-        <Image source={{ uri: book.coverUrl }} style={styles.bookCardCover} />
-      ) : (
-        <View style={[styles.bookCardCover, styles.bookCardCoverPlaceholder]}>
-          <Icon name="book" size={22} color="#aaa" />
-        </View>
-      )}
-      <View style={styles.bookCardInfo}>
-        <Text style={styles.bookCardTitle} numberOfLines={2}>
-          {book.title}
-        </Text>
-        {book.author ? (
-          <Text style={styles.bookCardAuthor} numberOfLines={1}>
-            {book.author}
-          </Text>
-        ) : null}
-        {typeof book.ratingAverage === 'number' ? (
-          <View style={styles.bookCardRating}>
-            <Icon name="star" size={12} color="#FFD700" />
-            <Text style={styles.bookCardRatingText}>
-              {book.ratingAverage.toFixed(1)}
-            </Text>
+}) => {
+  const { colors, isDarkMode } = useTheme();
+  return (
+    <TouchableOpacity
+      style={[
+        styles.bookCard,
+        isMe ? styles.bookCardMe : [styles.bookCardThem, { backgroundColor: colors.card }],
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}>
+      <View style={styles.bookCardInner}>
+        {book.coverUrl ? (
+          <Image source={{ uri: book.coverUrl }} style={styles.bookCardCover} />
+        ) : (
+          <View style={[
+            styles.bookCardCover, 
+            styles.bookCardCoverPlaceholder, 
+            { backgroundColor: isMe ? 'rgba(255,255,255,0.15)' : (isDarkMode ? '#222' : '#F0F0F0') }
+          ]}>
+            <Icon name="book" size={22} color={isMe ? '#fff' : colors.textSecondary} />
           </View>
-        ) : null}
+        )}
+        <View style={styles.bookCardInfo}>
+          <Text style={[styles.bookCardTitle, { color: isMe ? '#fff' : colors.text }]} numberOfLines={2}>
+            {book.title}
+          </Text>
+          {book.author ? (
+            <Text style={[styles.bookCardAuthor, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]} numberOfLines={1}>
+              {book.author}
+            </Text>
+          ) : null}
+          {typeof book.ratingAverage === 'number' ? (
+            <View style={styles.bookCardRating}>
+              <Icon name="star" size={12} color="#FFD700" />
+              <Text style={styles.bookCardRatingText}>
+                {book.ratingAverage.toFixed(1)}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <Icon name="chevron-right" size={18} color={isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary} />
       </View>
-      <Icon name="chevron-right" size={18} color="#aaa" />
-    </View>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
 const ChatRoomScreen = ({ route, navigation }: any) => {
+  const insets = useSafeAreaInsets();
+  const { colors, isDarkMode } = useTheme();
   const { conversationId, conversationName, conversationAvatar } = route.params;
 
   const [messages, setMessages] = useState<any[]>([]);
@@ -152,7 +165,7 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
         )}
         <View style={styles.messageOuter}>
           {!isMe && (
-            <Text style={styles.senderName}>
+            <Text style={[styles.senderName, { color: colors.textSecondary }]}>
               {item.sender?.displayName || item.sender?.username}
             </Text>
           )}
@@ -171,16 +184,16 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
             <View
               style={[
                 styles.messageContent,
-                isMe ? styles.messageContentMe : styles.messageContentThem,
+                isMe ? styles.messageContentMe : [styles.messageContentThem, { backgroundColor: colors.card }],
               ]}>
-              <Text style={styles.messageText}>{item.message}</Text>
+              <Text style={[styles.messageText, { color: isMe ? '#fff' : colors.text }]}>{item.message}</Text>
             </View>
           )}
 
           <Text
             style={[
               styles.timestamp,
-              isMe ? styles.timestampMe : styles.timestampThem,
+              { color: colors.textSecondary },
             ]}>
             {formatTime(item.createdDate)}
           </Text>
@@ -190,10 +203,10 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-          <Icon name="arrow-left" size={24} color={COLORS.text} />
+          <Icon name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <UserAvatar
@@ -201,7 +214,7 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
             size={36}
             style={styles.headerAvatar}
           />
-          <Text style={styles.headerTitle}>{conversationName || 'Chat'}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{conversationName || 'Chat'}</Text>
         </View>
         <View style={{ width: 32 }} />
       </View>
@@ -221,20 +234,20 @@ const ChatRoomScreen = ({ route, navigation }: any) => {
           }}
         />
 
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { borderTopColor: colors.border }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
             placeholder="Nhập tin nhắn..."
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={colors.textSecondary}
             value={inputText}
             onChangeText={setInputText}
           />
-          <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-            <Icon name="send" size={20} color={COLORS.background} />
+          <TouchableOpacity style={[styles.sendButton, { backgroundColor: colors.primary }]} onPress={sendMessage}>
+            <Icon name="send" size={20} color={isDarkMode ? 'black' : 'white'} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

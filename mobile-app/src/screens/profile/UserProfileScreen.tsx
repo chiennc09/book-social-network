@@ -1,5 +1,7 @@
+// src/screens/profile/UserProfileScreen.tsx
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Animated, FlatList } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, FlatList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { userService } from '../../services/user.service';
@@ -12,8 +14,10 @@ import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
 import { RankBadge } from '../../components/common/RankBadge';
+import { useTheme } from '../../context/ThemeContext';
 
 const UserProfileScreen = ({ route, navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const { userId } = route.params;
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +31,7 @@ const UserProfileScreen = ({ route, navigation }: any) => {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const { onScroll } = useTabBarScrollControl();
+  const { colors, isDarkMode } = useTheme();
 
   const fetchProfileAndPosts = async (pageNum = 1) => {
     try {
@@ -122,47 +127,47 @@ const UserProfileScreen = ({ route, navigation }: any) => {
        case 'FRIEND':
          return (
            <View style={{flexDirection: 'row', gap: 10}}>
-             <TouchableOpacity style={styles.btnOutline} onPress={() => handleInteract('REMOVE')}>
-               <Text style={styles.btnText}>Huỷ kết bạn</Text>
+             <TouchableOpacity style={[styles.btnOutline, { borderColor: colors.border }]} onPress={() => handleInteract('REMOVE')}>
+               <Text style={[styles.btnText, { color: colors.text }]}>Huỷ kết bạn</Text>
              </TouchableOpacity>
-             <TouchableOpacity style={styles.btnPrimary} onPress={handleStartChat}>
-               <Text style={styles.btnTextPrimary}>Nhắn tin</Text>
+             <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: colors.text }]} onPress={handleStartChat}>
+               <Text style={[styles.btnTextPrimary, { color: isDarkMode ? 'black' : 'white' }]}>Nhắn tin</Text>
              </TouchableOpacity>
            </View>
          );
        case 'PENDING_INCOMING':
          return (
            <View style={{flexDirection: 'row', gap: 10}}>
-             <TouchableOpacity style={styles.btnPrimary} onPress={() => handleInteract('ACCEPT')}>
-               <Text style={styles.btnTextPrimary}>Chấp nhận</Text>
+             <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: colors.text }]} onPress={() => handleInteract('ACCEPT')}>
+               <Text style={[styles.btnTextPrimary, { color: isDarkMode ? 'black' : 'white' }]}>Chấp nhận</Text>
              </TouchableOpacity>
-             <TouchableOpacity style={styles.btnOutline} onPress={() => handleInteract('REMOVE')}>
-               <Text style={styles.btnText}>Từ chối</Text>
+             <TouchableOpacity style={[styles.btnOutline, { borderColor: colors.border }]} onPress={() => handleInteract('REMOVE')}>
+               <Text style={[styles.btnText, { color: colors.text }]}>Từ chối</Text>
              </TouchableOpacity>
            </View>
          );
        case 'PENDING_OUTGOING':
          return (
-           <TouchableOpacity style={styles.btnOutline} onPress={() => handleInteract('REMOVE')}>
-             <Text style={styles.btnText}>Huỷ lời mời</Text>
+           <TouchableOpacity style={[styles.btnOutline, { borderColor: colors.border }]} onPress={() => handleInteract('REMOVE')}>
+             <Text style={[styles.btnText, { color: colors.text }]}>Huỷ lời mời</Text>
            </TouchableOpacity>
          );
        case 'SELF':
-         return null; // Không hiện núi nếu là màn hình của chính mình đang bị gọi nhầm qua route này
+         return null; // Không hiện nút nếu là màn hình của chính mình đang bị gọi nhầm qua route này
        default:
        case 'NONE':
          return (
-           <TouchableOpacity style={styles.btnPrimary} onPress={() => handleInteract('ADD')}>
-             <Text style={styles.btnTextPrimary}>Thêm Bạn Bè</Text>
+           <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: colors.text }]} onPress={() => handleInteract('ADD')}>
+             <Text style={[styles.btnTextPrimary, { color: isDarkMode ? 'black' : 'white' }]}>Thêm Bạn Bè</Text>
            </TouchableOpacity>
          );
-    }
+     }
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.text} />
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
@@ -187,55 +192,55 @@ const UserProfileScreen = ({ route, navigation }: any) => {
 
   const renderHeader = () => (
     <View style={{ marginBottom: 10 }}>
-      <View style={styles.appHeader}>
+      <View style={[styles.appHeader, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{padding: 5}}>
-          <Icon name="arrow-left" size={24} color={COLORS.text} />
+          <Icon name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{user?.username || 'Hồ sơ'}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{user?.username || 'Hồ sơ'}</Text>
         <View style={{width: 24}} />
       </View>
 
       <View style={styles.infoContainer}>
         <View style={styles.textContainer}>
-          <Text style={styles.displayName}>{user?.displayName}</Text>
+          <Text style={[styles.displayName, { color: colors.text }]}>{user?.displayName}</Text>
           <View style={styles.usernameRow}>
-             <Text style={styles.username}>{user?.username}</Text>
-             <View style={styles.badge}><Text style={styles.badgeText}>reads.net</Text></View>
-             
-             {user?.badges && user.badges.length > 0 && user.badges.map((b, index) => (
-                <RankBadge key={b.code || index} badge={b} />
-             ))}
+              <Text style={[styles.username, { color: colors.textSecondary }]}>{user?.username}</Text>
+              <View style={[styles.badge, { backgroundColor: colors.card }]}><Text style={[styles.badgeText, { color: colors.textSecondary }]}>reads.net</Text></View>
+              
+              {user?.badges && user.badges.length > 0 && user.badges.map((b, index) => (
+                 <RankBadge key={b.code || index} badge={b} />
+              ))}
           </View>
-          {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+          {user?.bio ? <Text style={[styles.bio, { color: colors.text }]}>{user.bio}</Text> : null}
         </View>
-        <Image source={{ uri: user?.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
+        <Image source={{ uri: user?.avatar || DEFAULT_AVATAR }} style={[styles.avatar, { backgroundColor: colors.border }]} />
       </View>
 
-      <Text style={styles.followers}>{user?.friendCount || 0} bạn bè</Text>
+      <Text style={[styles.followers, { color: colors.textSecondary }]}>{user?.friendCount || 0} bạn bè</Text>
 
       <View style={styles.actionButtons}>
          {renderActionButtons()}
       </View>
 
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
            <TouchableOpacity 
-             style={[styles.tabItem, activeTab === 'posts' && styles.activeTab]}
+             style={[styles.tabItem, activeTab === 'posts' && [styles.activeTab, { borderBottomColor: colors.text }]]}
              onPress={() => setActiveTab('posts')}
            >
-             <Text style={activeTab === 'posts' ? styles.activeTabText : styles.tabText}>Bài viết</Text>
+             <Text style={activeTab === 'posts' ? [styles.activeTabText, { color: colors.text }] : [styles.tabText, { color: colors.textSecondary }]}>Bài viết</Text>
            </TouchableOpacity>
            <TouchableOpacity 
-             style={[styles.tabItem, activeTab === 'reposts' && styles.activeTab]}
+             style={[styles.tabItem, activeTab === 'reposts' && [styles.activeTab, { borderBottomColor: colors.text }]]}
              onPress={() => setActiveTab('reposts')}
            >
-             <Text style={activeTab === 'reposts' ? styles.activeTabText : styles.tabText}>Đăng lại</Text>
+             <Text style={activeTab === 'reposts' ? [styles.activeTabText, { color: colors.text }] : [styles.tabText, { color: colors.textSecondary }]}>Đăng lại</Text>
            </TouchableOpacity>
         </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       <FlatList
         data={displayedPosts}
         keyExtractor={(item) => item.id}
@@ -243,7 +248,7 @@ const UserProfileScreen = ({ route, navigation }: any) => {
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           <View style={styles.feedPlaceholder}>
-              <Text style={styles.placeholderText}>Chưa có bài đăng nào.</Text>
+              <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>Chưa có bài đăng nào.</Text>
           </View>
         }
         refreshing={refreshing}
@@ -253,10 +258,10 @@ const UserProfileScreen = ({ route, navigation }: any) => {
         onScroll={onScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: 80 }}
-        ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={COLORS.text} /> : null}
+        ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={colors.text} /> : null}
       />
       <FloatingTabBar />
-    </SafeAreaView>
+    </View>
   );
 };
 

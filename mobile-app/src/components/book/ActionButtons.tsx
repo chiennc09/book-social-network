@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 interface Props {
   currentStatus: string;
@@ -23,6 +24,7 @@ const ActionButtons = ({
   onPressRead, progressPercent = 0, totalPages = 0,
   isFavorited = false, totalFavorites = 0, onToggleFavorite 
 }: Props) => {
+  const { colors, isDarkMode } = useTheme();
   
   // Map trạng thái sang Label tiếng Việt
   const getStatusLabel = (status: string) => {
@@ -49,9 +51,12 @@ const ActionButtons = ({
           </TouchableOpacity>
 
           {/* Nút Đọc sách To Đẹp Hài Hòa */}
-          <TouchableOpacity style={styles.readBtnLarge} onPress={onPressRead}>
-             <Icon name="book-open" size={18} color="#000000" style={{ marginRight: 6 }} />
-             <Text style={styles.readBtnText} numberOfLines={1} adjustsFontSizeToFit>Đọc sách</Text>
+          <TouchableOpacity 
+             style={[styles.readBtnLarge, { backgroundColor: colors.primary }]} 
+             onPress={onPressRead}
+          >
+             <Icon name="book-open" size={18} color={isDarkMode ? '#000000' : '#FFFFFF'} style={{ marginRight: 6 }} />
+             <Text style={[styles.readBtnText, { color: isDarkMode ? '#000000' : '#FFFFFF' }]} numberOfLines={1} adjustsFontSizeToFit>Đọc sách</Text>
           </TouchableOpacity>
 
           {/* Nút Yêu thích (Tym) */}
@@ -59,30 +64,30 @@ const ActionButtons = ({
              style={[
                styles.favBtn, 
                { 
-                 backgroundColor: isFavorited ? '#ff4757' : '#2A2A2A', 
-                 borderColor: isFavorited ? '#ff4757' : '#444', 
-                 borderWidth: isFavorited ? 0 : 1 
+                 backgroundColor: isFavorited ? '#ff4757' : colors.card, 
+                 borderColor: isFavorited ? '#ff4757' : colors.border, 
+                 borderWidth: 1 
                }
              ]} 
              onPress={onToggleFavorite}
           >
-             <Icon name="heart" size={18} color="white" />
+             <Icon name="heart" size={18} color={isFavorited ? 'white' : colors.text} />
              {totalFavorites > 0 ? (
-                <Text style={styles.favCount} numberOfLines={1} adjustsFontSizeToFit>{totalFavorites}</Text>
+                <Text style={[styles.favCount, { color: isFavorited ? 'white' : colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{totalFavorites}</Text>
              ) : null}
           </TouchableOpacity>
       </View>
 
       {/* 2. Rating Area: Chấm điểm */}
       <View style={styles.ratingArea}>
-         <Text style={styles.ratingLabel}>Đánh giá của bạn:</Text>
+         <Text style={[styles.ratingLabel, { color: colors.textSecondary }]}>Đánh giá của bạn:</Text>
          <View style={styles.starRow}>
             {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity key={star} onPress={() => onRate(star)} style={{padding: 4}}>
                     <Icon 
                         name="star" 
                         size={28} 
-                        color={star <= userRating ? '#FFD700' : '#444'} // Vàng nếu đã chọn, Xám nếu chưa
+                        color={star <= userRating ? '#FFD700' : (isDarkMode ? '#444' : '#E0E0E0')} // Vàng nếu đã chọn, Xám nếu chưa
                     />
                 </TouchableOpacity>
             ))}
@@ -90,20 +95,20 @@ const ActionButtons = ({
          {/* Nếu đã rate thì hiện nút viết review */}
          {userRating > 0 && (
              <TouchableOpacity onPress={() => onRate(userRating)} style={{ marginTop: 5 }}>
-                 <Text style={styles.writeReviewText}>Viết cảm nhận</Text>
+                 <Text style={[styles.writeReviewText, { color: colors.text }]}>Viết cảm nhận</Text>
              </TouchableOpacity>
          )}
       </View>
 
       {/* 3. Utils Buttons: Chi tiết & Share */}
       <View style={styles.utilsRow}>
-         <TouchableOpacity style={styles.utilBtn} onPress={onPressDetail}>
-            <Icon name="info" size={18} color={COLORS.text} />
-            <Text style={styles.utilBtnText}>Chi tiết</Text>
+         <TouchableOpacity style={[styles.utilBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={onPressDetail}>
+            <Icon name="info" size={18} color={colors.text} />
+            <Text style={[styles.utilBtnText, { color: colors.text }]}>Chi tiết</Text>
          </TouchableOpacity>
-         <TouchableOpacity style={styles.utilBtn} onPress={onPressShare}>
-            <Icon name="share-2" size={18} color={COLORS.text} />
-            <Text style={styles.utilBtnText}>Chia sẻ</Text>
+         <TouchableOpacity style={[styles.utilBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={onPressShare}>
+            <Icon name="share-2" size={18} color={colors.text} />
+            <Text style={[styles.utilBtnText, { color: colors.text }]}>Chia sẻ</Text>
          </TouchableOpacity>
       </View>
 

@@ -19,7 +19,7 @@ export interface Book {
   epubPath?: string;
   isPublic?: boolean;
   totalViews?: number;
-  totalPages: number;
+  totalPages?: number;
   averageRating?: number;
   lastPosition?: string;
   progressPercent?: number;

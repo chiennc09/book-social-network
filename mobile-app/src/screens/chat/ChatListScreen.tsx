@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, SafeAreaView, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chatApi } from '../../api/chatApi';
 import { profileApi } from '../../api/profileApi';
 import { DEFAULT_AVATAR, COLORS, SPACING } from '../../constants/theme';
@@ -8,8 +9,10 @@ import { UserAvatar } from '../../components/common/UserAvatar';
 import Icon from 'react-native-vector-icons/Feather';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
+import { useTheme } from '../../context/ThemeContext';
 
 const ChatListScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -19,6 +22,7 @@ const ChatListScreen = ({ navigation }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingFriends, setLoadingFriends] = useState(false);
   const { onScroll } = useTabBarScrollControl();
+  const { colors, isDarkMode } = useTheme();
 
   useEffect(() => {
     fetchConversations();
@@ -40,7 +44,7 @@ const ChatListScreen = ({ navigation }: any) => {
   const renderItem = ({ item }: { item: any }) => {
     return (
       <TouchableOpacity 
-        style={styles.chatItem} 
+        style={[styles.chatItem, { borderBottomColor: colors.border }]} 
         onPress={() => navigation.push('ChatRoom', { 
             conversationId: item.id, 
             conversationName: item.conversationName,
@@ -49,8 +53,8 @@ const ChatListScreen = ({ navigation }: any) => {
       >
         <UserAvatar url={item.conversationAvatar} size={50} />
         <View style={styles.chatInfo}>
-          <Text style={styles.chatName}>{item.conversationName}</Text>
-          <Text style={styles.chatPreview} numberOfLines={1}>
+          <Text style={[styles.chatName, { color: colors.text }]}>{item.conversationName}</Text>
+          <Text style={[styles.chatPreview, { color: colors.textSecondary }]} numberOfLines={1}>
              {item.lastMessage ? item.lastMessage.content || item.lastMessage.message || 'Tin nhắn mới' : 'Chưa có tin nhắn'}
           </Text>
         </View>
@@ -105,27 +109,27 @@ const ChatListScreen = ({ navigation }: any) => {
 
      return (
        <TouchableOpacity 
-          style={styles.chatItem} 
+          style={[styles.chatItem, { borderBottomColor: colors.border }]} 
           onPress={() => createChat(actualId, item.displayName || item.username, item.avatar || DEFAULT_AVATAR)}
        >
           <UserAvatar url={item.avatar} size={50} />
           <View style={styles.chatInfo}>
-            <Text style={styles.chatName}>{item.displayName || item.username}</Text>
-            <Text style={styles.chatPreview}>@{item.username}</Text>
+            <Text style={[styles.chatName, { color: colors.text }]}>{item.displayName || item.username}</Text>
+            <Text style={[styles.chatPreview, { color: colors.textSecondary }]}>@{item.username}</Text>
           </View>
        </TouchableOpacity>
      );
   };
 
-  if (loading) return <View style={styles.loader}><ActivityIndicator size="large" color={COLORS.text}/></View>;
+  if (loading) return <View style={[styles.loader, { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={colors.text}/></View>;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color={COLORS.text} />
+          <Icon name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tin nhắn</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Tin nhắn</Text>
         <View style={{ width: 24 }} />
       </View>
       
@@ -136,45 +140,45 @@ const ChatListScreen = ({ navigation }: any) => {
         onScroll={onScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: 80 }}
-        ListEmptyComponent={<Text style={styles.emptyText}>Chưa có cuộc trò chuyện nào</Text>}
+        ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textSecondary }]}>Chưa có cuộc trò chuyện nào</Text>}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={openNewChatModal}>
-        <Icon name="message-square" size={24} color={COLORS.background} />
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={openNewChatModal}>
+        <Icon name="message-square" size={24} color={isDarkMode ? 'black' : 'white'} />
       </TouchableOpacity>
 
       <Modal visible={isModalVisible} animationType="slide" transparent={true}>
-         <View style={styles.modalContainer}>
+         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
             <View style={styles.modalHeader}>
-               <Text style={styles.modalTitle}>Nhắn tin mới</Text>
+               <Text style={[styles.modalTitle, { color: colors.text }]}>Nhắn tin mới</Text>
                <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                  <Icon name="x" size={24} color={COLORS.text} />
+                  <Icon name="x" size={24} color={colors.text} />
                </TouchableOpacity>
             </View>
-            <View style={styles.searchBox}>
-               <Icon name="search" size={20} color={COLORS.textSecondary} />
+            <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
+               <Icon name="search" size={20} color={colors.textSecondary} />
                <TextInput 
-                  style={styles.searchInput} 
+                  style={[styles.searchInput, { color: colors.text }]} 
                   placeholder="Tìm kiếm bạn bè..." 
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textSecondary}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                />
             </View>
             {loadingFriends ? (
-               <ActivityIndicator style={{marginTop: 20}} color={COLORS.text} />
+               <ActivityIndicator style={{marginTop: 20}} color={colors.text} />
             ) : (
                <FlatList 
                   data={friends.filter(f => (f.displayName || f.username).toLowerCase().includes(searchQuery.toLowerCase()))}
                   keyExtractor={item => item.id || item.userId || Math.random().toString()}
                   renderItem={renderFriendItem}
-                  ListEmptyComponent={<Text style={styles.emptyText}>Không tìm thấy bạn bè nào</Text>}
+                  ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textSecondary }]}>Không tìm thấy bạn bè nào</Text>}
                />
             )}
          </View>
       </Modal>
       <FloatingTabBar activeTab="Chatbot" />
-    </SafeAreaView>
+    </View>
   );
 };
 

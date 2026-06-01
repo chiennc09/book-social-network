@@ -8,6 +8,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import { resolveReaderUrl, API_GATEWAY_URL } from '../../config/env';
+import { useTheme } from '../../context/ThemeContext';
 
 const PROGRESS_SYNC_INTERVAL_MS = 30_000; // auto-sync every 30s
 
@@ -19,6 +20,7 @@ const ReaderScreen = ({ route, navigation }: any) => {
 
   const { token } = useSelector((state: RootState) => state.auth);
   const [errorText, setErrorText] = useState<string>('');
+  const { colors, isDarkMode } = useTheme();
 
   // Refs: always track the LATEST values without causing re-renders
   const currentPosition = useRef<string | undefined>(lastPosition);
@@ -31,12 +33,6 @@ const ReaderScreen = ({ route, navigation }: any) => {
   const isPdf = loadUrl?.toLowerCase().endsWith('.pdf');
 
   // ── EPUB viewer HTML ──────────────────────────────────────────────────────
-  // Key changes vs old version:
-  //   1. Generate locations FIRST, THEN display(startPosition).
-  //      This ensures the "relocated" event fires with correct percent from page 1.
-  //   2. Tap left 50% → prev() ; tap right 50% → next()  (no dead center zone)
-  //   3. After every page turn, post message with type='progress' so RN can sync.
-  //   4. Post 'locationsReady' once generate() finishes so we know percent is valid.
   const epubViewerHtml = `
     <!DOCTYPE html>
     <html>
@@ -47,7 +43,7 @@ const ReaderScreen = ({ route, navigation }: any) => {
         <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
         <style>
             * { box-sizing: border-box; }
-            body { margin: 0; padding: 0; background-color: #f5f5f5; color: #333; }
+            body { margin: 0; padding: 0; background-color: ${isDarkMode ? '#121212' : '#f5f5f5'}; color: ${isDarkMode ? '#e0e0e0' : '#333333'}; }
             #viewer { width: 100vw; height: 100vh; overflow: hidden; }
         </style>
     </head>
@@ -78,9 +74,16 @@ const ReaderScreen = ({ route, navigation }: any) => {
                         width: "100%", height: "100%", spread: "none"
                     });
 
+                    // Set styles to fit dark mode
+                    rendition.themes.register("custom", {
+                        body: {
+                            "background-color": "${isDarkMode ? '#121212' : '#f5f5f5'} !important",
+                            "color": "${isDarkMode ? '#e0e0e0' : '#333333'} !important"
+                        }
+                    });
+                    rendition.themes.select("custom");
+
                     // ── Step 1: Generate locations first ──────────────────
-                    //   Generating before display() ensures that when the
-                    //   'relocated' event fires, percentageFromCfi is accurate.
                     log("Generating locations...");
                     book.ready
                     .then(function() { return book.locations.generate(1600); })
@@ -112,8 +115,6 @@ const ReaderScreen = ({ route, navigation }: any) => {
                     });
 
                     // ── Touch / Swipe navigation ──────────────────────────
-                    //   Swipe: dx > 50 → next, dx < -50 → prev
-                    //   Tap:   left 50% → prev, right 50% → next
                     var xDown = null, yDown = null;
 
                     rendition.on("touchstart", function(ev) {
@@ -128,7 +129,6 @@ const ReaderScreen = ({ route, navigation }: any) => {
                         var xDiff = xDown - xUp;
                         var yDiff = Math.abs(yDown - yUp);
 
-                        // Ignore mostly-vertical movements (scroll inside iframe)
                         if (yDiff > Math.abs(xDiff) * 1.5) { xDown = null; return; }
 
                         if (xDiff > 50) {
@@ -136,7 +136,6 @@ const ReaderScreen = ({ route, navigation }: any) => {
                         } else if (xDiff < -50) {
                             rendition.prev();
                         } else {
-                            // Tap: split screen 50/50 — LEFT = prev, RIGHT = next
                             if (xUp < window.innerWidth * 0.5) rendition.prev();
                             else rendition.next();
                         }
@@ -171,7 +170,6 @@ const ReaderScreen = ({ route, navigation }: any) => {
         setLoading(false);
         currentPosition.current = data.position;
         currentPercent.current  = data.percent;
-        // Only show non-zero percent once locations are generated
         if (locationsReady.current || data.percent > 0) {
           setProgressPercent(data.percent);
         }
@@ -217,7 +215,7 @@ const ReaderScreen = ({ route, navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar hidden />
 
       {/* Header Overlay */}
@@ -235,22 +233,22 @@ const ReaderScreen = ({ route, navigation }: any) => {
       {/* Loading overlay */}
       {loading && !errorText && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={{ color: 'white', marginTop: 10 }}>Đang tải nội dung sách...</Text>
         </View>
       )}
 
       {/* Error view */}
       {!!errorText && (
-        <View style={[styles.loadingOverlay, { backgroundColor: '#ffebe6', padding: 20 }]}>
+        <View style={[styles.loadingOverlay, { backgroundColor: isDarkMode ? '#2d1e1b' : '#ffebe6', padding: 20 }]}>
           <Icon name="alert-triangle" size={40} color="red" style={{ marginBottom: 10 }} />
           <Text style={{ color: 'red', fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
             Không thể tải sách
           </Text>
-          <Text style={{ color: '#333', textAlign: 'center', marginTop: 10 }}>
+          <Text style={{ color: colors.text, textAlign: 'center', marginTop: 10 }}>
             {errorText}
           </Text>
-          <Text style={{ color: '#666', fontSize: 10, textAlign: 'center', marginTop: 10 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 10 }}>
             URL: {loadUrl}
           </Text>
         </View>
@@ -303,3 +301,6 @@ const styles = StyleSheet.create({
 });
 
 export default ReaderScreen;
+
+
+

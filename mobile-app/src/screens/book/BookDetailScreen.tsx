@@ -22,12 +22,14 @@ import ShareToChatModal from '../../components/book/modal/ShareToChatModal';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { eventEmitter, EventNames } from '../../utils/eventEmitter';
+import { useTheme } from '../../context/ThemeContext';
 
 const BookDetailScreen = ({ route, navigation }: any) => {
   const { bookId, fromSearch } = route.params || {};
   const [book, setBook] = useState<BookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [readingLoading, setReadingLoading] = useState(false);
+  const { colors, isDarkMode } = useTheme();
   
   // Lấy token để load ảnh/file nếu backend yêu cầu Auth
   const { token } = useSelector((state: RootState) => state.auth);
@@ -73,8 +75,8 @@ const BookDetailScreen = ({ route, navigation }: any) => {
 
   if (loading || !book) {
     return (
-        <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.text} />
+        <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+            <ActivityIndicator size="large" color={colors.text} />
         </View>
     );
   }
@@ -116,8 +118,8 @@ const BookDetailScreen = ({ route, navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
 
       {/* 1. Header Sticky */}
       <StickyHeader scrollY={scrollY} title={book.title} onBack={() => navigation.goBack()} />
@@ -252,7 +254,7 @@ const BookDetailScreen = ({ route, navigation }: any) => {
 
       {readingLoading && (
         <View style={styles.readingLoadingOverlay}>
-           <ActivityIndicator size="large" color={COLORS.text} />
+           <ActivityIndicator size="large" color={colors.text} />
            <Text style={styles.readingLoadingText}>Đang chuẩn bị sách...</Text>
         </View>
       )}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { StatusBar, View, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -25,6 +25,7 @@ import { COLORS }             from '../constants/theme';
 import { RootState, AppDispatch } from '../redux/store';
 import { loadUser, logoutUser }   from '../redux/authSlice';
 import { setAuthNavigator }       from '../infrastructure/api/axiosClient';
+import { useTheme }               from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -37,6 +38,7 @@ const RootNavigator = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isAuthenticated, isInitializing } = useSelector((state: RootState) => state.auth);
   const navRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const { colors, isDarkMode } = useTheme();
 
   useEffect(() => {
     dispatch(loadUser());
@@ -54,15 +56,30 @@ const RootNavigator = () => {
 
   if (isInitializing) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={COLORS.text} />
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
 
+  const baseTheme = isDarkMode ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...baseTheme,
+    dark: isDarkMode,
+    colors: {
+      ...baseTheme.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.background,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
+
   return (
-    <NavigationContainer ref={navRef}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+    <NavigationContainer ref={navRef} theme={navTheme}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
 
       {/*
        * KEY PATTERN: changing 'key' forces the Navigator to fully remount,

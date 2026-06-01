@@ -10,8 +10,8 @@ import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { RankBadge } from '../common/RankBadge';
-
 import { resolveMediaUrl } from '../../config/env';
+import { useTheme } from '../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +29,7 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
   const [hasReposted, setHasReposted] = useState(false); // Valid chỉ 1 lần
   const [content, setContent] = useState(post.content);
   const [book, setBook] = useState(post.book);
+  const { colors, isDarkMode } = useTheme();
 
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
 
@@ -121,14 +122,14 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
       {/* 1. Avatar (Cột trái) */}
       <View style={styles.leftColumn}>
         <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: post.user.id || post.userId })}>
            <Image source={{ uri: displayAvatar }} style={styles.avatar} />
         </TouchableOpacity>
         {/* Đường nối thread nếu cần */}
-        <View style={styles.threadLine} /> 
+        <View style={[styles.threadLine, { backgroundColor: colors.border }]} /> 
       </View>
 
       {/* 2. Nội dung (Cột phải) */}
@@ -137,10 +138,9 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
         {/* Header: Tên & Thời gian */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: post.user.id || post.userId })}>
-             <Text style={styles.displayName}>{post.userDisplayName || post.user.displayName || post.user.username}</Text>
+             <Text style={[styles.displayName, { color: colors.text }]}>{post.userDisplayName || post.user.displayName || post.user.username}</Text>
           </TouchableOpacity>
           <View style={styles.headerInfo}>
-             <Text style={styles.username}>{post.user.username}</Text>
              {post.userBadges && post.userBadges.length > 0 && (
                 <RankBadge 
                    badge={post.userBadges[0]} 
@@ -148,48 +148,48 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
                    style={{ marginLeft: 6, paddingVertical: 1, paddingHorizontal: 5 }} 
                 />
              )}
-             <Text style={styles.dot}>•</Text>
-             <Text style={styles.timestamp}>{post.timestamp}</Text>
+             <Text style={[styles.dot, { color: colors.textSecondary }]}>•</Text>
+             <Text style={[styles.timestamp, { color: colors.textSecondary }]}>{post.timestamp}</Text>
           </View>
           <TouchableOpacity style={styles.moreBtn} onPress={handleMoreOptions}>
-            <Icon name="more-horizontal" size={20} color={COLORS.textSecondary} />
+            <Icon name="more-horizontal" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Nội dung text */}
-        <Text style={styles.content}>{content}</Text>
+        <Text style={[styles.content, { color: colors.text }]}>{content}</Text>
 
         {/* --- BOOK TAGGING CARD --- */}
         {book && (
           <TouchableOpacity 
-             style={styles.bookCard}
+             style={[styles.bookCard, { backgroundColor: colors.card, borderColor: colors.border }]}
              onPress={() => navigation.navigate('BookDetail', { bookId: book?.id })}
           >
             <Image source={{ uri: book.coverUrl || book.coverImage }} style={styles.bookCover} />
             <View style={styles.bookInfo}>
-              <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
-              <Text style={styles.bookAuthor}>{book?.author || (book.authors ? book.authors[0] : 'Unknown')}</Text>
-              <View style={styles.ratingBadge}>
-                 <Icon name="star" size={10} color="#FFD700" />
-                 <Text style={styles.ratingText}>{book.averageRating || 0}</Text>
+              <Text style={[styles.bookTitle, { color: colors.text }]} numberOfLines={1}>{book.title}</Text>
+              <Text style={[styles.bookAuthor, { color: colors.textSecondary }]}>{book?.author || (book.authors ? book.authors[0] : 'Unknown')}</Text>
+              <View style={[styles.ratingBadge, { backgroundColor: isDarkMode ? '#333' : 'rgba(217, 119, 6, 0.12)' }]}>
+                 <Icon name="star" size={10} color={isDarkMode ? '#FFD700' : '#D97706'} />
+                 <Text style={[styles.ratingText, { color: isDarkMode ? '#FFFFFF' : '#D97706' }]}>{book.averageRating || 0}</Text>
               </View>
             </View>
-            <Icon name="chevron-right" size={20} color={COLORS.textSecondary} />
+            <Icon name="chevron-right" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
 
         {/* Ảnh bài đăng (nếu có) */}
         {post.images && post.images.length > 0 && (
           <View style={styles.imageContainer}>
-             <Image source={{ uri: post.images[0] }} style={styles.postImage} />
+             <Image source={{ uri: post.images[0] }} style={[styles.postImage, { borderColor: colors.border }]} />
           </View>
         )}
 
         {/* Action Buttons */}
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
-            <Icon name="heart" size={20} color={isLiked ? "red" : COLORS.text} />
-            <Text style={[styles.actionText, isLiked && { color: 'red' }]}>{likesCount}</Text>
+            <Icon name="heart" size={20} color={isLiked ? "red" : colors.text} />
+            <Text style={[styles.actionText, { color: colors.textSecondary }, isLiked && { color: 'red' }]}>{likesCount}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -198,17 +198,17 @@ const FeedItem = ({ post, isDetail = false }: FeedItemProps) => {
                 if (!isDetail) navigation.navigate('CommentScreen', { postId: post.id, post: post });
              }}
           >
-            <Icon name="message-circle" size={20} color={COLORS.text} />
-            <Text style={styles.actionText}>{commentsCount}</Text>
+            <Icon name="message-circle" size={20} color={colors.text} />
+            <Text style={[styles.actionText, { color: colors.textSecondary }]}>{commentsCount}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtn} onPress={handleRepost} disabled={hasReposted}>
-            <Icon name="repeat" size={20} color={hasReposted ? COLORS.primary : COLORS.text} />
-            <Text style={[styles.actionText, hasReposted && { color: COLORS.primary }]}>{repostsCount}</Text>
+            <Icon name="repeat" size={20} color={hasReposted ? colors.primary : colors.text} />
+            <Text style={[styles.actionText, { color: colors.textSecondary }, hasReposted && { color: colors.primary }]}>{repostsCount}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtn}>
-            <Icon name="send" size={20} color={COLORS.text} />
+            <Icon name="send" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
 

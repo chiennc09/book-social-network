@@ -11,6 +11,7 @@ import SearchScreen from '../screens/search/SearchScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tabScrollBus } from '../utils/tabScrollBus';
+import { useTheme } from '../context/ThemeContext';
 
 export { tabScrollBus };   // re-export so screens only need to import from here
 
@@ -35,6 +36,8 @@ const AnimatedTabBar = ({ state, descriptors, navigation }: any) => {
   // 0 = visible, totalHeight = hidden below screen
   const translateY = useRef(new Animated.Value(0)).current;
   const isHidden   = useRef(false);
+
+  const { colors, isDarkMode } = useTheme();
 
   const show = useCallback(() => {
     if (!isHidden.current) return;
@@ -66,6 +69,11 @@ const AnimatedTabBar = ({ state, descriptors, navigation }: any) => {
     return unsub;
   }, [hide, show]);
 
+  const tabBgColor = isDarkMode ? 'rgba(10,10,10,0.96)' : 'rgba(255,255,255,0.96)';
+  const tabBorderColor = colors.border;
+  const inactiveIconColor = isDarkMode ? '#525252' : '#8E8E93';
+  const wrapActiveBg = isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+
   return (
     <Animated.View
       style={[
@@ -74,6 +82,8 @@ const AnimatedTabBar = ({ state, descriptors, navigation }: any) => {
           height: totalHeight,
           paddingBottom: bottomInset,
           transform: [{ translateY }],
+          backgroundColor: tabBgColor,
+          borderTopColor: tabBorderColor,
         },
       ]}
     >
@@ -108,13 +118,13 @@ const AnimatedTabBar = ({ state, descriptors, navigation }: any) => {
             activeOpacity={0.75}
           >
             {/* Active indicator dot */}
-            {isFocused && <View style={styles.activeDot} />}
+            {isFocused && <View style={[styles.activeDot, { backgroundColor: colors.text }]} />}
 
-            <View style={[styles.iconWrap, isFocused && styles.iconWrapActive]}>
+            <View style={[styles.iconWrap, isFocused && { backgroundColor: wrapActiveBg }]}>
               <Icon
                 name={iconName}
                 size={24}
-                color={isFocused ? COLORS.text : '#525252'}
+                color={isFocused ? colors.text : inactiveIconColor}
               />
             </View>
           </TouchableOpacity>

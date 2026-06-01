@@ -21,6 +21,7 @@ import { COLORS } from '../../constants/theme';
 import { recommendationApi } from '../../api/recommendationApi';
 import { bookService } from '../../services/book.service';
 import { Book } from '../../types';
+import { useTheme } from '../../context/ThemeContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ interface Props {
 const SimilarBooksSection = ({ bookId, onBookPress }: Props) => {
   const [books, setBooks] = useState<BookSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const { colors } = useTheme();
 
   const loadSimilarBooks = useCallback(async () => {
     if (!bookId) return;
@@ -79,12 +81,12 @@ const SimilarBooksSection = ({ bookId, onBookPress }: Props) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Bạn cũng có thể thích</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Bạn cũng có thể thích</Text>
 
       {loading ? (
         <ActivityIndicator
           style={styles.loader}
-          color={COLORS.textSecondary}
+          color={colors.textSecondary}
           size="small"
         />
       ) : (
@@ -102,12 +104,12 @@ const SimilarBooksSection = ({ bookId, onBookPress }: Props) => {
             >
               <Image
                 source={{ uri: item.coverUrl }}
-                style={styles.cover}
+                style={[styles.cover, { backgroundColor: colors.border }]}
                 resizeMode="cover"
               />
-              <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
               {item.authors && item.authors.length > 0 ? (
-                <Text style={styles.cardAuthor} numberOfLines={1}>{item.authors.join(', ')}</Text>
+                <Text style={[styles.cardAuthor, { color: colors.textSecondary }]} numberOfLines={1}>{item.authors.join(', ')}</Text>
               ) : null}
               {item.averageRating != null && item.averageRating > 0 ? (
                 <Text style={styles.cardRating}>★ {item.averageRating.toFixed(1)}</Text>

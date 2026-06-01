@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 interface Props {
     scrollY: Animated.Value;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 const StickyHeader = ({ scrollY, title, onBack }: Props) => {
+    const { colors, isDarkMode } = useTheme();
     // Animation Logic
     const opacity = scrollY.interpolate({
         inputRange: [150, 250],
@@ -26,19 +28,26 @@ const StickyHeader = ({ scrollY, title, onBack }: Props) => {
     return (
         <View style={styles.container}>
             {/* Background Layer */}
-            <Animated.View style={[styles.background, { opacity }]} />
+            <Animated.View style={[
+                styles.background, 
+                { 
+                    opacity,
+                    backgroundColor: isDarkMode ? 'rgba(16,16,16,0.95)' : 'rgba(255,255,255,0.95)',
+                    borderBottomColor: colors.border
+                }
+            ]} />
 
             <View style={styles.content}>
                 <TouchableOpacity onPress={onBack} style={styles.btn}>
-                    <Icon name="arrow-left" size={24} color={COLORS.text} />
+                    <Icon name="arrow-left" size={24} color={colors.text} />
                 </TouchableOpacity>
 
                 <Animated.View style={[styles.titleContainer, { opacity, transform: [{ translateY }] }]}>
-                    <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                    <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{title}</Text>
                 </Animated.View>
 
                 <TouchableOpacity style={styles.btn}>
-                    <Icon name="more-horizontal" size={24} color={COLORS.text} />
+                    <Icon name="more-horizontal" size={24} color={colors.text} />
                 </TouchableOpacity>
             </View>
         </View>

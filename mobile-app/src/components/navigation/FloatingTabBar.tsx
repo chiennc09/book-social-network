@@ -1,16 +1,3 @@
-/**
- * FloatingTabBar — animated bottom tab bar for non-modal screens.
- *
- * Behaviour matches BottomTabNavigator's AnimatedTabBar:
- *   - Subscribes to tabScrollBus; slides down on 'down', springs up on 'up'.
- *   - Uses pointerEvents="none" when fully hidden so it NEVER blocks touch events.
- *
- * Usage:
- *   <FloatingTabBar activeTab="Search" />   ← place at the BOTTOM of SafeAreaView
- *
- * ⚠️  Do NOT use this on modal screens (slide_from_bottom). Those already have a
- *    back gesture. Only add to screens with animation: 'slide_from_right'.
- */
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, Animated, Platform,
@@ -20,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS }          from '../../constants/theme';
 import { useNavigation }   from '@react-navigation/native';
 import { tabScrollBus }    from '../../utils/tabScrollBus';
+import { useTheme }        from '../../context/ThemeContext';
 
 type TabName = 'Home' | 'Search' | 'Chatbot' | 'Library' | 'ProfileTab';
 
@@ -42,6 +30,7 @@ const FloatingTabBar = ({ activeTab }: Props) => {
   const insets       = useSafeAreaInsets();
   const bottomInset  = insets.bottom;
   const totalHeight  = TAB_HEIGHT + bottomInset;
+  const { colors, isDarkMode } = useTheme();
 
   const translateY   = useRef(new Animated.Value(0)).current;
   const isHidden     = useRef(false);
@@ -95,6 +84,8 @@ const FloatingTabBar = ({ activeTab }: Props) => {
           height: totalHeight,
           paddingBottom: bottomInset || 8,
           transform: [{ translateY }],
+          backgroundColor: isDarkMode ? 'rgba(10,10,10,0.97)' : 'rgba(255,255,255,0.97)',
+          borderTopColor: colors.border,
         },
       ]}
     >
@@ -107,12 +98,15 @@ const FloatingTabBar = ({ activeTab }: Props) => {
             onPress={() => navigateToTab(tab.name)}
             activeOpacity={0.75}
           >
-            {isActive && <View style={styles.activeDot} />}
-            <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
+            {isActive && <View style={[styles.activeDot, { backgroundColor: colors.text }]} />}
+            <View style={[
+              styles.iconWrap, 
+              isActive && { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }
+            ]}>
               <Icon
                 name={tab.icon}
                 size={23}
-                color={isActive ? COLORS.text : '#525252'}
+                color={isActive ? colors.text : (isDarkMode ? '#525252' : '#999')}
               />
             </View>
           </TouchableOpacity>
@@ -153,9 +147,7 @@ const styles = StyleSheet.create({
     width: 44, height: 38, borderRadius: 13,
     alignItems: 'center', justifyContent: 'center',
   },
-  iconWrapActive: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
-  },
 });
 
 export default FloatingTabBar;
+

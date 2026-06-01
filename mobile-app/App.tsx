@@ -3,14 +3,16 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import { store } from './src/redux/store';
 import RootNavigator from './src/navigation/RootNavigator';
+import { ThemeProvider } from './src/context/ThemeContext';
 
-// Nếu sau này dùng Redux/Context thì bọc Provider ở đây
 const App = () => {
   return (
     <Provider store={store}>
-      <SafeAreaProvider>
-        <RootNavigator />
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <RootNavigator />
+        </SafeAreaProvider>
+      </ThemeProvider>
     </Provider>
   );
 };
