@@ -50,7 +50,7 @@ const BookCoverSection = ({ book, accessToken }: Props) => {
                 ))}
             </View>
             <Text style={styles.ratingText}>
-                {book.ratingAverage} • {book.ratingCount} đánh giá
+                {book.ratingAverage} • {book.ratingCount} đánh giá • {book.totalViews || 0} lượt xem
             </Text>
         </View>
       </View>

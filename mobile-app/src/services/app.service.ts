@@ -21,6 +21,7 @@ export const appService = {
           { id: 'account', label: 'Tài khoản', icon: 'user' },
           { id: 'privacy', label: 'Quyền riêng tư', icon: 'lock' },
           { id: 'accessibility', label: 'Trợ năng', icon: 'eye' },
+          { id: 'friends', label: 'Bạn bè', icon: 'users' },
           { id: 'logout', label: 'Đăng xuất', icon: 'log-out', danger: true },
         ]);
       }, 300);

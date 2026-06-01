@@ -44,6 +44,14 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
 	""")
     void acceptFriend(String from, String to);
 
+    /* ================= DECLINE FRIEND REQUEST ================= */
+    @Query(
+            """
+		MATCH (u:user_profile {userId: $from})<-[r:FRIEND_REQUEST]-(t:user_profile {userId: $to})
+		DELETE r
+	""")
+    void declineFriendRequest(String from, String to);
+
     /* ================= UNFRIEND ================= */
     @Query("""
 		MATCH (u:user_profile {userId: $from})-[r:FRIEND]-(t:user_profile {userId: $to})
@@ -81,7 +89,7 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
     Long countFollowing(String userId);
 
     @Query("""
-		MATCH (:user_profile {userId: $userId})-[:FRIEND]->()
+		MATCH (:user_profile {userId: $userId})-[:FRIEND]-()
 		RETURN count(*)
 	""")
     Long countFriends(String userId);

@@ -40,4 +40,6 @@ public class BookResponse {
     boolean isFavorited;
     
     int userRating;
+    
+    String shelfStatus;
 }

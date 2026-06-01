@@ -3,6 +3,8 @@ import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, SafeAreaView
 import { chatApi } from '../../api/chatApi';
 import { profileApi } from '../../api/profileApi';
 import { DEFAULT_AVATAR, COLORS, SPACING } from '../../constants/theme';
+import { resolveMediaUrl } from '../../config/env';
+import { UserAvatar } from '../../components/common/UserAvatar';
 import Icon from 'react-native-vector-icons/Feather';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
@@ -45,7 +47,7 @@ const ChatListScreen = ({ navigation }: any) => {
             conversationAvatar: item.conversationAvatar 
         })}
       >
-        <Image style={styles.avatar} source={{ uri: item.conversationAvatar || DEFAULT_AVATAR }} />
+        <UserAvatar url={item.conversationAvatar} size={50} />
         <View style={styles.chatInfo}>
           <Text style={styles.chatName}>{item.conversationName}</Text>
           <Text style={styles.chatPreview} numberOfLines={1}>
@@ -106,7 +108,7 @@ const ChatListScreen = ({ navigation }: any) => {
           style={styles.chatItem} 
           onPress={() => createChat(actualId, item.displayName || item.username, item.avatar || DEFAULT_AVATAR)}
        >
-          <Image style={styles.avatar} source={{ uri: item.avatar || DEFAULT_AVATAR }} />
+          <UserAvatar url={item.avatar} size={50} />
           <View style={styles.chatInfo}>
             <Text style={styles.chatName}>{item.displayName || item.username}</Text>
             <Text style={styles.chatPreview}>@{item.username}</Text>

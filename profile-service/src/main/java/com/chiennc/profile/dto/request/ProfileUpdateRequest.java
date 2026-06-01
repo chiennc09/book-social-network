@@ -13,4 +13,6 @@ public class ProfileUpdateRequest {
     String link;
     String avatar;
     Boolean isPrivate;
+    String firstName;
+    String lastName;
 }

@@ -200,16 +200,18 @@ const ReaderScreen = ({ route, navigation }: any) => {
 
   // ── Back button — save before exit ───────────────────────────────────────
   const handleBack = async () => {
-    if (currentPosition.current && bookId) {
-      try {
-        await bookApi.updateProgress(bookId, currentPosition.current, currentPercent.current);
-        eventEmitter.emit(EventNames.BOOK_PROGRESS_UPDATED, {
-          bookId,
-          progressPercent: currentPercent.current,
-        });
-      } catch (e) {
-        console.error('Failed to save progress', e);
+    if (bookId) {
+      if (currentPosition.current) {
+        try {
+          await bookApi.updateProgress(bookId, currentPosition.current, currentPercent.current);
+        } catch (e) {
+          console.error('Failed to save progress', e);
+        }
       }
+      eventEmitter.emit(EventNames.BOOK_PROGRESS_UPDATED, {
+        bookId,
+        progressPercent: currentPercent.current || 0,
+      });
     }
     navigation.goBack();
   };

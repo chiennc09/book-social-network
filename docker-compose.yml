@@ -1,11 +1,43 @@
 version: "3.8"
 name: book-social-network
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  PRODUCTION-READY DOCKER COMPOSE
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+#  Domain / URL Strategy:
+#  ─────────────────────
+#  Files in MinIO are referenced by RELATIVE OBJECT KEYS in the database
+#  (e.g. "covers/550e8400_photo.jpg"). No IP/domain is ever stored in the DB.
+#
+#  Each client configures its own base URL:
+#    Mobile:    mobile-app/src/config/env.ts   → MINIO_PUBLIC_URL + API_GATEWAY_URL
+#    Web:       web-app/.env                   → VITE_MINIO_PUBLIC_URL + VITE_API_GATEWAY_URL
+#    Admin Web: admin-web/.env                 → VITE_MINIO_PUBLIC_URL + VITE_API_GATEWAY_URL
+#
+#  To switch environments, only update those client .env files + this compose file.
+#  → No database migration, no backend code changes.
+#
+#  Port Map:
+#    8888  API Gateway  (all external REST/WS traffic)
+#    8080  identity-service
+#    8091  profile-service
+#    8082  notification-service
+#    8083  post-service
+#    8084  file-service
+#    8085  book-service
+#    8086  chat-service
+#    8088  recommendation-service (internal: 8000)
+#    9000  MinIO S3 API
+#    9001  MinIO Web Console
+#    3001  admin-web (Nginx)
+# ═══════════════════════════════════════════════════════════════════════════════
+
 services:
 
-  # ══════════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════════════════════════════════════════
   #  INFRASTRUCTURE
-  # ══════════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════════════════════════════════════════
 
   kafka:
     image: apache/kafka:3.9.0
@@ -14,7 +46,6 @@ services:
     ports:
       - '9094:9094'
     environment:
-      # KRaft mode — no Zookeeper needed
       - KAFKA_NODE_ID=1
       - KAFKA_PROCESS_ROLES=broker,controller
       - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:9094
@@ -70,11 +101,11 @@ services:
     container_name: minio
     hostname: minio
     ports:
-      - '9000:9000'   # S3 API
+      - '9000:9000'   # S3 API — accessed by mobile/web via host machine IP/domain
       - '9001:9001'   # Web console
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -86,9 +117,9 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # ══════════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════════════════════════════════════════
   #  PYTHON SERVICE
-  # ══════════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════════════════════════════════════════
 
   recommendation-service:
     build: ./recommendation-service
@@ -100,7 +131,6 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - REDIS_URL=redis://redis:6379
       - MONGODB_URL=mongodb://root:root@host.docker.internal:27017/recommendation-service?authSource=admin
-      # Used to validate that recommended bookIds still exist (prevent stale recs after deletion)
       - BOOK_SERVICE_MONGODB_URL=mongodb://root:root@host.docker.internal:27017/book-service?authSource=admin
       - QDRANT_URL=http://qdrant:6333
     depends_on:
@@ -114,9 +144,9 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
-  # ══════════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════════════════════════════════════════
   #  SPRING BOOT SERVICES
-  # ══════════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════════════════════════════════════════
 
   identity-service:
     build: ./identity-service
@@ -127,12 +157,10 @@ services:
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/identity_service
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=root
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - APP_SERVICES_PROFILE=http://profile-service:8091/profile
-      # JWT secret key — must match JWT_SIGNER_KEY in ALL services that verify JWT locally
-      # Change this in production to a long, random HMAC-SHA512 secret
-      - JWT_SIGNER_KEY=1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij
+      - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:?JWT_SIGNER_KEY must be set in .env}
     depends_on:
       kafka:
         condition: service_healthy
@@ -149,7 +177,7 @@ services:
     environment:
       - SPRING_NEO4J_URI=bolt://host.docker.internal:7687
       - SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j
-      - SPRING_NEO4J_AUTHENTICATION_PASSWORD=12345678
+      - SPRING_NEO4J_AUTHENTICATION_PASSWORD=${NEO4J_PASSWORD:-12345678}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
       kafka:
@@ -167,7 +195,6 @@ services:
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/notification-service?authSource=admin
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      # Email provider — set BREVO_API_KEY to your real key (keep secret!)
       - BREVO_API_URL=https://api.brevo.com
       - BREVO_API_KEY=${BREVO_API_KEY:-xkeysib-placeholder-replace-me}
     depends_on:
@@ -201,19 +228,13 @@ services:
       - '8084:8084'
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/file-service?authSource=admin
-      # MinIO Endpoint (internal Docker network)
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET_NAME=book-social-network
+      # ── MinIO (internal Docker network — service-to-service) ────────────────
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-book-social-network}
       - MINIO_USE_SSL=false
-      # Public URL accessible from mobile (Android emulator → host via 10.0.2.2)
-      # For real device: set this to your machine's LAN IP, e.g. http://192.168.1.x:9000
-      # For production: set to https://minio.yourdomain.com
-      - MINIO_PUBLIC_URL=http://10.0.2.2:9000
-      # Download URL through Gateway
-      - APP_FILE_DOWNLOAD_PREFIX=http://10.0.2.2:8888/file/media/download/
-      # Multipart upload limits
+      # ── File upload limits ──────────────────────────────────────────────────
       - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=200MB
       - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=210MB
     depends_on:
@@ -233,10 +254,6 @@ services:
       - SPRING_DATA_MONGODB_URI=mongodb://root:root@host.docker.internal:27017/book-service?authSource=admin
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - APP_SERVICES_PROFILE_URL=http://profile-service:8091/profile
-      # Base URL used to build legacy file paths — must be accessible from mobile
-      # Android emulator → host → Gateway: http://10.0.2.2:8888/books
-      # Real device (same WiFi): replace 10.0.2.2 with your LAN IP
-      - APP_BASE_URL=http://10.0.2.2:8888/books
     depends_on:
       kafka:
         condition: service_healthy
@@ -264,7 +281,7 @@ services:
     ports:
       - '8888:8888'
     environment:
-      # Route destinations
+      # ── Internal service URLs (Docker DNS — never expose these externally) ──
       - IDENTITY_SERVICE_URL=http://identity-service:8080
       - PROFILE_SERVICE_URL=http://profile-service:8091
       - NOTIFICATION_SERVICE_URL=http://notification-service:8082
@@ -272,10 +289,9 @@ services:
       - FILE_SERVICE_URL=http://file-service:8084
       - BOOK_SERVICE_URL=http://book-service:8085
       - CHAT_SERVICE_URL=http://chat-service:8086
-      # WebSocket route must use ws:// scheme
       - CHAT_SERVICE_WS_URL=ws://chat-service:8086
       - RECOMMENDATION_SERVICE_URL=http://recommendation-service:8000
-      # Max in-memory buffer for multipart file uploads (200 MB)
+      # ── Upload buffer (200 MB) ──────────────────────────────────────────────
       - GATEWAY_MAX_IN_MEMORY_SIZE=209715200
     depends_on:
       - identity-service
@@ -288,14 +304,39 @@ services:
       - recommendation-service
     restart: unless-stopped
 
-  # ══════════════════════════════════════════════════════════════════
-  #  FRONTEND (uncomment to run web-app in Docker)
-  # ══════════════════════════════════════════════════════════════════
+  # ════════════════════════════════════════════════════════════════════════════
+  #  FRONTEND CLIENTS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  admin-web:
+    build:
+      context: ./admin-web
+      args:
+        # Gateway URL accessible from the BROWSER (host machine → Docker)
+        # Local dev:  http://localhost:8888
+        # Production: https://api.yourdomain.com
+        VITE_API_GATEWAY_URL: ${VITE_API_GATEWAY_URL:-http://localhost:8888}
+        # MinIO URL accessible from the BROWSER
+        # Local dev:  http://localhost:9000
+        # Production: https://cdn.yourdomain.com
+        VITE_MINIO_PUBLIC_URL: ${VITE_MINIO_PUBLIC_URL:-http://localhost:9000}
+        VITE_MINIO_BUCKET: ${MINIO_BUCKET_NAME:-book-social-network}
+    container_name: admin-web
+    hostname: admin-web
+    ports:
+      - '3001:80'
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
 
   # web-app:
-  #   build: ./web-app
+  #   build:
+  #     context: ./web-app
+  #     args:
+  #       VITE_API_GATEWAY_URL: ${VITE_API_GATEWAY_URL:-http://localhost:8888}
+  #       VITE_MINIO_PUBLIC_URL: ${VITE_MINIO_PUBLIC_URL:-http://localhost:9000}
+  #       VITE_MINIO_BUCKET: ${MINIO_BUCKET_NAME:-book-social-network}
   #   container_name: web-app
-  #   hostname: web-app
   #   ports:
   #     - '3000:80'
   #   depends_on:

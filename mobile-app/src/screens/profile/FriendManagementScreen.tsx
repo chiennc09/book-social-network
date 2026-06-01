@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
+import { resolveMediaUrl } from '../../config/env';
+import { UserAvatar } from '../../components/common/UserAvatar';
 import { profileApi } from '../../api/profileApi';
 import { UserProfile } from '../../types/user';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
@@ -87,6 +89,15 @@ const FriendManagementScreen = ({ navigation }: any) => {
     } catch (e) { console.error('Accept friend error', e); }
   };
 
+  const handleDecline = async (userId: string) => {
+    try {
+      await profileApi.declineFriend(userId);
+      fetchData();
+    } catch (e) {
+      console.error('Decline friend error', e);
+    }
+  };
+
   const handleRemove = async (userId: string) => {
     try { await profileApi.removeFriend(userId); fetchData(); } catch (e) {}
   };
@@ -113,7 +124,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
       style={styles.userRow}
       onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
     >
-      <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
+      <UserAvatar url={item.avatar} size={50} style={styles.avatar} />
       <View style={styles.userInfo}>
         <Text style={styles.displayName}>{item.displayName || item.username}</Text>
         <Text style={styles.username}>@{item.username}</Text>
@@ -129,7 +140,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
       style={styles.userRow}
       onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
     >
-      <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
+      <UserAvatar url={item.avatar} size={50} style={styles.avatar} />
       <View style={styles.userInfo}>
         <Text style={styles.displayName}>{item.displayName || item.username}</Text>
         <Text style={styles.username}>@{item.username}</Text>
@@ -139,23 +150,35 @@ const FriendManagementScreen = ({ navigation }: any) => {
           <Text style={styles.btnTextSecondary}>Đang chờ</Text>
         </View>
       ) : (
-        <TouchableOpacity style={styles.btnPrimary} onPress={() => handleAccept(item.userId || item.id)}>
-          <Text style={styles.btnTextPrimary}>Chấp nhận</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity style={styles.btnPrimary} onPress={() => handleAccept(item.userId || item.id)}>
+            <Text style={styles.btnTextPrimary}>Chấp nhận</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.btnOutline} onPress={() => handleDecline(item.userId || item.id)}>
+            <Text style={styles.btnTextOutline}>Từ chối</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </TouchableOpacity>
   );
 
   const renderSearchItem = ({ item }: { item: UserProfile & { _requestSent?: boolean } }) => {
-    const isFriend  = friends.some(f => f.userId === item.userId || f.id === item.id);
-    const isPending = outgoing.some(o => o.userId === item.userId || o.id === item.id) || item._requestSent;
+    const itemId = item.userId || item.id;
+    const isFriend  = friends.some(f => {
+      const fId = f.userId || f.id;
+      return !!fId && !!itemId && fId === itemId;
+    });
+    const isPending = outgoing.some(o => {
+      const oId = o.userId || o.id;
+      return !!oId && !!itemId && oId === itemId;
+    }) || item._requestSent;
 
     return (
       <TouchableOpacity
         style={styles.userRow}
         onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
       >
-        <Image source={{ uri: item.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
+        <UserAvatar url={item.avatar} size={50} style={styles.avatar} />
         <View style={styles.userInfo}>
           <Text style={styles.displayName}>{item.displayName || item.username}</Text>
           <Text style={styles.username}>@{item.username}</Text>

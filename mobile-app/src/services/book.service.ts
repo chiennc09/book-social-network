@@ -28,49 +28,49 @@ export interface BookDetail extends Book {
 }
 
 export const bookService = {
-  async getBookDetails(id: string): Promise<BookDetail> {
+  async getBookDetails(id: string, fromSearch = false): Promise<BookDetail> {
     try {
+      // readBook (GET /{id}/read) = endpoint xem chi tiết sách
+      // → Backend bắn VIEW (+ SEARCH_CLICK nếu fromSearch=true)
+      // getById (GET /{id}) chỉ dùng cho danh sách/cards, không bắn event
       const [bookResp, reviewsResp] = await Promise.all([
-        bookApi.readBook(id),
+        bookApi.readBook(id, fromSearch),
         bookApi.getReviews(id).catch(e => ({ result: [] as any[] }))
       ]);
+
       const data: any = (bookResp as any).result;
       const reviewsData = (reviewsResp as any).result || [];
 
       // Resolve cover URL (full MinIO URL or legacy relative path)
       let coverUrl = resolveMediaUrl(data.coverImage, 'covers');
 
-      // Mapping từ BookResponse sang BookDetail để tương thích UI hiện tại
-      // Chú ý sau này sẽ cập nhật UI theo cấu trúc thật của DB
       return {
         id: data.id,
         title: data.title,
         authors: data.authors,
-        author: data.authors?.[0] || 'Unknown', // fallback
+        author: data.authors?.[0] || 'Unknown',
         description: data.description || '',
         category: data.category,
         coverImage: coverUrl,
-        coverUrl: coverUrl, // fallback
+        coverUrl: coverUrl,
         pdfPath: data.pdfPath,
         epubPath: data.epubPath,
         isPublic: data.isPublic,
         totalViews: data.totalViews,
         totalPages: data.totalPages,
-        totalPage: data.totalPages, // fallback
+        totalPage: data.totalPages,
         averageRating: data.averageRating,
         ratingAverage: data.averageRating || 0,
         lastPosition: data.lastPosition,
         progressPercent: data.progressPercent,
-        progress: data.progressPercent || 0, // fallback
+        progress: data.progressPercent || 0,
         
-        // New fields
         totalFavorites: data.totalFavorites || 0,
         isFavorited: data.isFavorited || false,
         userRating: data.userRating || 0,
         ratingCount: data.ratingCount || reviewsData.length || 0,
         
-        // Dummy data for missing fields
-        status: data.shelfStatus || 'none', // Sẽ cần API shelf để biết status
+        status: data.shelfStatus || 'none',
         currentPage: 0,
         publisher: 'N/A',
         publishDate: 'N/A',

@@ -4,6 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING } from '../../constants/theme';
 import { Review } from '../../services/book.service';
+import { UserAvatar } from '../common/UserAvatar';
+import { RankBadge } from '../common/RankBadge';
 
 interface Props {
   reviews: Review[];
@@ -33,19 +35,17 @@ const ReviewsSection = ({ reviews, ratingAverage }: Props) => {
                 {/* User Info */}
                 <View style={styles.userRow}>
                     <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: review.user.id })}>
-                        <Image source={{ uri: review.user.avatar }} style={styles.avatar} />
+                        <UserAvatar url={review.user.avatar} size={36} />
                     </TouchableOpacity>
                     <View style={{ marginLeft: 10, flex: 1 }}>
                         <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: review.user.id })} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={styles.name}>{review.user.displayName}</Text>
                             {review.user.badges && review.user.badges.length > 0 && (
-                                <View style={styles.reviewBadge}>
-                                    {review.user.badges[0].iconUrl ? (
-                                        <Image source={{uri: review.user.badges[0].iconUrl}} style={styles.feedBadgeIcon} />
-                                    ) : (
-                                        <Icon name="award" size={10} color="#FFD700" />
-                                    )}
-                                </View>
+                                <RankBadge 
+                                    badge={review.user.badges[0]} 
+                                    showGlow={false} 
+                                    style={{ marginLeft: 6, paddingVertical: 1, paddingHorizontal: 5 }} 
+                                />
                             )}
                         </TouchableOpacity>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>

@@ -15,13 +15,14 @@ import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import { resolveMediaUrl } from '../../config/env';
 import { profileApi } from '../../api/profileApi';
 
-const NewThreadScreen = ({ navigation }: any) => {
-  const [content, setContent]         = useState('');
+const NewThreadScreen = ({ navigation, route }: any) => {
+  const { postToEdit } = route?.params || {};
+  const [content, setContent]         = useState(postToEdit ? postToEdit.content : '');
   const [loading, setLoading]         = useState(false);
   const [showBookModal, setShowBookModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [bookResults, setBookResults] = useState<Book[]>([]);
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(postToEdit ? postToEdit.book : null);
   const [searching, setSearching]     = useState(false);
 
   // ── Avatar ──────────────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ const NewThreadScreen = ({ navigation }: any) => {
     profileApi.getMyProfile()
       .then((res: any) => {
         const data = res?.result ?? res?.data?.result ?? res?.data ?? res;
-        if (data?.avatar) setProfileAvatar(data.avatar);
+        if (data?.avatar) setProfileAvatar(resolveMediaUrl(data.avatar, 'avatars'));
         if (data?.displayName || data?.username) {
           setDisplayName(data.displayName || data.username);
         }
@@ -55,15 +56,27 @@ const NewThreadScreen = ({ navigation }: any) => {
     if (!content.trim()) return;
     setLoading(true);
     try {
-      const resp = await postApi.createPost({
-        content,
-        bookId: selectedBook?.id,
-      });
-      // Emit the raw API response body (ApiResponse<Post>) so HomeScreen extracts .result
-      eventEmitter.emit(EventNames.POST_CREATED, (resp as any)?.data ?? resp);
+      if (postToEdit) {
+        await postApi.updatePost(postToEdit.id, {
+          content,
+          bookId: selectedBook?.id || undefined,
+        });
+        eventEmitter.emit(EventNames.POST_UPDATED, {
+          id: postToEdit.id,
+          content,
+          book: selectedBook,
+        });
+      } else {
+        const resp = await postApi.createPost({
+          content,
+          bookId: selectedBook?.id,
+        });
+        // Emit the raw API response body (ApiResponse<Post>) so HomeScreen extracts .result
+        eventEmitter.emit(EventNames.POST_CREATED, (resp as any)?.data ?? resp);
+      }
       navigation.goBack();
     } catch (error) {
-      console.error('createPost error:', error);
+      console.error('post error:', error);
       setLoading(false);
     }
   };
@@ -112,7 +125,7 @@ const NewThreadScreen = ({ navigation }: any) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.cancelText}>Hủy</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Bài viết mới</Text>
+          <Text style={styles.headerTitle}>{postToEdit ? 'Chỉnh sửa bài viết' : 'Bài viết mới'}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -190,7 +203,7 @@ const NewThreadScreen = ({ navigation }: any) => {
           >
             {loading
               ? <ActivityIndicator color="black" size="small" />
-              : <Text style={styles.postBtnText}>Đăng</Text>}
+              : <Text style={styles.postBtnText}>{postToEdit ? 'Lưu' : 'Đăng'}</Text>}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

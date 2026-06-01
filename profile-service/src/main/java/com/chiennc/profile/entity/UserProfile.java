@@ -9,7 +9,9 @@ import org.springframework.data.neo4j.core.schema.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Data
 @Builder
@@ -37,12 +39,18 @@ public class UserProfile {
 
     // Định nghĩa các mối quan hệ [cite: 64, 66]
     @Relationship(type = "FOLLOWS", direction = Relationship.Direction.OUTGOING)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Set<UserProfile> following;
 
     @Relationship(type = "FRIEND", direction = Relationship.Direction.OUTGOING)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Set<UserProfile> friends;
 
     @Relationship(type = "HAS_BADGE", direction = Relationship.Direction.OUTGOING)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Set<Badge> badges;
 
     private Long totalBooksRead = 0L;

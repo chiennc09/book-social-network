@@ -53,15 +53,15 @@ docker-compose down -v
 ## 🔧 Rebuild After Code Changes
 
 ```bash
-# Rebuild one service
-docker-compose build --no-cache identity-service
+# Rebuild one service (using cache)
+docker-compose build identity-service
 docker-compose up -d identity-service
 
 # Or in one command
 docker-compose up -d --build identity-service
 
 # For Python service (recommendation)
-docker-compose build --no-cache recommendation-service
+docker-compose build recommendation-service
 docker-compose up -d recommendation-service
 ```
 

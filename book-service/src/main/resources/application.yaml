@@ -23,4 +23,5 @@ app:
   services:
     profile:
       url: ${APP_SERVICES_PROFILE_URL:http://localhost:8091/profile}
-  base-url: ${APP_BASE_URL:http://localhost:8085}
+  # NOTE: app.base-url removed — file paths are stored as relative object keys in DB.
+  # Each client (mobile/web/admin) builds the full URL using its own MINIO_PUBLIC_URL config.

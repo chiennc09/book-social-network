@@ -11,8 +11,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
-import java.io.IOException;
-
 import java.util.List;
 
 @RestController
@@ -76,6 +74,11 @@ public class BookController {
                 .build();
     }
 
+    /**
+     * GET /{id} — Lấy thông tin cơ bản của sách.
+     * Dùng cho: listing, trending cards, recommendation cards, similar books.
+     * KHÔNG bắn behavior event (tránh nhiễu dữ liệu recommendation).
+     */
     @GetMapping("/{id}")
     ApiResponse<BookResponse> getById(@PathVariable String id) {
         return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();
@@ -92,11 +95,19 @@ public class BookController {
         return ApiResponse.<BookResponse>builder().result(bookService.getById(id)).build();
     }
 
-    // 3. Chức năng Đọc sách (Trả về link file + Lịch sử đọc cũ)
+    /**
+     * GET /{id}/read — Mở xem chi tiết sách (BookDetailScreen).
+     * Trả về: thông tin sách + lịch sử đọc + link file epub/pdf.
+     * Bắn VIEW event (và SEARCH_CLICK nếu ?fromSearch=true).
+     *
+     * @param fromSearch true nếu user click từ kết quả tìm kiếm
+     */
     @GetMapping("/{id}/read")
-    ApiResponse<BookResponse> readBook(@PathVariable String id) {
+    ApiResponse<BookResponse> readBook(
+            @PathVariable String id,
+            @RequestParam(required = false, defaultValue = "false") boolean fromSearch) {
         return ApiResponse.<BookResponse>builder()
-                .result(bookService.getBookToRead(id))
+                .result(bookService.getBookToRead(id, fromSearch))
                 .build();
     }
     // 4. Lưu tiến trình đọc (Gọi lên khi User lật trang)

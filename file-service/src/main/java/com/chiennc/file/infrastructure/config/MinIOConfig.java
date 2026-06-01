@@ -105,6 +105,7 @@ public class MinIOConfig {
         String secretKey;
         String bucketName;
         boolean useSsl;
-        String publicUrl;
+        // publicUrl removed — file-service now returns relative objectKeys only.
+        // Clients (mobile/web/admin) build the full URL from their own MINIO_PUBLIC_URL config.
     }
 }

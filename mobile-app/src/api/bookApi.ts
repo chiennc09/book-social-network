@@ -21,10 +21,17 @@ export const bookApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
-  // Đọc sách: trả về thông tin sách + link (epubPath, pdfPath) + tiến trình
-  readBook: (id: string) => bookAxiosClient.get(`/${id}/read`),
+  /**
+   * readBook — Gọi khi user mở BookDetailScreen (xem thông tin sách).
+   * Backend bắn VIEW event + SEARCH_CLICK nếu fromSearch=true.
+   */
+  readBook: (id: string, fromSearch = false) =>
+    bookAxiosClient.get(`/${id}/read`, { params: fromSearch ? { fromSearch: true } : {} }),
 
-  // Lấy thông tin cơ bản không làm tăng view
+  /**
+   * getById — Dùng cho listing, cards, trending, recommendation cards.
+   * KHÔNG bắn behavior event. Chỉ lấy data hiển thị.
+   */
   getById: (id: string) => bookAxiosClient.get(`/${id}`),
 
   // Cập nhật tiến trình đọc

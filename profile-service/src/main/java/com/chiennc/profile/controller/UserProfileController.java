@@ -94,6 +94,12 @@ public class UserProfileController {
         return ApiResponse.builder().message("Friend accepted").build();
     }
 
+    @PostMapping("/friend/decline")
+    public ApiResponse<?> declineFriend(@RequestParam String toUserId) {
+        userProfileService.declineFriend(toUserId);
+        return ApiResponse.builder().message("Friend request declined").build();
+    }
+
     @DeleteMapping("/friend/remove")
     public ApiResponse<?> removeFriend(@RequestParam String toUserId) {
         userProfileService.removeFriend(toUserId);

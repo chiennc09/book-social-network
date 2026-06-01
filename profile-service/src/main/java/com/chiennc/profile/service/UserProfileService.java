@@ -102,9 +102,9 @@ public class UserProfileService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         if (request.getBio() != null) profile.setBio(request.getBio());
-        // if (request.getLink() != null) profile.setLink(request.getLink());
         if (request.getAvatar() != null) profile.setAvatar(request.getAvatar());
-        // if (request.getIsPrivate() != null) profile.setIsPrivate(request.getIsPrivate());
+        if (request.getFirstName() != null) profile.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) profile.setLastName(request.getLastName());
 
         profile = userProfileRepository.save(profile);
         return userProfileMapper.toUserProfileResponse(profile);
@@ -132,6 +132,10 @@ public class UserProfileService {
 
     public void acceptFriend(String toUserId) {
         userProfileRepository.acceptFriend(getUserIdByToken(), toUserId);
+    }
+
+    public void declineFriend(String toUserId) {
+        userProfileRepository.declineFriendRequest(getUserIdByToken(), toUserId);
     }
 
     public void removeFriend(String toUserId) {
@@ -197,7 +201,15 @@ public class UserProfileService {
         if (query == null || query.trim().isEmpty()) {
             return List.of();
         }
+        String myUserId = null;
+        try {
+            myUserId = getUserIdByToken();
+        } catch (Exception e) {
+            // ignore
+        }
+        final String finalMyUserId = myUserId;
         return userProfileRepository.searchUsers(query.trim()).stream()
+                .filter(user -> finalMyUserId == null || !user.getUserId().equals(finalMyUserId))
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
     }

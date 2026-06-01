@@ -1,6 +1,7 @@
 import { UserProfile, Badge } from "../types/user";
 import { profileApi } from '../api/profileApi';
 import { DEFAULT_AVATAR } from '../constants/theme';
+import { resolveMediaUrl } from '../config/env';
 
 export const userService = {
   async getProfile(): Promise<UserProfile> {
@@ -25,14 +26,16 @@ export const userService = {
         id: profileData.userId || profileData.id,
         username: profileData.username,
         displayName: profileData.displayName || profileData.username,
-        avatar: profileData.avatar || DEFAULT_AVATAR,
+        avatar: resolveMediaUrl(profileData.avatar, 'avatars') || DEFAULT_AVATAR,
         bio: profileData.bio || '',
         link: profileData.link || '',
         isPrivate: profileData.isPrivate || false,
         followersCount: profileData.followersCount || 0,
         friendCount: profileData.friendCount || 0,
         totalBooksRead: profileData.totalBooksRead || 0,
-        badges: userBadges
+        badges: userBadges,
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
       };
     } catch (error) {
        console.error("Failed to fetch profile from API", error);
@@ -58,7 +61,7 @@ export const userService = {
         userId: profileData.userId,
         username: profileData.username,
         displayName: profileData.displayName || profileData.username,
-        avatar: profileData.avatar || DEFAULT_AVATAR,
+        avatar: resolveMediaUrl(profileData.avatar, 'avatars') || DEFAULT_AVATAR,
         bio: profileData.bio || '',
         link: profileData.link || '',
         isPrivate: profileData.isPrivate || false,
@@ -66,7 +69,9 @@ export const userService = {
         friendCount: profileData.friendCount || 0,
         totalBooksRead: profileData.totalBooksRead || 0,
         relationship: profileData.relationship || 'NONE',
-        badges: userBadges
+        badges: userBadges,
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
       };
     } catch (error) {
        console.error(`Failed to fetch profile for user ${userId}`, error);

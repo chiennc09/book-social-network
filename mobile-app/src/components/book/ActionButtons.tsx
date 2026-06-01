@@ -41,27 +41,35 @@ const ActionButtons = ({
     <View style={styles.container}>
       
       {/* 1. Main Button: Chọn Kệ Sách (bên cạnh Nút Đọc sách & Yêu thích) */}
-      <View style={{flexDirection: 'row', gap: 10, width: '100%'}}>
+      <View style={{flexDirection: 'row', gap: 8, width: '100%', alignItems: 'center'}}>
           <TouchableOpacity style={styles.mainBtn} onPress={onPressShelf}>
-             <Text style={styles.mainBtnText}>{getStatusLabel(currentStatus)}</Text>
+             <Text style={styles.mainBtnText} numberOfLines={1} adjustsFontSizeToFit>{getStatusLabel(currentStatus)}</Text>
              <View style={styles.divider} />
-             <Icon name="chevron-down" size={20} color="white" />
+             <Icon name="chevron-down" size={16} color="white" />
           </TouchableOpacity>
 
-          {/* Nút Đọc sách kề bên */}
-          <TouchableOpacity style={styles.readBtnSmall} onPress={onPressRead}>
-             <Icon name="book-open" size={20} color="white" />
+          {/* Nút Đọc sách To Đẹp Hài Hòa */}
+          <TouchableOpacity style={styles.readBtnLarge} onPress={onPressRead}>
+             <Icon name="book-open" size={18} color="#000000" style={{ marginRight: 6 }} />
+             <Text style={styles.readBtnText} numberOfLines={1} adjustsFontSizeToFit>Đọc sách</Text>
           </TouchableOpacity>
 
           {/* Nút Yêu thích (Tym) */}
           <TouchableOpacity 
-             style={[styles.readBtnSmall, { backgroundColor: isFavorited ? '#ff4757' : '#2A2A2A', borderColor: '#444', borderWidth: isFavorited ? 0 : 1 }]} 
+             style={[
+               styles.favBtn, 
+               { 
+                 backgroundColor: isFavorited ? '#ff4757' : '#2A2A2A', 
+                 borderColor: isFavorited ? '#ff4757' : '#444', 
+                 borderWidth: isFavorited ? 0 : 1 
+               }
+             ]} 
              onPress={onToggleFavorite}
           >
-             <Icon name="heart" size={20} color={isFavorited ? "white" : COLORS.text} />
-             <Text style={{ color: isFavorited ? "white" : COLORS.text, fontSize: 10, marginTop: 2, fontWeight: 'bold' }}>
-                 {totalFavorites > 0 ? totalFavorites : ''}
-             </Text>
+             <Icon name="heart" size={18} color="white" />
+             {totalFavorites > 0 ? (
+                <Text style={styles.favCount} numberOfLines={1} adjustsFontSizeToFit>{totalFavorites}</Text>
+             ) : null}
           </TouchableOpacity>
       </View>
 
@@ -106,22 +114,33 @@ const ActionButtons = ({
 const styles = StyleSheet.create({
   container: { paddingHorizontal: SPACING.m, marginTop: 10 },
   
-  // Main Button Area
+  // Main Button Area (Thêm vào tủ sách)
   mainBtn: { 
-    flex: 1,
+    flex: 1.2,
     backgroundColor: '#2E8B57', height: 50, borderRadius: 12, 
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10,
     shadowColor: "#2E8B57", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5
   },
-  mainBtnText: { flex: 1, color: 'white', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
-  divider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 10 },
+  mainBtnText: { flex: 1, color: 'white', fontWeight: 'bold', fontSize: 15, textAlign: 'center' },
+  divider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 6 },
   
-  // Small Read Button
-  readBtnSmall: {
-    backgroundColor: COLORS.primary, height: 50, width: 50, borderRadius: 12, 
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5
+  // Large Read Button (Đọc sách)
+  readBtnLarge: {
+    flex: 1,
+    backgroundColor: '#FFFFFF', height: 50, borderRadius: 12, 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 10,
+    shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 5, elevation: 5
   },
+  readBtnText: { color: '#000000', fontWeight: 'bold', fontSize: 15 },
+
+  // Favorite Button (Tym)
+  favBtn: {
+    backgroundColor: '#2A2A2A', height: 50, width: 50, borderRadius: 12, 
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5
+  },
+  favCount: { color: 'white', fontSize: 9, marginTop: 2, fontWeight: 'bold' },
 
   // Rating Area
   ratingArea: { alignItems: 'center', marginTop: 24 },

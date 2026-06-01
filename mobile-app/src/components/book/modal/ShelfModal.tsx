@@ -27,7 +27,7 @@ const ShelfModal = ({ visible, onClose, currentStatus, onSelect }: Props) => {
 
           <View style={styles.list}>
             {SHELVES.map((item) => {
-              const isSelected = currentStatus === item.id;
+              const isSelected = currentStatus?.toLowerCase() === item.id.toLowerCase();
               return (
                 <TouchableOpacity 
                   key={item.id} 

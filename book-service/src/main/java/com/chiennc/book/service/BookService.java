@@ -11,13 +11,11 @@ import com.chiennc.book.repository.BookRankingRepository;
 import com.chiennc.book.repository.BookRepository;
 import com.chiennc.book.exception.AppException;
 import com.chiennc.book.exception.ErrorCode;
-import com.chiennc.book.exception.ErrorCode;
 import com.chiennc.book.entity.BookFavorite;
 import com.chiennc.book.entity.BookReview;
 import com.chiennc.book.dto.request.ReviewRequest;
 import com.chiennc.book.dto.response.ReviewResponse;
 import com.chiennc.book.dto.response.UserProfileResponse;
-import com.chiennc.book.exception.ErrorCode;
 import com.chiennc.book.utils.TextUtils;
 import com.chiennc.book.repository.httpclient.ProfileClient;
 import com.chiennc.book.repository.BookReviewRepository;
@@ -28,9 +26,7 @@ import com.chiennc.event.dto.BookCompletedEvent;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -39,8 +35,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -214,6 +208,13 @@ public class BookService {
                 response.setFavorited(bookFavoriteRepository.existsByUserIdAndBookId(userId, book.getId()));
                 bookReviewRepository.findByUserIdAndBookId(userId, book.getId())
                         .ifPresent(review -> response.setUserRating(review.getRating()));
+                
+                // Populate shelfStatus from ReadHistory
+                historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, book.getId()).ifPresent(history -> {
+                    if (history.getStatus() != null) {
+                        response.setShelfStatus(history.getStatus().name());
+                    }
+                });
             }
         } catch (Exception e) {
             // Unauthenticated or error parsing token, just ignore
@@ -234,69 +235,57 @@ public class BookService {
         return response;
     }
 
-    @NonFinal
-    @Value("${app.base-url}")
-    String baseUrl;
 
-    public BookResponse getBookToRead(String bookId) {
+    /**
+     * API mở xem chi tiết sách: trả về thông tin sách + lịch sử đọc + link file.
+     * Đây là điểm chính xác để bắn VIEW (và SEARCH_CLICK nếu đến từ tìm kiếm).
+     *
+     * @param bookId     ID sách cần xem
+     * @param fromSearch true khi user click từ danh sách tìm kiếm
+     */
+    public BookResponse getBookToRead(String bookId, boolean fromSearch) {
         String userId = getUserId();
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_FOUND));
 
-        // Map sang response
         BookResponse response = bookMapper.toBookResponse(book);
         if (book.getCategoryId() != null) {
             categoryRepository.findById(book.getCategoryId()).ifPresent(response::setCategory);
         }
 
-        // QUAN TRỌNG: Chuyển tên file thành URL đầy đủ để Frontend gọi
-        if (book.getPdfPath() != null) {
-            if (book.getPdfPath().startsWith("http")) {
-                response.setPdfPath(book.getPdfPath());
-            } else {
-                response.setPdfPath(baseUrl.replaceFirst("/books$", "") + "/file/legacy/pdfs/" + book.getPdfPath());
-            }
-        }
-
-        if (book.getCoverImage() != null) {
-            if (book.getCoverImage().startsWith("http")) {
-                response.setCoverImage(book.getCoverImage());
-            } else {
-                response.setCoverImage(baseUrl.replaceFirst("/books$", "") + "/file/legacy/covers/" + book.getCoverImage());
-            }
-        }
-
-        if (book.getEpubPath() != null) {
-            if (book.getEpubPath().startsWith("http")) {
-                response.setEpubPath(book.getEpubPath());
-            } else {
-                response.setEpubPath(baseUrl.replaceFirst("/books$", "") + "/file/legacy/epubs/" + book.getEpubPath());
-            }
-        }
-
-        // Lấy lịch sử đọc cũ (nếu có)
+        // Lấy lịch sử đọc cũ (vị trí, % tiến độ, trạng thái)
         historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId).ifPresent(history -> {
             response.setLastPosition(history.getLastPosition());
             response.setProgressPercent(history.getProgressPercent());
+            if (history.getStatus() != null) {
+                response.setShelfStatus(history.getStatus().name());
+            }
         });
 
-        // Tăng view tổng của sách mỗi khi mở đọc
+        // Tăng view tổng của sách (hiển thị trên UI)
         book.setTotalViews(book.getTotalViews() + 1);
         bookRepository.save(book);
 
-        // Lấy lịch sử yêu thích
+        // Lấy trạng thái yêu thích và đánh giá
         response.setFavorited(bookFavoriteRepository.existsByUserIdAndBookId(userId, bookId));
-        
-        // Lấy lịch sử đánh giá
-        bookReviewRepository.findByUserIdAndBookId(userId, bookId).ifPresent(review -> {
-            response.setUserRating(review.getRating());
-        });
+        bookReviewRepository.findByUserIdAndBookId(userId, bookId).ifPresent(review ->
+            response.setUserRating(review.getRating())
+        );
 
         // Ghi nhận vào bảng xếp hạng ngày
         increaseRankingCount(bookId);
 
-        // Bắn event hành vi VIEW
-        userBehaviorProducer.sendBehaviorEvent(userId, bookId, "VIEW", 1.0);
+        // === BEHAVIOR TRACKING (bất đồng bộ, không block response) ===
+        // VIEW  : ghi nhận user đã mở xem trang chi tiết sách
+        // SEARCH_CLICK: bắn thêm nếu user đến từ kết quả tìm kiếm (tín hiệu intent cao hơn)
+        try {
+            userBehaviorProducer.sendBehaviorEvent(userId, bookId, "VIEW", 1.0);
+            if (fromSearch) {
+                userBehaviorProducer.sendBehaviorEvent(userId, bookId, "SEARCH_CLICK", 3.0);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send behavior event: bookId={}", bookId, e);
+        }
 
         return response;
     }
@@ -330,54 +319,68 @@ public class BookService {
         ReadHistory history = historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId)
                 .orElse(ReadHistory.builder().userId(userId).bookId(bookId).build());
 
-        // Logic logic: Nếu chuyển sang READ thì coi như xong 100%
+        // Logic: Nếu chuyển sang READ thì coi như xong 100%
         if (status == ReadStatus.READ) {
             history.setProgressPercent(100.0);
             history.setCompletedAt(LocalDateTime.now());
-
-            // Bắn event Kafka
             kafkaTemplate.send(BOOK_COMPLETED_TOPIC, new BookCompletedEvent(userId, bookId, LocalDateTime.now()));
         }
 
-        // Bắn event hành vi ADD_BOOKSHELF
-        userBehaviorProducer.sendBehaviorEvent(userId, bookId, "ADD_BOOKSHELF", 4.0);
+        // Phân cấp điểm theo mức độ cam kết đọc:
+        // WANT_TO_READ (+4): chủ đích rõ ràng, intent cao
+        // READING (+1):      chỉ đổi trạng thái, ít giá trị mới
+        // READ (+6):         đã đọc xong — cam kết cao nhất, tín hiệu mạnh nhất
+        double behaviorScore = switch (status) {
+            case WANT_TO_READ -> 4.0;
+            case READING      -> 1.0;
+            case READ         -> 6.0;
+        };
+        userBehaviorProducer.sendBehaviorEvent(userId, bookId, "ADD_BOOKSHELF", behaviorScore);
 
         history.setStatus(status);
         historyRepository.save(history);
     }
 
-    // 2. Refactor: Update Progress (Auto logic)
+    // 2. Update Progress — Auto logic + READ_TIME behavior event
     public void updateProgress(String bookId, String position, double percent) {
         String userId = getUserId();
         ReadHistory history = historyRepository.findFirstByUserIdAndBookIdOrderByLastReadAtDesc(userId, bookId)
                 .orElse(ReadHistory.builder()
                         .userId(userId)
                         .bookId(bookId)
-                        .status(ReadStatus.READING) // Mặc định là đang đọc
+                        .status(ReadStatus.READING)
                         .build());
 
-        // Logic check lùi:
-        // Nếu user đã ĐỌC XONG (READ) mà mở lại trang cũ -> Không update trạng thái về READING, chỉ update position để lần sau mở lại đúng chỗ đó.
+        // Nếu đã READ mà mở lại: chỉ lưu vị trí, không đổi trạng thái
         if (history.getStatus() == ReadStatus.READ) {
             history.setLastPosition(position);
             historyRepository.save(history);
             return;
         }
 
+        // === READ_TIME: Tính thời gian đọc thực tế ===
+        // Mobile gọi updateProgress mỗi 30 giây. Đo delta giữa 2 lần gọi.
+        // Chỉ tính nếu delta < 5 phút (tránh trường hợp app bị treo nền).
+        if (history.getLastReadAt() != null) {
+            long minutesDelta = java.time.temporal.ChronoUnit.MINUTES.between(
+                    history.getLastReadAt(), LocalDateTime.now());
+            if (minutesDelta > 0 && minutesDelta < 5) {
+                // minutesDelta * 0.1 theo công thức của recommendation service
+                userBehaviorProducer.sendBehaviorEvent(userId, bookId, "READ_TIME", (double) minutesDelta);
+            }
+        }
+
         history.setLastPosition(position);
         history.setProgressPercent(percent);
         history.setLastReadAt(LocalDateTime.now());
 
-        // Logic hoàn thành tự động: > 95% coi như xong
+        // Auto-complete: > 95% coi như xong
         if (percent >= 95.0) {
             history.setStatus(ReadStatus.READ);
             history.setCompletedAt(LocalDateTime.now());
-            history.setProgressPercent(100.0); // Làm tròn 100%
-
-            // Bắn event Kafka sang Profile Service
+            history.setProgressPercent(100.0);
             kafkaTemplate.send(BOOK_COMPLETED_TOPIC, new BookCompletedEvent(userId, bookId, LocalDateTime.now()));
         } else {
-            // Đảm bảo trạng thái là READING nếu chưa xong
             if (history.getStatus() == null || history.getStatus() == ReadStatus.WANT_TO_READ) {
                 history.setStatus(ReadStatus.READING);
             }
@@ -447,6 +450,10 @@ public class BookService {
         bookFavoriteRepository.deleteByUserIdAndBookId(userId, bookId);
         book.setTotalFavorites(Math.max(0, book.getTotalFavorites() - 1));
         bookRepository.save(book);
+
+        // Negative feedback: Bỏ thích → Trừ điểm recommendation
+        // Giúp hệ thống hiểu user không còn hứng thú với cuốn sách này
+        userBehaviorProducer.sendBehaviorEvent(userId, bookId, "UNFAVORITE", -4.0);
     }
 
     public void addReview(String bookId, ReviewRequest request) {
@@ -477,6 +484,8 @@ public class BookService {
         bookRepository.save(book);
 
         // Bắn event hành vi RATING
+        // Gửi số sao thô (1-5). Recommendation service sẽ chuẩn hóa: score = sao - 3.0
+        // (5 sao → +2.0 | 3 sao → 0.0 | 1 sao → -2.0)
         userBehaviorProducer.sendBehaviorEvent(userId, bookId, "RATING", (double) request.getRating());
     }
 
@@ -486,6 +495,7 @@ public class BookService {
         return reviews.stream().map(review -> {
             ReviewResponse response = ReviewResponse.builder()
                     .id(review.getId())
+                    .userId(review.getUserId()) // Set directly from DB record to ensure it is never null!
                     .rating(review.getRating())
                     .content(review.getContent())
                     .likes(review.getLikes())

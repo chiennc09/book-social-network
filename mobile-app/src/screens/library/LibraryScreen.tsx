@@ -157,9 +157,6 @@ const LibraryScreen = ({ navigation }: any) => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Tủ sách cá nhân</Text>
-        <TouchableOpacity>
-           <Icon name="search" size={24} color={COLORS.text} />
-        </TouchableOpacity>
       </View>
 
       {/* Tabs */}

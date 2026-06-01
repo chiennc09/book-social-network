@@ -21,11 +21,13 @@ import ShareToChatModal from '../../components/book/modal/ShareToChatModal';
 
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import { eventEmitter, EventNames } from '../../utils/eventEmitter';
 
 const BookDetailScreen = ({ route, navigation }: any) => {
-  const { bookId } = route.params || {};
+  const { bookId, fromSearch } = route.params || {};
   const [book, setBook] = useState<BookDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [readingLoading, setReadingLoading] = useState(false);
   
   // Lấy token để load ảnh/file nếu backend yêu cầu Auth
   const { token } = useSelector((state: RootState) => state.auth);
@@ -41,20 +43,32 @@ const BookDetailScreen = ({ route, navigation }: any) => {
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  const fetchBookDetails = async (showLoadingIndicator = false) => {
+    if (!bookId) return;
+    if (showLoadingIndicator) setLoading(true);
+    try {
+      // fromSearch=true → bắn SEARCH_CLICK + VIEW | false → chỉ bắn VIEW
+      const data = await bookService.getBookDetails(bookId, !!fromSearch);
+      setBook(data);
+      if (data.userRating) setUserRating(data.userRating);
+    } catch (error) {
+      console.error("Lỗi khi tải chi tiết sách", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetch = async () => {
-      if (!bookId) return;
-      try {
-        const data = await bookService.getBookDetails(bookId);
-        setBook(data);
-        if (data.userRating) setUserRating(data.userRating);
-      } catch (error) {
-        console.error("Lỗi khi tải chi tiết sách", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
+    fetchBookDetails(true);
+  }, [bookId]);
+
+  useEffect(() => {
+    const subscription = eventEmitter.on(EventNames.BOOK_PROGRESS_UPDATED, (data: any) => {
+       if (data.bookId === bookId) {
+          fetchBookDetails(false);
+       }
+    });
+    return () => subscription.remove();
   }, [bookId]);
 
   if (loading || !book) {
@@ -131,10 +145,21 @@ const BookDetailScreen = ({ route, navigation }: any) => {
             onPressShelf={() => setShelfModalVisible(true)}
             onPressDetail={() => setDetailModalVisible(true)}
             onPressShare={() => setShareChatVisible(true)}
-            onPressRead={() => {
+            onPressRead={async () => {
                 if (book.epubPath || book.pdfPath) {
                     const url = book.epubPath || book.pdfPath;
-                    navigation.navigate('Reader', { bookId: book.id, url, lastPosition: book.lastPosition });
+                    setReadingLoading(true);
+                    try {
+                        if (book.status !== 'reading' && book.status !== 'read' && book.status !== 'READING' && book.status !== 'READ') {
+                            await bookApi.updateShelf(book.id, 'READING' as any);
+                            setBook(prev => prev ? { ...prev, status: 'reading' } : null);
+                        }
+                    } catch (err) {
+                        console.error("Lỗi khi cập nhật trạng thái tủ sách:", err);
+                    } finally {
+                        setReadingLoading(false);
+                        navigation.navigate('Reader', { bookId: book.id, url, lastPosition: book.lastPosition });
+                    }
                 } else {
                     console.log('Sách này chưa có file để đọc.');
                 }
@@ -148,13 +173,6 @@ const BookDetailScreen = ({ route, navigation }: any) => {
         {/* 4. Mô tả */}
         <DescriptionSection description={book.description} />
 
-        {/* --- View Count Thống kê hiển thị dưới Description --- */}
-        <View style={{ paddingHorizontal: 20, marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
-            <Icon name="eye" size={14} color={COLORS.textSecondary} />
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginLeft: 6 }}>
-                {book.totalViews || 0} lượt xem sách
-            </Text>
-        </View>
 
         {/* 5. Đánh giá */}
         <ReviewsSection reviews={book.reviews} ratingAverage={book.ratingAverage} />
@@ -231,6 +249,13 @@ const BookDetailScreen = ({ route, navigation }: any) => {
           ratingAverage: book.ratingAverage,
         }}
       />
+
+      {readingLoading && (
+        <View style={styles.readingLoadingOverlay}>
+           <ActivityIndicator size="large" color={COLORS.text} />
+           <Text style={styles.readingLoadingText}>Đang chuẩn bị sách...</Text>
+        </View>
+      )}
       
     </View>
   );
@@ -239,6 +264,19 @@ const BookDetailScreen = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
+  readingLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  readingLoadingText: {
+    color: '#FFF',
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: '500',
+  },
 });
 
 export default BookDetailScreen;
