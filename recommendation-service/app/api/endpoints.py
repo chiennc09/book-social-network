@@ -247,12 +247,16 @@ async def get_recommendations(user_id: str, limit: int = 10):
         if cached_lt:
             lt_ids = [b for b in json.loads(cached_lt) if b not in read_ids]
             lt_ids = await _validate_books(lt_ids)
-            if lt_ids != json.loads(cached_lt):
-                # Update cache with cleaned result
+            # FIX: Chỉ cập nhật cache và trả kết quả khi danh sách không rỗng
+            if lt_ids:
                 await redis.set(f"rec:{user_id}", json.dumps(lt_ids), keepttl=True)
-            long_term_list = BookList(bookIds=lt_ids[:long_limit], source="hybrid-als-cbf")
-        else:
-            # ALS cache miss — build CBF-only as fallback for long-term
+                long_term_list = BookList(bookIds=lt_ids[:long_limit], source="hybrid-als-cbf")
+            # Nếu lt_ids rỗng (toàn bộ đã đọc hoặc đã xóa), để long_term_list = None
+            # → sẽ fallback xuống CBF-only phía dưới
+            if not lt_ids:
+                await redis.delete(f"rec:{user_id}")  # Xóa cache cũ đã lỗi thời
+        if not cached_lt or long_term_list is None:
+            # ALS cache miss hoặc cache đã hết sách hợp lệ — build CBF-only fallback
             score_docs = await db.user_item_scores.find(
                 {"userId": user_id},
                 {"bookId": 1, "totalScore": 1, "_id": 0},
@@ -261,7 +265,7 @@ async def get_recommendations(user_id: str, limit: int = 10):
             if score_docs:
                 top_books = [d["bookId"] for d in score_docs]
                 lt_ids = await cbf_recommendations_for_user(top_books, limit=long_limit + len(read_ids))
-                lt_ids = [b for b in lt_ids if b not in read_ids and b not in set(top_books)]
+                lt_ids = [b for b in lt_ids if b not in read_ids]
                 lt_ids = await _validate_books(lt_ids)
                 if lt_ids:
                     long_term_list = BookList(bookIds=lt_ids[:long_limit], source="cbf-only")

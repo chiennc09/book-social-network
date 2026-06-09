@@ -97,7 +97,13 @@ async def train_hybrid_model() -> dict:
     n_items = df_als["bookId"].nunique()
 
     if n_users < 2 or n_items < 2:
-        logger.warning("Dataset too small for ALS (users=%d, items=%d) — CBF-only fallback.", n_users, n_items)
+        # FIX: Dataset quá nhỏ cho ALS (vd: chỉ có 1 user đủ điều kiện).
+        # Thay vì skip hoàn toàn, chạy CBF-only cho toàn bộ user đủ điều kiện
+        # (bao gồm cả user đạt ALS_MIN_INTERACTIONS nhưng ALS không thể chạy).
+        logger.warning(
+            "Dataset too small for ALS (users=%d, items=%d) — CBF-only fallback for ALL qualifying users.",
+            n_users, n_items,
+        )
         return await _run_cbf_only_for_qualifying(df)
 
     # ------------------------------------------------------------------
@@ -162,8 +168,30 @@ async def train_hybrid_model() -> dict:
     if users_ok > 0:
         await pipe.execute()
 
-    logger.info("=== Hybrid training done: %d users updated. ===", users_ok)
-    return {"status": "success", "users_processed": users_ok}
+    logger.info("=== ALS Hybrid training done: %d users updated. ===", users_ok)
+
+    # ------------------------------------------------------------------
+    # 6. CBF-only pass for users who have >= COLD_START_THRESHOLD but
+    #    < ALS_MIN_INTERACTIONS — these users were excluded from ALS but
+    #    still deserve a pre-computed long-term list so they don't rely
+    #    on the slower real-time CBF fallback at request time.
+    # ------------------------------------------------------------------
+    cbf_only_users = set(
+        user_counts[
+            (user_counts >= settings.COLD_START_THRESHOLD) &
+            (user_counts < settings.ALS_MIN_INTERACTIONS)
+        ].index
+    )
+    if cbf_only_users:
+        df_cbf = df[df["userId"].isin(cbf_only_users)]
+        cbf_count = await _run_cbf_only_for_qualifying(df_cbf)
+        logger.info("CBF-only pass complete for %s sub-threshold users.", cbf_only_users)
+    else:
+        cbf_count = {"users_processed": 0}
+
+    logger.info("=== Hybrid training fully done: ALS=%d, CBF=%s users. ===",
+                users_ok, cbf_count.get("users_processed", 0))
+    return {"status": "success", "users_processed": users_ok, "cbf_users": cbf_count.get("users_processed", 0)}
 
 
 # ─── Per-user ALS + CBF pipeline ──────────────────────────────────────────────
@@ -185,7 +213,7 @@ async def _process_als_user(
             user_i,
             sparse_user_item[user_i],
             N=n_candidates,
-            filter_already_liked_items=(n_items > 1),
+            filter_already_liked_items=False,
         )
     except (IndexError, Exception) as exc:
         logger.debug("ALS error for user %s: %s — falling back to CBF.", user_id, exc)
