@@ -6,6 +6,7 @@ from app.core.qdrant_client import QdrantManager
 from app.services.kafka_consumer import KafkaConsumerService
 from app.services.book_event_consumer import BookEventConsumer
 from app.services.embedding_service import get_model
+from app.services.scheduled_tasks import SchedulerService
 from app.api.endpoints import router as api_router
 import asyncio
 import logging
@@ -26,8 +27,7 @@ async def startup_event():
     await RedisClient.connect()
     await QdrantManager.connect()
 
-    # 2. Pre-load the embedding model in the main thread to avoid cold-start
-    #    lag on the first request (model download happens here on first run).
+    # 2. Pre-load the embedding model to avoid cold-start lag on first request
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, get_model)
 
@@ -35,9 +35,13 @@ async def startup_event():
     await KafkaConsumerService.start()
     await BookEventConsumer.start()
 
+    # 4. Start periodic training scheduler
+    SchedulerService.start()
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    SchedulerService.stop()
     await KafkaConsumerService.stop()
     await BookEventConsumer.stop()
     MongoDBClient.disconnect()

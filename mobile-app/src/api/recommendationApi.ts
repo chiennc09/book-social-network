@@ -34,10 +34,16 @@ recommendationAxiosClient.interceptors.response.use(
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface BookList {
+  bookIds: string[];
+  source: string;
+}
+
 export interface RecommendationResponse {
   userId: string;
-  recommendedBookIds: string[];
-  source: 'hybrid-als-cbf' | 'cbf-only' | 'trending' | 'empty';
+  longTerm?: BookList;
+  shortTerm?: BookList;
+  trending?: BookList;
 }
 
 export interface SimilarBooksResponse {
@@ -45,19 +51,12 @@ export interface SimilarBooksResponse {
   similarBookIds: string[];
 }
 
-export interface TodayRecommendationResponse {
-  userId: string;
-  todayBookIds: string[];
-  /** 'session-cbf' | 'recency-cbf' | 'trending' | 'empty' */
-  source: string;
-}
-
 // ─── API Methods ──────────────────────────────────────────────────────────────
 
 export const recommendationApi = {
   /**
-   * Fetch personalised book IDs for a user.
-   * Returns an empty array for cold-start users.
+   * Fetch personalised book IDs for a user (Long Term / Trending).
+   * Returns an empty array for cold-start users without global trending fallback.
    */
   getRecommendations: async (
     userId: string,
@@ -68,7 +67,13 @@ export const recommendationApi = {
         `/recommendations/${userId}`,
         { params: { limit } },
       );
-      return resp.recommendedBookIds ?? [];
+      if (resp.longTerm) {
+        return resp.longTerm.bookIds ?? [];
+      }
+      if (resp.trending) {
+        return resp.trending.bookIds ?? [];
+      }
+      return [];
     } catch (error) {
       console.warn('[recommendationApi] Failed to fetch recommendations:', error);
       return [];
@@ -96,19 +101,24 @@ export const recommendationApi = {
   },
 
   /**
-   * Fetch Today's Picks based on user's recent session activity.
-   * Cached 24h on server; invalidated on each interaction event.
+   * Fetch Today's Picks (Short Term) based on user's recent session activity.
    */
   getTodayRecommendations: async (
     userId: string,
     limit = 10,
   ): Promise<{ ids: string[]; source: string }> => {
     try {
-      const resp: TodayRecommendationResponse = await recommendationAxiosClient.get(
-        `/recommendations/${userId}/today`,
+      const resp: RecommendationResponse = await recommendationAxiosClient.get(
+        `/recommendations/${userId}`,
         { params: { limit } },
       );
-      return { ids: resp.todayBookIds ?? [], source: resp.source ?? 'empty' };
+      if (resp.shortTerm) {
+        return {
+          ids: resp.shortTerm.bookIds ?? [],
+          source: resp.shortTerm.source ?? 'empty',
+        };
+      }
+      return { ids: [], source: 'empty' };
     } catch (error) {
       console.warn('[recommendationApi] Failed to fetch today recs:', error);
       return { ids: [], source: 'error' };

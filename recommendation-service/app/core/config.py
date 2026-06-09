@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Recommendation Service"
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9094"
@@ -17,29 +18,54 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL_NAME: str = "intfloat/multilingual-e5-small"
 
     # ── Long-term recommendation cache (rec:{userId}) ────────────────────────
-    # Được ghi sau mỗi chu kỳ ALS training (mặc định 6h).
-    # TTL = 8h để cache không bao giờ bị stale quá 2h sau chu kỳ training.
-    # Nếu training thất bại, cache vẫn phục vụ được thêm 2h trước khi hết.
-    REDIS_TTL_SECONDS: int = 86_400       # 24 giờ
+    # Training overwrites this key every TRAINING_CRON_HOURS (6h).
+    # TTL = 30 ngày chỉ là safety-net: nếu service ngừng hoạt động lâu ngày
+    # thì cache cũng tự hết thay vì phục vụ dữ liệu cũ mãi mãi.
+    # Không cần lo TTL "xoá" gợi ý vì training 6h sẽ ghi đè sớm hơn.
+    REDIS_REC_TTL_SECONDS: int = 2_592_000    # 30 ngày
+
+    # ── Short-term recommendation cache (today_rec:{userId}) ─────────────────
+    # Invalidated on every interaction; TTL is a safety-net only.
+    REDIS_TODAY_TTL_SECONDS: int = 3_600      # 1 giờ
+
+    # ── Backup list when today_rec expires or is empty ────────────────────────
+    # Stores the tail portion (books 11-20) of the previous today_rec result.
+    REDIS_BACKUP_TTL_SECONDS: int = 604_800   # 7 ngày
+
+    # ── Session window (recent_views:{userId}) ────────────────────────────────
+    REDIS_RECENT_VIEWS_MAX: int = 10
+    REDIS_RECENT_VIEWS_TTL_SECONDS: int = 172_800   # 48 giờ
+
+    # ── View-cap per (user, book) ─────────────────────────────────────────────
+    REDIS_VIEW_CAP_COUNT: int = 3
+    REDIS_VIEW_CAP_TTL_SECONDS: int = 2_592_000     # 30 ngày
 
     # ── Training cycle ────────────────────────────────────────────────────────
-    # ALS được train lại mỗi 6 giờ (= 4 lần/ngày)
-    # Cân bằng giữa freshness và chi phí tính toán
     TRAINING_CRON_HOURS: int = 6
 
     # ── Hybrid blending weights ───────────────────────────────────────────────
-    # ALS (collaborative): bắt pattern từ cộng đồng người dùng tương tự
-    # CBF (content-based): bắt sở thích nội dung cụ thể của user
     HYBRID_ALS_WEIGHT: float = 0.6
     HYBRID_CBF_WEIGHT: float = 0.4
 
-    # ── Cold start threshold ──────────────────────────────────────────────────
-    # < 5 interactions: Global Trending
-    # 5-20 interactions: CBF-only (content similarity)
-    # > 20 + sau ALS training: Full Hybrid
-    COLD_START_THRESHOLD: int = 5
+    # ── Interaction thresholds ────────────────────────────────────────────────
+    # < COLD_START_THRESHOLD  → Trending only
+    # >= COLD_START_THRESHOLD → Short-term (CBF) + Long-term (CBF or Hybrid)
+    COLD_START_THRESHOLD: int = 3
+
+    # Minimum interactions before ALS training is useful for a user
+    ALS_MIN_INTERACTIONS: int = 10
+
+    # Number of ALS candidates before CBF re-ranking
+    ALS_CANDIDATE_COUNT: int = 50
+
+    # Final top-K stored per user in long-term cache
+    TOP_K_LONG_TERM: int = 20
+
+    # Short-term recommendations size
+    TOP_K_SHORT_TERM: int = 10
 
     class Config:
         env_file = ".env"
+
 
 settings = Settings()

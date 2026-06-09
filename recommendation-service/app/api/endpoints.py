@@ -1,21 +1,53 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel
-from typing import List
-from app.core.config import settings
-from app.core.redis_client import RedisClient
-from app.core.mongodb import MongoDBClient
-from app.services.training_service import train_hybrid_model
-from app.services.embedding_service import (
-    search_similar_books,
-    cbf_recommendations_for_user,
-    delete_book as qdrant_delete_book,
-)
+"""
+Recommendation API endpoints.
+
+Recommendation model
+────────────────────
+The API returns at most 3 recommendation lists per user:
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │ User type          │ Lists returned                              │
+  ├──────────────────────────────────────────────────────────────────┤
+  │ New (<threshold)   │ trending only                               │
+  │ Qualified user     │ long_term  + short_term (+ trending if cold │
+  │                    │ start for long_term)                        │
+  └──────────────────────────────────────────────────────────────────┘
+
+long_term  (rec:{userId})       — ALS+CBF hybrid, written every 6h by training job
+                                    (30-day TTL as safety-net only)
+short_term (today_rec:{userId}) — Session-CBF, rebuilt on each interaction
+                                    (NO filtering of read books — session-based context)
+
+Redis key schema (read-only in this module)
+───────────────────────────────────────────
+rec:{userId}                  JSON list[str]  — long-term recs
+today_rec:{userId}            JSON list[str]  — short-term cache
+today_rec_backup:{userId}     JSON list[str]  — tail of previous today_rec
+recent_views:{userId}         List[str]       — sliding session window
+read_books:{userId}           Set[str]        — books user has fully read
+rec:global_trending           JSON list[str]  — global trending
+"""
+from __future__ import annotations
+
 import json
 import logging
+from typing import Optional
 
-# TTL cho today_rec:{userId} — ngắn hạn, session-based
-# Phải khớp với _TODAY_REC_TTL trong interaction_service.py
-_TODAY_REC_TTL_SECONDS = 3_600   # 1 giờ
+from bson import ObjectId
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel
+
+from app.core.config import settings
+from app.core.mongodb import MongoDBClient
+from app.core.redis_client import RedisClient
+from app.services.embedding_service import (
+    cbf_recommendations_for_user,
+    delete_book as qdrant_delete_book,
+    search_similar_books,
+)
+from app.services.interaction_service import get_read_book_ids
+from app.services.training_service import train_hybrid_model
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -23,223 +55,253 @@ logger = logging.getLogger(__name__)
 
 # ─── Response schemas ──────────────────────────────────────────────────────────
 
-class RecommendationResponse(BaseModel):
+class BookList(BaseModel):
+    bookIds: list[str]
+    source: str  # "hybrid-als-cbf" | "cbf-only" | "session-cbf" | "recency-cbf" | "backup" | "trending"
+
+
+class RecommendationsResponse(BaseModel):
     userId: str
-    recommendedBookIds: List[str]
-    # "hybrid-als-cbf" | "cbf-only" | "trending" | "empty"
-    source: str = "unknown"
+    longTerm: Optional[BookList] = None   # Present when user is qualified
+    shortTerm: Optional[BookList] = None  # Present when user is qualified
+    trending: Optional[BookList] = None   # Present when user is new OR as supplement
 
 
 class SimilarBooksResponse(BaseModel):
     bookId: str
-    similarBookIds: List[str]
+    similarBookIds: list[str]
 
 
-class TodayRecommendationResponse(BaseModel):
-    userId: str
-    todayBookIds: List[str]
-    # "session-cbf": built from recent_views
-    # "recency-cbf": built from recently interacted books (fallback)
-    # "trending"   : ultimate fallback
-    source: str
+# ─── Book existence validation ────────────────────────────────────────────────
 
-
-# ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async def _get_valid_book_ids_from_mongo(book_ids: list[str]) -> list[str]:
+async def _validate_books(book_ids: list[str]) -> list[str]:
     """
     Filter a list of bookIds to only those that still exist in book-service MongoDB.
-
-    Uses the 'book-service' MongoDB database to verify existence.
-    Returns bookIds in the same order, skipping deleted ones.
+    Preserves original order. Non-ObjectId IDs pass through without validation.
+    Fail-open: returns all IDs unfiltered if MongoDB is unreachable.
     """
     if not book_ids:
         return []
-
     try:
-        # NOTE: recommendation-service connects to its own MongoDB database.
-        # To verify book existence we need the book-service database.
-        # The BOOK_SERVICE_MONGODB_URL env var points to that DB.
-        from motor.motor_asyncio import AsyncIOMotorClient
-        book_db_url = settings.BOOK_SERVICE_MONGODB_URL
-        client = AsyncIOMotorClient(book_db_url)
+        client = AsyncIOMotorClient(settings.BOOK_SERVICE_MONGODB_URL)
         db = client["book-service"]
 
-        # Use $in query — much faster than N individual lookups
-        from bson import ObjectId
-        oid_map: dict[str, str] = {}  # ObjectId hex string -> original book_id
+        oid_map: dict = {}   # ObjectId → original str
+        passthrough: list[str] = []
         for bid in book_ids:
             try:
                 oid_map[ObjectId(bid)] = bid
             except Exception:
-                pass  # Non-ObjectId IDs — skip validation, keep them
+                passthrough.append(bid)
 
-        if not oid_map:
-            return book_ids  # All non-ObjectId IDs, skip validation
-
-        existing_docs = await db["books"].find(
-            {"_id": {"$in": list(oid_map.keys())}},
-            {"_id": 1}
-        ).to_list(length=len(oid_map))
-
-        existing_hex = {str(d["_id"]) for d in existing_docs}
-
-        # Preserve original order
-        valid = []
-        for bid in book_ids:
-            try:
-                hex_id = str(ObjectId(bid))
-                if hex_id in existing_hex:
-                    valid.append(bid)
-                else:
-                    logger.debug(f"Recommendation filter: book '{bid}' not found in book-service DB (deleted).")
-            except Exception:
-                valid.append(bid)  # Non-ObjectId IDs pass through
+        valid_oids: set[str] = set()
+        if oid_map:
+            docs = await db["books"].find(
+                {"_id": {"$in": list(oid_map.keys())}},
+                {"_id": 1},
+            ).to_list(length=len(oid_map))
+            valid_oids = {str(d["_id"]) for d in docs}
 
         client.close()
-        return valid
+
+        result = []
+        for bid in book_ids:
+            try:
+                if str(ObjectId(bid)) in valid_oids:
+                    result.append(bid)
+            except Exception:
+                result.append(bid)   # non-ObjectId passthrough
+        return result
 
     except Exception as exc:
-        logger.warning(f"_get_valid_book_ids_from_mongo failed: {exc} — returning all IDs unfiltered.")
-        return book_ids  # Fail-open: don't block recommendations on DB errors
+        logger.warning("_validate_books failed: %s — returning unfiltered.", exc)
+        return book_ids
 
 
-# ─── GET /recommendations/{user_id}  (Long-term: ALS + CBF) ───────────────────
+async def _filter_books(
+    book_ids: list[str],
+    *,
+    exclude: set[str],
+    validate: bool = True,
+) -> list[str]:
+    """
+    Remove books in `exclude` set, then optionally validate against book-service DB.
+    """
+    filtered = [b for b in book_ids if b not in exclude]
+    if validate:
+        filtered = await _validate_books(filtered)
+    return filtered
 
-@router.get("/recommendations/{user_id}", response_model=RecommendationResponse)
-async def get_recommendations(user_id: str):
+
+# ─── Short-term recommendation builder ────────────────────────────────────────
+
+async def _build_short_term(
+    user_id: str,
+    limit: int,
+) -> tuple[list[str], str]:
+    """
+    Build short-term (Today's Picks) recommendations for a qualified user.
+
+    NOTE: Short-term is session-intent based and does NOT filter out
+    books the user has already read. The goal is to surface related books
+    around current browsing context, not long-term personalization.
+
+    Strategy (4-tier waterfall):
+      1. recent_views session window  → session-cbf
+      2. 10 most recently interacted books (lastInteractedAt) → recency-cbf
+      3. today_rec_backup (tail of previous today result, TTL 7 days) → backup
+      4. global_trending (last resort)
+
+    Returns (book_ids, source).
+    """
+    redis = RedisClient.get_client()
+
+    # ── 1. Session window ─────────────────────────────────────────────────────
+    raw = await redis.lrange(f"recent_views:{user_id}", 0, -1)
+    recent_ids = [b.decode() if isinstance(b, bytes) else b for b in raw]
+
+    if recent_ids:
+        recs = await cbf_recommendations_for_user(recent_ids, limit=limit + 10)
+        # Only exclude the seed books themselves (already seen this session)
+        recs = [b for b in recs if b not in set(recent_ids)]
+        if recs:
+            return recs[:limit], "session-cbf"
+
+    # ── 2. MongoDB recency fallback ───────────────────────────────────────────
+    db = MongoDBClient.get_db()
+    docs = await db.user_item_scores.find(
+        {"userId": user_id},
+        {"bookId": 1, "_id": 0},
+    ).sort("lastInteractedAt", -1).limit(10).to_list(length=10)
+
+    recency_ids = [d["bookId"] for d in docs]
+    if recency_ids:
+        recs = await cbf_recommendations_for_user(recency_ids, limit=limit + 10)
+        recs = [b for b in recs if b not in set(recency_ids)]
+        if recs:
+            return recs[:limit], "recency-cbf"
+
+    # ── 3. Backup (tail of previous today_rec, kept 7 days) ──────────────────
+    backup_raw = await redis.get(f"today_rec_backup:{user_id}")
+    if backup_raw:
+        backup_ids = await _validate_books(json.loads(backup_raw))
+        if backup_ids:
+            return backup_ids[:limit], "backup"
+
+    # ── 4. Global trending ────────────────────────────────────────────────────
+    trending_raw = await redis.get("rec:global_trending")
+    if trending_raw:
+        return json.loads(trending_raw)[:limit], "trending"
+
+    return [], "empty"
+
+
+# ─── GET /recommendations/{user_id} ───────────────────────────────────────────
+
+@router.get("/recommendations/{user_id}", response_model=RecommendationsResponse)
+async def get_recommendations(user_id: str, limit: int = 10):
+    """
+    Unified recommendation endpoint.
+
+    Returns:
+      - New users (< COLD_START_THRESHOLD interactions):
+            Only `trending` list.
+      - Qualified users (>= COLD_START_THRESHOLD):
+            `longTerm`  = hybrid-als-cbf (from Redis cache, set by training job)
+                          Falls back to live CBF-only when ALS cache is missing
+                          (i.e. training hasn’t run yet or Redis was flushed).
+                          READ books are filtered out from this list.
+            `shortTerm` = session-CBF (rebuilt after every interaction).
+                          Does NOT filter read books — session context only.
+    """
     try:
-        redis_client = RedisClient.get_client()
-
-        recs_json = await redis_client.get(f"rec:{user_id}")
-        if recs_json:
-            cached_ids = json.loads(recs_json)
-            valid_ids = await _get_valid_book_ids_from_mongo(cached_ids)
-            if valid_ids != cached_ids:
-                # Update cache with cleaned list
-                await redis_client.set(f"rec:{user_id}", json.dumps(valid_ids), ex=settings.REDIS_TTL_SECONDS)
-            return RecommendationResponse(
-                userId=user_id,
-                recommendedBookIds=valid_ids,
-                source="hybrid-als-cbf",
-            )
-
-        # Cold-start: enough interactions → CBF-only
+        redis = RedisClient.get_client()
         db = MongoDBClient.get_db()
-        user_scores = await db.user_item_scores.find(
-            {"userId": user_id},
-            {"bookId": 1, "totalScore": 1, "_id": 0},
-        ).sort("totalScore", -1).limit(20).to_list(length=20)
+        short_limit = min(limit, settings.TOP_K_SHORT_TERM)
+        long_limit = settings.TOP_K_LONG_TERM
 
-        if len(user_scores) >= settings.COLD_START_THRESHOLD:
-            user_book_ids = [s["bookId"] for s in user_scores]
-            recs = await cbf_recommendations_for_user(user_book_ids, limit=20)
-            if recs:
-                valid_recs = await _get_valid_book_ids_from_mongo(recs)
-                return RecommendationResponse(
-                    userId=user_id, recommendedBookIds=valid_recs, source="cbf-only"
+        # ── Check total interaction count (cold-start gate) ───────────────────
+        total_count = await db.user_item_scores.count_documents({"userId": user_id})
+
+        if total_count < settings.COLD_START_THRESHOLD:
+            # New user — trending only
+            trending_raw = await redis.get("rec:global_trending")
+            if trending_raw:
+                trending_ids = await _validate_books(json.loads(trending_raw))
+                return RecommendationsResponse(
+                    userId=user_id,
+                    trending=BookList(bookIds=trending_ids[:long_limit], source="trending"),
                 )
+            return RecommendationsResponse(userId=user_id)
 
-        # Absolute cold-start → trending
-        trending_json = await redis_client.get("rec:global_trending")
-        if trending_json:
-            trending_ids = json.loads(trending_json)
-            valid_trending = await _get_valid_book_ids_from_mongo(trending_ids)
-            return RecommendationResponse(
-                userId=user_id,
-                recommendedBookIds=valid_trending,
-                source="trending",
-            )
+        # ── Qualified user ────────────────────────────────────────────────────
+        # Read books are fetched once and used ONLY for long-term filtering.
+        read_ids = await get_read_book_ids(user_id)
 
-        return RecommendationResponse(userId=user_id, recommendedBookIds=[], source="empty")
+        # ════════════════════════════════════════════════════════════════════
+        # LONG-TERM
+        # ════════════════════════════════════════════════════════════════════
+        long_term_list: Optional[BookList] = None
+        cached_lt = await redis.get(f"rec:{user_id}")
 
-    except Exception as exc:
-        logger.error(f"Error serving recommendations for {user_id}: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        if cached_lt:
+            lt_ids = [b for b in json.loads(cached_lt) if b not in read_ids]
+            lt_ids = await _validate_books(lt_ids)
+            if lt_ids != json.loads(cached_lt):
+                # Update cache with cleaned result
+                await redis.set(f"rec:{user_id}", json.dumps(lt_ids), keepttl=True)
+            long_term_list = BookList(bookIds=lt_ids[:long_limit], source="hybrid-als-cbf")
+        else:
+            # ALS cache miss — build CBF-only as fallback for long-term
+            score_docs = await db.user_item_scores.find(
+                {"userId": user_id},
+                {"bookId": 1, "totalScore": 1, "_id": 0},
+            ).sort("totalScore", -1).limit(20).to_list(length=20)
 
+            if score_docs:
+                top_books = [d["bookId"] for d in score_docs]
+                lt_ids = await cbf_recommendations_for_user(top_books, limit=long_limit + len(read_ids))
+                lt_ids = [b for b in lt_ids if b not in read_ids and b not in set(top_books)]
+                lt_ids = await _validate_books(lt_ids)
+                if lt_ids:
+                    long_term_list = BookList(bookIds=lt_ids[:long_limit], source="cbf-only")
 
-# ─── GET /recommendations/{user_id}/today  (Short-term: Session CBF) ──────────
-
-@router.get("/recommendations/{user_id}/today", response_model=TodayRecommendationResponse)
-async def get_today_recommendations(user_id: str, limit: int = 10):
-    """
-    Short-term 'Today's Picks' recommendation.
-
-    Build strategy (3-tier fallback):
-      1. Cache hit  → return today_rec:{userId} (TTL 24h, invalidated on each interaction)
-      2. recent_views exists → CBF from ≤10 recent bookIds (live session intent)
-      3. lastInteractedAt fallback → CBF from ≤10 most recently interacted books in MongoDB
-      4. No data  → global trending
-
-    today_rec is deleted on every VIEW/FAVORITE/etc. event so the next call
-    always reflects the user's freshest intent.
-
-    All returned bookIds are validated against the live book-service database
-    to prevent returning stale/deleted books.
-    """
-    try:
-        redis_client = RedisClient.get_client()
+        # ════════════════════════════════════════════════════════════════════
+        # SHORT-TERM (today_rec) — session-intent, NO read-books filtering
+        # ════════════════════════════════════════════════════════════════════
+        short_term_list: Optional[BookList] = None
         today_key = f"today_rec:{user_id}"
 
-        # ── 1. Cache hit ──────────────────────────────────────────────────────
-        cached = await redis_client.get(today_key)
-        if cached:
-            cached_ids = json.loads(cached)
-            valid_ids = await _get_valid_book_ids_from_mongo(cached_ids)
-            if valid_ids != cached_ids:
-                # Stale IDs found — update cache
-                await redis_client.set(today_key, json.dumps(valid_ids), ex=_TODAY_REC_TTL_SECONDS)
-            return TodayRecommendationResponse(
-                userId=user_id,
-                todayBookIds=valid_ids,
-                source="session-cbf",
-            )
+        cached_st = await redis.get(today_key)
+        if cached_st:
+            # Return cached result as-is (validated only)
+            st_ids = await _validate_books(json.loads(cached_st))
+            short_term_list = BookList(bookIds=st_ids[:short_limit], source="session-cbf")
+        else:
+            st_ids, st_source = await _build_short_term(user_id, limit=short_limit + 10)
+            st_ids = await _validate_books(st_ids)
 
-        limit = min(limit, 20)
-        result_ids: list[str] = []
-        source = "empty"
+            if st_ids:
+                # Cache the fresh result
+                await redis.set(today_key, json.dumps(st_ids), ex=settings.REDIS_TODAY_TTL_SECONDS)
+                # Write tail (11-20) as backup for next time
+                if len(st_ids) > short_limit:
+                    backup = st_ids[short_limit:]
+                    await redis.set(
+                        f"today_rec_backup:{user_id}",
+                        json.dumps(backup),
+                        ex=settings.REDIS_BACKUP_TTL_SECONDS,
+                    )
+                short_term_list = BookList(bookIds=st_ids[:short_limit], source=st_source)
 
-        # ── 2. Build from recent_views (session window) ───────────────────────
-        recent_ids_raw = await redis_client.lrange(f"recent_views:{user_id}", 0, -1)
-        recent_ids = [b.decode() if isinstance(b, bytes) else b for b in recent_ids_raw]
-
-        if recent_ids:
-            result_ids = await cbf_recommendations_for_user(recent_ids, limit=limit)
-            source = "session-cbf"
-
-        # ── 3. Fallback: most recently interacted books from MongoDB ──────────
-        if not result_ids:
-            db = MongoDBClient.get_db()
-            recent_docs = await db.user_item_scores.find(
-                {"userId": user_id},
-                {"bookId": 1, "_id": 0},
-            ).sort("lastInteractedAt", -1).limit(10).to_list(length=10)
-
-            fallback_book_ids = [d["bookId"] for d in recent_docs]
-            if fallback_book_ids:
-                result_ids = await cbf_recommendations_for_user(fallback_book_ids, limit=limit)
-                source = "recency-cbf"
-
-        # ── 4. Ultimate fallback: trending ────────────────────────────────────
-        if not result_ids:
-            trending_json = await redis_client.get("rec:global_trending")
-            if trending_json:
-                result_ids = json.loads(trending_json)[:limit]
-                source = "trending"
-
-        # ── Validate: remove book IDs that no longer exist in book-service ────
-        if result_ids:
-            result_ids = await _get_valid_book_ids_from_mongo(result_ids)
-
-        # Write to cache (even empty result, prevents thunder-herd)
-        await redis_client.set(today_key, json.dumps(result_ids), ex=_TODAY_REC_TTL_SECONDS)
-
-        return TodayRecommendationResponse(
-            userId=user_id, todayBookIds=result_ids, source=source
+        return RecommendationsResponse(
+            userId=user_id,
+            longTerm=long_term_list,
+            shortTerm=short_term_list,
         )
 
     except Exception as exc:
-        logger.error(f"Error building today recs for {user_id}: {exc}", exc_info=True)
+        logger.error("Error in get_recommendations for %s: %s", user_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -247,12 +309,16 @@ async def get_today_recommendations(user_id: str, limit: int = 10):
 
 @router.get("/similar/{book_id}", response_model=SimilarBooksResponse)
 async def get_similar_books(book_id: str, limit: int = 10):
+    """
+    Return the top-N most content-similar books to the given bookId.
+    Used on the Book Detail screen ("Bạn cũng có thể thích").
+    """
     try:
         similar_ids = await search_similar_books(book_id, limit=min(limit, 20))
-        valid_ids = await _get_valid_book_ids_from_mongo(similar_ids)
+        valid_ids = await _validate_books(similar_ids)
         return SimilarBooksResponse(bookId=book_id, similarBookIds=valid_ids)
     except Exception as exc:
-        logger.error(f"Error fetching similar books for {book_id}: {exc}", exc_info=True)
+        logger.error("Error in get_similar_books for %s: %s", book_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -260,6 +326,7 @@ async def get_similar_books(book_id: str, limit: int = 10):
 
 @router.post("/jobs/train")
 async def trigger_training(background_tasks: BackgroundTasks):
+    """Manually trigger the hybrid training job (runs in background)."""
     background_tasks.add_task(train_hybrid_model)
     return {"status": "Training job triggered"}
 
@@ -267,29 +334,22 @@ async def trigger_training(background_tasks: BackgroundTasks):
 # ─── POST /admin/flush-cache ───────────────────────────────────────────────────
 
 @router.post("/admin/flush-cache")
-async def flush_all_recommendation_caches():
+async def flush_all_caches():
     """
     Flush ALL recommendation caches from Redis.
-
-    USE THIS when:
-      - You have reset / re-seeded the book database
-      - You want to force fresh recommendations for all users
-      - You suspect stale data is being served
-
-    This is a destructive operation — all users will get rebuilt recommendations
-    on their next request. Use with caution in production.
+    Use after a full DB reset or when stale data must be cleared immediately.
     """
-    redis_client = RedisClient.get_client()
-    if redis_client is None:
+    redis = RedisClient.get_client()
+    if redis is None:
         raise HTTPException(status_code=503, detail="Redis not connected")
 
     deleted = 0
-    for pattern in ["today_rec:*", "rec:*", "recent_views:*"]:
-        async for key in redis_client.scan_iter(pattern):
-            await redis_client.delete(key)
+    for pattern in ["today_rec:*", "today_rec_backup:*", "rec:*", "recent_views:*"]:
+        async for key in redis.scan_iter(pattern):
+            await redis.delete(key)
             deleted += 1
 
-    logger.info(f"Admin flush-cache: deleted {deleted} Redis keys.")
+    logger.info("Admin flush-cache: deleted %d Redis keys.", deleted)
     return {"status": "ok", "deleted_keys": deleted}
 
 
@@ -298,70 +358,51 @@ async def flush_all_recommendation_caches():
 @router.post("/admin/purge-qdrant-orphans")
 async def purge_qdrant_orphans(background_tasks: BackgroundTasks):
     """
-    Scan Qdrant collection and delete any vectors whose bookId no longer exists
-    in the book-service MongoDB.
-
-    Run this after:
-      - A bulk book deletion that bypassed Kafka (e.g. direct DB wipe)
-      - Data migration / reseed operations
-
-    The scan runs as a background task — returns immediately.
-    Monitor recommendation-service logs for progress.
+    Scan Qdrant and delete any vectors whose bookId no longer exists in book-service MongoDB.
+    Runs as a background task — returns immediately.
     """
     background_tasks.add_task(_purge_qdrant_orphans_task)
     return {"status": "Purge job started — check logs for progress"}
 
 
-async def _purge_qdrant_orphans_task():
-    """Background task: scan Qdrant for orphan vectors and delete them."""
+async def _purge_qdrant_orphans_task() -> None:
     from app.core.qdrant_client import QdrantManager
-    from motor.motor_asyncio import AsyncIOMotorClient
-    from bson import ObjectId
 
     logger.info("Starting Qdrant orphan purge...")
-
     try:
         qdrant = QdrantManager.get_client()
-        book_db_url = settings.BOOK_SERVICE_MONGODB_URL
-        mongo = AsyncIOMotorClient(book_db_url)
-        db = mongo["book-service"]
+        client = AsyncIOMotorClient(settings.BOOK_SERVICE_MONGODB_URL)
+        db = client["book-service"]
 
-        # Scroll through ALL Qdrant points (paginated)
-        orphan_qdrant_ids = []
+        orphan_ids: list = []
         offset = None
-        batch_size = 100
 
         while True:
             result, next_offset = await qdrant.scroll(
                 collection_name=settings.QDRANT_COLLECTION_NAME,
                 offset=offset,
-                limit=batch_size,
+                limit=100,
                 with_payload=True,
                 with_vectors=False,
             )
-
             if not result:
                 break
 
-            # Collect book_ids from payload
-            batch_book_ids = []
-            qdrant_id_map: dict[str, str] = {}  # book_id -> qdrant point id
-
+            batch_book_ids: list[str] = []
+            qdrant_id_map: dict[str, str] = {}
             for point in result:
-                book_id = point.payload.get("book_id") if point.payload else None
+                book_id = (point.payload or {}).get("book_id")
                 if book_id:
                     batch_book_ids.append(book_id)
                     qdrant_id_map[book_id] = point.id
 
-            # Check which still exist in MongoDB
             if batch_book_ids:
                 oids = []
                 for bid in batch_book_ids:
                     try:
                         oids.append(ObjectId(bid))
                     except Exception:
-                        pass  # Non-ObjectId — assume valid
-
+                        pass
                 existing_docs = await db["books"].find(
                     {"_id": {"$in": oids}}, {"_id": 1}
                 ).to_list(length=len(oids))
@@ -369,27 +410,24 @@ async def _purge_qdrant_orphans_task():
 
                 for book_id, qdrant_id in qdrant_id_map.items():
                     try:
-                        hex_id = str(ObjectId(book_id))
-                        if hex_id not in existing_hex:
-                            orphan_qdrant_ids.append(qdrant_id)
+                        if str(ObjectId(book_id)) not in existing_hex:
+                            orphan_ids.append(qdrant_id)
                     except Exception:
-                        pass  # Non-ObjectId IDs are kept
+                        pass
 
             if next_offset is None:
                 break
             offset = next_offset
 
-        # Delete orphans
-        if orphan_qdrant_ids:
+        if orphan_ids:
             await qdrant.delete(
                 collection_name=settings.QDRANT_COLLECTION_NAME,
-                points_selector=orphan_qdrant_ids,
+                points_selector=orphan_ids,
             )
-            logger.info(f"Qdrant orphan purge: deleted {len(orphan_qdrant_ids)} orphan vectors.")
+            logger.info("Qdrant orphan purge: deleted %d vectors.", len(orphan_ids))
         else:
             logger.info("Qdrant orphan purge: no orphans found.")
 
-        mongo.close()
-
+        client.close()
     except Exception as exc:
-        logger.error(f"Qdrant orphan purge failed: {exc}", exc_info=True)
+        logger.error("Qdrant orphan purge failed: %s", exc, exc_info=True)
