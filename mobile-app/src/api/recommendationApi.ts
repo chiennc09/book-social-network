@@ -55,8 +55,10 @@ export interface SimilarBooksResponse {
 
 export const recommendationApi = {
   /**
-   * Fetch personalised book IDs for a user (Long Term / Trending).
-   * Returns an empty array for cold-start users without global trending fallback.
+   * Fetch personalised book IDs for a user (Long Term ALS only).
+   * Returns an empty array for cold-start users or when the backend falls
+   * back to trending — trending books are displayed separately in the
+   * dedicated "Sách Trending" section so we must not duplicate them here.
    */
   getRecommendations: async (
     userId: string,
@@ -67,11 +69,13 @@ export const recommendationApi = {
         `/recommendations/${userId}`,
         { params: { limit } },
       );
+      // Only return personalised long-term recommendations.
+      // If the API falls back to trending (cold-start / no ALS data), we
+      // intentionally return [] so the "Có thể bạn cũng thích" section stays
+      // hidden — trending books are already shown in the dedicated
+      // "Sách Trending" section further down the screen.
       if (resp.longTerm) {
         return resp.longTerm.bookIds ?? [];
-      }
-      if (resp.trending) {
-        return resp.trending.bookIds ?? [];
       }
       return [];
     } catch (error) {

@@ -51,7 +51,16 @@ const ChallengeScreen = ({ navigation }: any) => {
         setBadges(badgesData.sort((a: Badge, b: Badge) => a.requiredBooks - b.requiredBooks));
 
         const lbData = (leaderboardRes as any).result || (leaderboardRes as any).data?.result || [];
-        setLeaderboard(lbData);
+        // Sort client-side: users with books read first (DESC), then 0-read users at bottom
+        const sorted = [...lbData].sort((a: any, b: any) => {
+          const aBooks = a.totalBooksRead ?? 0;
+          const bBooks = b.totalBooksRead ?? 0;
+          if (aBooks === 0 && bBooks === 0) return 0;
+          if (aBooks === 0) return 1;   // a goes after b
+          if (bBooks === 0) return -1;  // b goes after a
+          return bBooks - aBooks;       // both > 0: sort DESC
+        });
+        setLeaderboard(sorted);
 
         setCurrentUser(userProf);
       } catch (e) {
