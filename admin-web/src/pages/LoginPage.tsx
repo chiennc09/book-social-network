@@ -20,7 +20,7 @@ export default function LoginPage() {
       localStorage.setItem('admin_token', res.token);
       navigate('/');
     } catch {
-      setError('Invalid username or password.');
+      setError('Tên đăng nhập hoặc mật khẩu không đúng.');
     } finally {
       setLoading(false);
     }
@@ -31,8 +31,8 @@ export default function LoginPage() {
       <div className="login-box">
         <div className="login-logo">
           <div className="login-icon">📚</div>
-          <h1 className="login-title">Admin Panel</h1>
-          <p className="login-subtitle">Book Social Network</p>
+          <h1 className="login-title">Trang quản trị</h1>
+          <p className="login-subtitle">Mạng xã hội sách</p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -43,12 +43,12 @@ export default function LoginPage() {
           )}
 
           <div className="form-group">
-            <label className="form-label" htmlFor="login-username">Username</label>
+            <label className="form-label" htmlFor="login-username">Tên đăng nhập</label>
             <input
               id="login-username"
               className="form-input"
               type="text"
-              placeholder="Enter username"
+              placeholder="Nhập tên đăng nhập"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -57,13 +57,13 @@ export default function LoginPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="login-password">Password</label>
+            <label className="form-label" htmlFor="login-password">Mật khẩu</label>
             <div style={{ position: 'relative' }}>
               <input
                 id="login-password"
                 className="form-input"
                 type={showPwd ? 'text' : 'password'}
-                placeholder="Enter password"
+                placeholder="Nhập mật khẩu"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -91,9 +91,9 @@ export default function LoginPage() {
             style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
           >
             {loading ? (
-              <><div className="spinner" style={{ width: 16, height: 16 }} /> Signing in...</>
+              <><div className="spinner" style={{ width: 16, height: 16 }} /> Đang đăng nhập...</>
             ) : (
-              <><LogIn size={16} /> Sign In</>
+              <><LogIn size={16} /> Đăng nhập</>
             )}
           </button>
         </form>

@@ -1,9 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, BookOpen, Tag, Brain,
-  BarChart3, LogOut, BookMarked,
+  BarChart3, LogOut, BookMarked, Sun, Moon,
 } from 'lucide-react';
 import { authApi } from '../api/authApi';
+import { useTheme } from '../context/ThemeContext';
 
 interface NavItem {
   label: string;
@@ -13,35 +14,36 @@ interface NavItem {
 
 const NAV: { section: string; items: NavItem[] }[] = [
   {
-    section: 'Overview',
+    section: 'Tổng quan',
     items: [
-      { label: 'Dashboard', icon: <LayoutDashboard size={16} />, to: '/' },
-      { label: 'Statistics',  icon: <BarChart3 size={16} />, to: '/statistics' },
+      { label: 'Bảng điều khiển', icon: <LayoutDashboard size={16} />, to: '/' },
+      { label: 'Thống kê',  icon: <BarChart3 size={16} />, to: '/statistics' },
     ],
   },
   {
-    section: 'Content',
+    section: 'Nội dung',
     items: [
-      { label: 'Books',      icon: <BookOpen size={16} />, to: '/books' },
-      { label: 'Categories', icon: <Tag size={16} />,      to: '/categories' },
+      { label: 'Sách',      icon: <BookOpen size={16} />, to: '/books' },
+      { label: 'Thể loại', icon: <Tag size={16} />,      to: '/categories' },
     ],
   },
   {
-    section: 'Users',
+    section: 'Người dùng',
     items: [
-      { label: 'Users',      icon: <Users size={16} />, to: '/users' },
+      { label: 'Người dùng', icon: <Users size={16} />, to: '/users' },
     ],
   },
   {
-    section: 'AI / Recommend',
+    section: 'AI / Gợi ý',
     items: [
-      { label: 'Recommendations', icon: <Brain size={16} />, to: '/recommendations' },
+      { label: 'Gợi ý sách', icon: <Brain size={16} />, to: '/recommendations' },
     ],
   },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     await authApi.logout();
@@ -89,7 +91,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="sidebar-footer">
           <button className="nav-item" onClick={handleLogout} id="sidebar-logout">
             <LogOut size={16} />
-            Sign out
+            Đăng xuất
           </button>
         </div>
       </aside>
@@ -100,11 +102,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <header className="admin-topbar">
           <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
             <BookMarked size={15} />
-            Book Social Network — Admin Dashboard
+            Mạng xã hội sách — Trang quản trị
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Theme toggle button */}
+            <button
+              className="theme-toggle-btn"
+              onClick={toggleTheme}
+              id="theme-toggle"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle theme"
+            >
+              <span className="theme-toggle-track">
+                <span className="theme-toggle-thumb">
+                  {theme === 'dark'
+                    ? <Moon size={13} strokeWidth={2} />
+                    : <Sun size={13} strokeWidth={2} />
+                  }
+                </span>
+              </span>
+              <span className="theme-toggle-label">
+                {theme === 'dark' ? 'Tối' : 'Sáng'}
+              </span>
+            </button>
+
+            <div className="topbar-divider" />
             <div className="avatar" style={{ width: 30, height: 30, fontSize: 12 }}>A</div>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Admin</span>
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Quản trị viên</span>
           </div>
         </header>
 
