@@ -10,6 +10,7 @@ import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../redux/store';
 import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
+import { useTheme } from '../../context/ThemeContext';
 
 // ── Field rendered outside parent to prevent remount on state change ──────────
 interface FieldProps {
@@ -35,36 +36,39 @@ const Field = ({
   fieldRef, nextRef, secureEntry, show, toggleSecure,
   keyboardType = 'default', returnKeyType = 'next',
   autoCapitalize = 'none',
-}: FieldProps) => (
-  <View style={fStyles.wrap}>
-    <Text style={fStyles.label}>{label}</Text>
-    <View style={[fStyles.row, error && fStyles.rowError]}>
-      <Icon name={icon} size={18} color={COLORS.textSecondary} style={fStyles.icon} />
-      <TextInput
-        ref={fieldRef}
-        style={fStyles.input}
-        placeholder={placeholder}
-        placeholderTextColor="#505050"
-        value={value}
-        onChangeText={onChange}
-        secureTextEntry={secureEntry && !show}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        returnKeyType={returnKeyType}
-        onSubmitEditing={() => nextRef?.current?.focus()}
-        blurOnSubmit={false}
-        autoCorrect={false}
-        spellCheck={false}
-      />
-      {secureEntry && (
-        <TouchableOpacity onPress={toggleSecure} style={{ padding: 4 }}>
-          <Icon name={show ? 'eye-off' : 'eye'} size={18} color={COLORS.textSecondary} />
-        </TouchableOpacity>
-      )}
+}: FieldProps) => {
+  const { colors, isDarkMode } = useTheme();
+  return (
+    <View style={fStyles.wrap}>
+      <Text style={[fStyles.label, { color: colors.textSecondary }]}>{label}</Text>
+      <View style={[fStyles.row, { backgroundColor: colors.card, borderColor: colors.border }, error && fStyles.rowError]}>
+        <Icon name={icon} size={18} color={colors.textSecondary} style={fStyles.icon} />
+        <TextInput
+          ref={fieldRef}
+          style={[fStyles.input, { color: colors.text }]}
+          placeholder={placeholder}
+          placeholderTextColor={isDarkMode ? '#505050' : '#888'}
+          value={value}
+          onChangeText={onChange}
+          secureTextEntry={secureEntry && !show}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={() => nextRef?.current?.focus()}
+          blurOnSubmit={false}
+          autoCorrect={false}
+          spellCheck={false}
+        />
+        {secureEntry && (
+          <TouchableOpacity onPress={toggleSecure} style={{ padding: 4 }}>
+            <Icon name={show ? 'eye-off' : 'eye'} size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+      {!!error && <Text style={fStyles.error}>{error}</Text>}
     </View>
-    {!!error && <Text style={fStyles.error}>{error}</Text>}
-  </View>
-);
+  );
+};
 
 const fStyles = StyleSheet.create({
   wrap:     { marginBottom: 14 },
@@ -95,6 +99,7 @@ interface Errors {
 
 const RegisterScreen = ({ navigation }: any) => {
   const dispatch = useDispatch<AppDispatch>();
+  const { colors, isDarkMode } = useTheme();
 
   const [username, setUsername]       = useState('');
   const [password, setPassword]       = useState('');
@@ -182,11 +187,11 @@ const RegisterScreen = ({ navigation }: any) => {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
     >
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -196,18 +201,18 @@ const RegisterScreen = ({ navigation }: any) => {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Icon name="arrow-left" size={22} color={COLORS.text} />
+              <Icon name="arrow-left" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           {/* Logo + Title */}
           <View style={styles.hero}>
-            <Icon name="book-open" size={48} color={COLORS.primary} />
-            <Text style={styles.title}>Tạo tài khoản</Text>
-            <Text style={styles.subtitle}>Tham gia cộng đồng đọc sách ngay hôm nay</Text>
+            <Icon name="book-open" size={48} color={colors.primary} />
+            <Text style={[styles.title, { color: colors.text }]}>Tạo tài khoản</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Tham gia cộng đồng đọc sách ngay hôm nay</Text>
           </View>
 
-          <Text style={styles.section}>THÔNG TIN ĐĂNG NHẬP</Text>
+          <Text style={[styles.section, { color: isDarkMode ? '#505050' : '#888' }]}>THÔNG TIN ĐĂNG NHẬP</Text>
 
           <Field
             label="Tên đăng nhập *"
@@ -245,7 +250,7 @@ const RegisterScreen = ({ navigation }: any) => {
             nextRef={emailRef}
           />
 
-          <Text style={[styles.section, { marginTop: 20 }]}>THÔNG TIN CÁ NHÂN</Text>
+          <Text style={[styles.section, { marginTop: 20, color: isDarkMode ? '#505050' : '#888' }]}>THÔNG TIN CÁ NHÂN</Text>
 
           <Field
             label="Email *"
@@ -309,19 +314,19 @@ const RegisterScreen = ({ navigation }: any) => {
           />
 
           <TouchableOpacity
-            style={[styles.btn, loading && { opacity: 0.6 }]}
+            style={[styles.btn, { backgroundColor: colors.primary }, loading && { opacity: 0.6 }]}
             onPress={handleRegister}
             disabled={loading}
           >
             {loading
-              ? <ActivityIndicator color="black" />
-              : <Text style={styles.btnText}>Đăng ký</Text>}
+              ? <ActivityIndicator color={isDarkMode ? 'black' : 'white'} />
+              : <Text style={[styles.btnText, { color: isDarkMode ? 'black' : 'white' }]}>Đăng ký</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.loginLink} onPress={() => navigation.goBack()}>
-            <Text style={styles.loginLinkText}>
+            <Text style={[styles.loginLinkText, { color: colors.textSecondary }]}>
               Đã có tài khoản?{' '}
-              <Text style={{ color: COLORS.text, fontWeight: 'bold' }}>Đăng nhập</Text>
+              <Text style={{ color: colors.text, fontWeight: 'bold' }}>Đăng nhập</Text>
             </Text>
           </TouchableOpacity>
         </ScrollView>

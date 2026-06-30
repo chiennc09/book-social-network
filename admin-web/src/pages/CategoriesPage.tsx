@@ -20,13 +20,13 @@ export default function CategoriesPage() {
   const createMut = useMutation({
     mutationFn: (d: { name: string; description?: string }) => bookApi.createCategory(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['categories'] }); closeModal(); },
-    onError: () => setError('Failed to create category.'),
+    onError: () => setError('Không thể tạo thể loại.'),
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, d }: { id: string; d: { name: string; description?: string } }) => bookApi.updateCategory(id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['categories'] }); closeModal(); },
-    onError: () => setError('Failed to update category.'),
+    onError: () => setError('Không thể cập nhật thể loại.'),
   });
 
   const deleteMut = useMutation({
@@ -53,11 +53,11 @@ export default function CategoriesPage() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title"><Tag size={22} color="var(--accent)" /> Categories</h1>
-          <p className="page-subtitle">Manage book genres and categories</p>
+          <h1 className="page-title"><Tag size={22} color="var(--accent)" /> Thể loại</h1>
+          <p className="page-subtitle">Quản lý thể loại và danh mục sách</p>
         </div>
         <button id="categories-create-btn" className="btn btn-primary" onClick={openCreate}>
-          <Plus size={15} /> New Category
+          <Plus size={15} /> Thêm thể loại
         </button>
       </div>
 
@@ -65,9 +65,9 @@ export default function CategoriesPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Description</th>
-              <th style={{ width: 120 }}>Actions</th>
+              <th>Tên thể loại</th>
+              <th>Mô tả</th>
+              <th style={{ width: 120 }}>Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -82,14 +82,14 @@ export default function CategoriesPage() {
                 <td className="text-sm text-muted">{c.description || '—'}</td>
                 <td>
                   <div className="flex gap-2">
-                    <button id={`cat-edit-${c.id}`} className="btn btn-ghost btn-sm btn-icon" onClick={() => openEdit(c)}><Pencil size={13} /></button>
-                    <button id={`cat-delete-${c.id}`} className="btn btn-danger btn-sm btn-icon" onClick={() => setDeleteTarget(c)}><Trash2 size={13} /></button>
+                    <button id={`cat-edit-${c.id}`} className="btn btn-ghost btn-sm btn-icon" onClick={() => openEdit(c)} title="Chỉnh sửa"><Pencil size={13} /></button>
+                    <button id={`cat-delete-${c.id}`} className="btn btn-danger btn-sm btn-icon" onClick={() => setDeleteTarget(c)} title="Xóa"><Trash2 size={13} /></button>
                   </div>
                 </td>
               </tr>
             ))}
             {!isLoading && categories.length === 0 && (
-              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No categories yet</td></tr>
+              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>Chưa có thể loại nào</td></tr>
             )}
           </tbody>
         </table>
@@ -99,25 +99,25 @@ export default function CategoriesPage() {
         <div className="modal-backdrop" onClick={closeModal}>
           <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{modal === 'create' ? 'New Category' : `Edit: ${selected?.name}`}</div>
+              <div className="modal-title">{modal === 'create' ? 'Thêm thể loại mới' : `Chỉnh sửa: ${selected?.name}`}</div>
               <button className="btn btn-ghost btn-icon btn-sm" onClick={closeModal}>✕</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 {error && <div className="alert alert-error">{error}</div>}
                 <div className="form-group">
-                  <label className="form-label">Name *</label>
-                  <input id="cat-form-name" className="form-input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Science Fiction" />
+                  <label className="form-label">Tên thể loại *</label>
+                  <input id="cat-form-name" className="form-input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="VD: Khoa học viễn tưởng" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Description</label>
-                  <textarea id="cat-form-desc" className="form-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional description…" />
+                  <label className="form-label">Mô tả</label>
+                  <textarea id="cat-form-desc" className="form-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Mô tả tùy chọn…" />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={closeModal}>Cancel</button>
+                <button type="button" className="btn btn-ghost" onClick={closeModal}>Hủy</button>
                 <button id="cat-form-submit" type="submit" className="btn btn-primary" disabled={createMut.isPending || updateMut.isPending}>
-                  {createMut.isPending || updateMut.isPending ? 'Saving…' : 'Save'}
+                  {createMut.isPending || updateMut.isPending ? 'Đang lưu…' : 'Lưu'}
                 </button>
               </div>
             </form>
@@ -127,9 +127,9 @@ export default function CategoriesPage() {
 
       {deleteTarget && (
         <ConfirmModal
-          title="Delete Category"
-          message={`Delete category "${deleteTarget.name}"?`}
-          confirmLabel="Delete"
+          title="Xóa thể loại"
+          message={`Xóa thể loại "${deleteTarget.name}"?`}
+          confirmLabel="Xóa"
           danger
           onConfirm={() => { deleteMut.mutate(deleteTarget.id); setDeleteTarget(null); }}
           onCancel={() => setDeleteTarget(null)}

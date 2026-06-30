@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { libraryService, LibraryBook } from '../../services/library.service';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import ShareBookModal from '../../components/library/ShareBookModal';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
+import { useTheme } from '../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 const LibraryScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'reading' | 'want_to_read' | 'read'>('reading');
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [loading, setLoading] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const { onScroll } = useTabBarScrollControl();
+  const { colors } = useTheme();
 
   // Fetch data khi đổi Tab
   useEffect(() => {
@@ -53,10 +57,10 @@ const LibraryScreen = ({ navigation }: any) => {
         return (
           <TouchableOpacity 
             key={key} 
-            style={[styles.tabItem, isActive && styles.activeTabItem]}
+            style={[styles.tabItem, isActive && [styles.activeTabItem, { borderBottomColor: colors.text }]]}
             onPress={() => setActiveTab(key as any)}
           >
-            <Text style={[styles.tabText, isActive && styles.activeTabText]}>{labels[key]}</Text>
+            <Text style={[styles.tabText, { color: colors.textSecondary }, isActive && [styles.activeTabText, { color: colors.text }]]}>{labels[key]}</Text>
           </TouchableOpacity>
         );
       })}
@@ -69,30 +73,30 @@ const LibraryScreen = ({ navigation }: any) => {
 
     return (
       <TouchableOpacity 
-        style={styles.bookCard}
+        style={[styles.bookCard, { backgroundColor: colors.card }]}
         onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
       >
         {/* Ảnh bìa */}
-        <Image source={{ uri: item.coverUrl }} style={styles.bookCover} />
+        <Image source={{ uri: item.coverUrl }} style={[styles.bookCover, { backgroundColor: colors.border }]} />
         
         {/* Thông tin */}
         <View style={styles.bookInfo}>
-          <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
-          <Text style={styles.bookAuthor}>{item.author}</Text>
+          <Text style={[styles.bookTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
+          <Text style={[styles.bookAuthor, { color: colors.textSecondary }]}>{item.author}</Text>
           
           {/* HIỂN THỊ TRẠNG THÁI KHÁC NHAU TÙY TAB */}
           
           {/* A. Tab Đang đọc -> Hiện Progress Bar */}
           {item.status === 'reading' && (
             <View style={styles.progressSection}>
-               <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: `${Math.min(100, item.progress)}%` }]} />
+               <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
+                  <View style={[styles.progressBarFill, { backgroundColor: colors.text, width: `${Math.min(100, item.progress)}%` }]} />
                </View>
                <View style={styles.progressTextRow}>
-                  <Text style={styles.progressText}>{item.progress.toFixed(1)}%</Text>
-                  <Text style={styles.pageText}>{calculatedPage}/{item.totalPage || '?'} trang</Text>
+                  <Text style={[styles.progressText, { color: colors.text }]}>{item.progress.toFixed(1)}%</Text>
+                  <Text style={[styles.pageText, { color: colors.textSecondary }]}>{calculatedPage}/{item.totalPage || '?'} trang</Text>
                </View>
-               {item.startDate && <Text style={styles.dateText}>Bắt đầu: {item.startDate}</Text>}
+               {item.startDate && <Text style={[styles.dateText, { color: colors.textSecondary }]}>Bắt đầu: {item.startDate}</Text>}
             </View>
           )}
 
@@ -101,24 +105,24 @@ const LibraryScreen = ({ navigation }: any) => {
             <View style={styles.readSection}>
                <View style={styles.ratingRow}>
                  {[1, 2, 3, 4, 5].map((star) => (
-                   <Icon key={star} name="star" size={12} color={(item.rating || 0) >= star ? '#FFD700' : '#333'} style={{marginRight: 2}} />
+                   <Icon key={star} name="star" size={12} color={(item.rating || 0) >= star ? '#FFD700' : colors.border} style={{marginRight: 2}} />
                  ))}
                </View>
-               {item.finishedDate && <Text style={styles.dateText}>Hoàn thành: {item.finishedDate}</Text>}
+               {item.finishedDate && <Text style={[styles.dateText, { color: colors.textSecondary }]}>Hoàn thành: {item.finishedDate}</Text>}
             </View>
           )}
 
           {/* C. Tab Muốn đọc -> Hiện nút thêm */}
           {item.status === 'want_to_read' && (
-             <TouchableOpacity style={styles.startBtn} onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}>
-                <Text style={styles.startBtnText}>Bắt đầu đọc</Text>
+             <TouchableOpacity style={[styles.startBtn, { backgroundColor: colors.border }]} onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}>
+                <Text style={[styles.startBtnText, { color: colors.text }]}>Bắt đầu đọc</Text>
              </TouchableOpacity>
           )}
         </View>
 
         {/* Nút 3 chấm menu */}
         <TouchableOpacity style={styles.menuBtn}>
-           <Icon name="more-vertical" size={20} color={COLORS.textSecondary} />
+           <Icon name="more-vertical" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -126,26 +130,26 @@ const LibraryScreen = ({ navigation }: any) => {
 
   // 3. Footer Buttons (Thử thách & Thống kê)
   const renderFooter = () => (
-    <View style={styles.footerContainer}>
-      <Text style={styles.footerTitle}>Hoạt động</Text>
+    <View style={[styles.footerContainer, { borderTopColor: colors.border }]}>
+      <Text style={[styles.footerTitle, { color: colors.text }]}>Hoạt động</Text>
       <View style={styles.footerRow}>
-        <TouchableOpacity style={styles.footerCard} onPress={() => navigation.navigate('Challenge')}>
+        <TouchableOpacity style={[styles.footerCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => navigation.navigate('Challenge')}>
            <View style={[styles.iconBox, { backgroundColor: '#FF6B6B' }]}>
               <Icon name="target" size={24} color="white" />
            </View>
            <View>
-              <Text style={styles.cardTitle}>Thử thách</Text>
-              <Text style={styles.cardSub}>Mục tiêu năm 2026</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Thử thách</Text>
+              <Text style={[styles.cardSub, { color: colors.textSecondary }]}>Mục tiêu năm 2026</Text>
            </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.footerCard} onPress={() => setShareModalVisible(true)}>
+        <TouchableOpacity style={[styles.footerCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setShareModalVisible(true)}>
            <View style={[styles.iconBox, { backgroundColor: '#4ECDC4' }]}>
               <Icon name="share-2" size={24} color="white" />
            </View>
            <View>
-              <Text style={styles.cardTitle}>Chia sẻ sách</Text>
-              <Text style={styles.cardSub}>Đóng góp cho cộng đồng</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Chia sẻ sách</Text>
+              <Text style={[styles.cardSub, { color: colors.textSecondary }]}>Đóng góp cho cộng đồng</Text>
            </View>
         </TouchableOpacity>
       </View>
@@ -153,10 +157,10 @@ const LibraryScreen = ({ navigation }: any) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tủ sách cá nhân</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Tủ sách cá nhân</Text>
       </View>
 
       {/* Tabs */}
@@ -165,7 +169,7 @@ const LibraryScreen = ({ navigation }: any) => {
       {/* List Content */}
       <View style={{flex: 1}}>
         {loading ? (
-            <ActivityIndicator color={COLORS.text} style={{marginTop: 50}} />
+            <ActivityIndicator color={colors.text} style={{marginTop: 50}} />
         ) : (
             <FlatList
                 data={books}
@@ -177,8 +181,8 @@ const LibraryScreen = ({ navigation }: any) => {
                 scrollEventThrottle={16}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Icon name="book" size={40} color="#333" />
-                        <Text style={{color: '#555', marginTop: 10}}>Tủ sách trống</Text>
+                        <Icon name="book" size={40} color={colors.border} />
+                        <Text style={{color: colors.textSecondary, marginTop: 10}}>Tủ sách trống</Text>
                     </View>
                 }
             />
@@ -192,7 +196,7 @@ const LibraryScreen = ({ navigation }: any) => {
             // Có thể reload lại tủ sách hoặc navigate
          }} 
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -248,3 +252,5 @@ const styles = StyleSheet.create({
 });
 
 export default LibraryScreen;
+
+

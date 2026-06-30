@@ -1,8 +1,10 @@
+// src/screens/profile/FriendManagementScreen.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
-  Image, SafeAreaView, TextInput, Keyboard,
+  Image, TextInput, Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { resolveMediaUrl } from '../../config/env';
@@ -11,10 +13,12 @@ import { profileApi } from '../../api/profileApi';
 import { UserProfile } from '../../types/user';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 import { chatApi } from '../../api/chatApi';
+import { useTheme } from '../../context/ThemeContext';
 
 type Tab = 'friends' | 'requests' | 'search';
 
 const FriendManagementScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>('friends');
 
   const [friends, setFriends]   = useState<UserProfile[]>([]);
@@ -28,6 +32,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
   const [searchLoading, setSearchLoading]   = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const { colors, isDarkMode } = useTheme();
 
   // ── Load friend data ──────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -74,15 +79,9 @@ const FriendManagementScreen = ({ navigation }: any) => {
   };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  /**
-   * Accept friend request AND auto-create a DIRECT chat room immediately.
-   * This way, the chat room appears in ChatList right away — user just taps to chat.
-   */
   const handleAccept = async (userId: string) => {
     try {
       await profileApi.acceptFriend(userId);
-      // Fire-and-forget: create the conversation room in the background.
-      // If it already exists the backend returns the existing one (idempotent).
       chatApi.createConversation({ participantIds: [userId], type: 'DIRECT' })
         .catch(e => console.warn('[handleAccept] chatApi.createConversation failed:', e));
       fetchData();
@@ -105,14 +104,12 @@ const FriendManagementScreen = ({ navigation }: any) => {
   const handleAddFriend = async (userId: string) => {
     try {
       await profileApi.sendFriendRequest(userId);
-      // Mark as pending in search results
       setSearchResults(prev =>
         prev.map(u => (u.userId === userId || u.id === userId) ? { ...u, _requestSent: true } as any : u),
       );
     } catch (e) { console.error('Add friend error', e); }
   };
 
-  // ── Switch to search tab ──────────────────────────────────────────────────
   const openSearchTab = () => {
     setActiveTab('search');
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -121,41 +118,41 @@ const FriendManagementScreen = ({ navigation }: any) => {
   // ── Render helpers ────────────────────────────────────────────────────────
   const renderFriendItem = ({ item }: { item: UserProfile }) => (
     <TouchableOpacity
-      style={styles.userRow}
+      style={[styles.userRow, { borderBottomColor: colors.border + '50' }]}
       onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
     >
-      <UserAvatar url={item.avatar} size={50} style={styles.avatar} />
+      <UserAvatar url={item.avatar} size={50} style={[styles.avatar, { backgroundColor: colors.border }]} />
       <View style={styles.userInfo}>
-        <Text style={styles.displayName}>{item.displayName || item.username}</Text>
-        <Text style={styles.username}>@{item.username}</Text>
+        <Text style={[styles.displayName, { color: colors.text }]}>{item.displayName || item.username}</Text>
+        <Text style={[styles.username, { color: colors.textSecondary }]}>@{item.username}</Text>
       </View>
-      <TouchableOpacity style={styles.btnOutline} onPress={() => handleRemove(item.userId || item.id)}>
-        <Text style={styles.btnTextOutline}>Hủy bạn</Text>
+      <TouchableOpacity style={[styles.btnOutline, { borderColor: colors.border }]} onPress={() => handleRemove(item.userId || item.id)}>
+        <Text style={[styles.btnTextOutline, { color: colors.text }]}>Hủy bạn</Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );
 
   const renderRequestItem = ({ item }: { item: UserProfile & { _kind?: string } }) => (
     <TouchableOpacity
-      style={styles.userRow}
+      style={[styles.userRow, { borderBottomColor: colors.border + '50' }]}
       onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
     >
-      <UserAvatar url={item.avatar} size={50} style={styles.avatar} />
+      <UserAvatar url={item.avatar} size={50} style={[styles.avatar, { backgroundColor: colors.border }]} />
       <View style={styles.userInfo}>
-        <Text style={styles.displayName}>{item.displayName || item.username}</Text>
-        <Text style={styles.username}>@{item.username}</Text>
+        <Text style={[styles.displayName, { color: colors.text }]}>{item.displayName || item.username}</Text>
+        <Text style={[styles.username, { color: colors.textSecondary }]}>@{item.username}</Text>
       </View>
       {item._kind === 'out' ? (
         <View style={styles.btnPending}>
-          <Text style={styles.btnTextSecondary}>Đang chờ</Text>
+          <Text style={[styles.btnTextSecondary, { color: colors.textSecondary }]}>Đang chờ</Text>
         </View>
       ) : (
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={styles.btnPrimary} onPress={() => handleAccept(item.userId || item.id)}>
-            <Text style={styles.btnTextPrimary}>Chấp nhận</Text>
+          <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: colors.text }]} onPress={() => handleAccept(item.userId || item.id)}>
+            <Text style={[styles.btnTextPrimary, { color: isDarkMode ? 'black' : 'white' }]}>Chấp nhận</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.btnOutline} onPress={() => handleDecline(item.userId || item.id)}>
-            <Text style={styles.btnTextOutline}>Từ chối</Text>
+          <TouchableOpacity style={[styles.btnOutline, { borderColor: colors.border }]} onPress={() => handleDecline(item.userId || item.id)}>
+            <Text style={[styles.btnTextOutline, { color: colors.text }]}>Từ chối</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -175,22 +172,22 @@ const FriendManagementScreen = ({ navigation }: any) => {
 
     return (
       <TouchableOpacity
-        style={styles.userRow}
+        style={[styles.userRow, { borderBottomColor: colors.border + '50' }]}
         onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
       >
-        <UserAvatar url={item.avatar} size={50} style={styles.avatar} />
+        <UserAvatar url={item.avatar} size={50} style={[styles.avatar, { backgroundColor: colors.border }]} />
         <View style={styles.userInfo}>
-          <Text style={styles.displayName}>{item.displayName || item.username}</Text>
-          <Text style={styles.username}>@{item.username}</Text>
+          <Text style={[styles.displayName, { color: colors.text }]}>{item.displayName || item.username}</Text>
+          <Text style={[styles.username, { color: colors.textSecondary }]}>@{item.username}</Text>
         </View>
         {isFriend ? (
-          <View style={styles.btnPending}><Text style={styles.btnTextSecondary}>Bạn bè</Text></View>
+          <View style={styles.btnPending}><Text style={[styles.btnTextSecondary, { color: colors.textSecondary }]}>Bạn bè</Text></View>
         ) : isPending ? (
-          <View style={styles.btnPending}><Text style={styles.btnTextSecondary}>Đã gửi</Text></View>
+          <View style={styles.btnPending}><Text style={[styles.btnTextSecondary, { color: colors.textSecondary }]}>Đã gửi</Text></View>
         ) : (
-          <TouchableOpacity style={styles.btnPrimary} onPress={() => handleAddFriend(item.userId || item.id)}>
-            <Icon name="user-plus" size={14} color={COLORS.background} style={{ marginRight: 4 }} />
-            <Text style={styles.btnTextPrimary}>Kết bạn</Text>
+          <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: colors.text }]} onPress={() => handleAddFriend(item.userId || item.id)}>
+            <Icon name="user-plus" size={14} color={isDarkMode ? 'black' : 'white'} style={{ marginRight: 4 }} />
+            <Text style={[styles.btnTextPrimary, { color: isDarkMode ? 'black' : 'white' }]}>Kết bạn</Text>
           </TouchableOpacity>
         )}
       </TouchableOpacity>
@@ -203,20 +200,20 @@ const FriendManagementScreen = ({ navigation }: any) => {
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-left" size={24} color={COLORS.text} />
+          <Icon name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bạn bè</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Bạn bè</Text>
         <TouchableOpacity onPress={openSearchTab} style={styles.searchIconBtn}>
-          <Icon name="user-plus" size={22} color={COLORS.text} />
+          <Icon name="user-plus" size={22} color={colors.text} />
         </TouchableOpacity>
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
         {([
           { key: 'friends',  label: `Bạn bè (${friends.length})` },
           { key: 'requests', label: `Lời mời (${incoming.length})` },
@@ -224,13 +221,13 @@ const FriendManagementScreen = ({ navigation }: any) => {
         ] as const).map(tab => (
           <TouchableOpacity
             key={tab.key}
-            style={[styles.tabItem, activeTab === tab.key && styles.activeTab]}
+            style={[styles.tabItem, activeTab === tab.key && [styles.activeTab, { borderBottomColor: colors.text }]]}
             onPress={() => {
               setActiveTab(tab.key);
               if (tab.key === 'search') setTimeout(() => inputRef.current?.focus(), 100);
             }}
           >
-            <Text style={activeTab === tab.key ? styles.activeTabText : styles.tabText}>
+            <Text style={activeTab === tab.key ? [styles.activeTabText, { color: colors.text }] : [styles.tabText, { color: colors.textSecondary }]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -239,13 +236,13 @@ const FriendManagementScreen = ({ navigation }: any) => {
 
       {/* Search Bar — shown when search tab is active */}
       {activeTab === 'search' && (
-        <View style={styles.searchBar}>
-          <Icon name="search" size={18} color={COLORS.textSecondary} style={{ marginLeft: 10 }} />
+        <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Icon name="search" size={18} color={colors.textSecondary} style={{ marginLeft: 10 }} />
           <TextInput
             ref={inputRef}
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Tìm tên người dùng..."
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={handleSearch}
             returnKeyType="search"
@@ -253,7 +250,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
-              <Icon name="x-circle" size={18} color={COLORS.textSecondary} style={{ marginRight: 10 }} />
+              <Icon name="x-circle" size={18} color={colors.textSecondary} style={{ marginRight: 10 }} />
             </TouchableOpacity>
           )}
         </View>
@@ -262,7 +259,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
       {/* Content */}
       {loading && activeTab !== 'search' ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={COLORS.text} />
+          <ActivityIndicator size="large" color={colors.text} />
         </View>
       ) : activeTab === 'friends' ? (
         <FlatList
@@ -270,7 +267,7 @@ const FriendManagementScreen = ({ navigation }: any) => {
           keyExtractor={item => `friend-${item.userId || item.id}`}
           renderItem={renderFriendItem}
           contentContainerStyle={{ paddingBottom: 80 }}
-          ListEmptyComponent={<EmptyState text="Chưa có bạn bè nào." />}
+          ListEmptyComponent={<EmptyState text="Chưa có bạn bè nào." colors={colors} />}
         />
       ) : activeTab === 'requests' ? (
         <FlatList
@@ -278,12 +275,12 @@ const FriendManagementScreen = ({ navigation }: any) => {
           keyExtractor={item => `req-${item.userId || item.id}-${item._kind}`}
           renderItem={renderRequestItem}
           contentContainerStyle={{ paddingBottom: 80 }}
-          ListEmptyComponent={<EmptyState text="Không có lời mời kết bạn nào." />}
+          ListEmptyComponent={<EmptyState text="Không có lời mời kết bạn nào." colors={colors} />}
         />
       ) : (
         /* Search tab */
         searchLoading ? (
-          <View style={styles.loader}><ActivityIndicator color={COLORS.text} /></View>
+          <View style={styles.loader}><ActivityIndicator color={colors.text} /></View>
         ) : (
           <FlatList
             data={searchResults}
@@ -292,21 +289,21 @@ const FriendManagementScreen = ({ navigation }: any) => {
             contentContainerStyle={{ paddingBottom: 40 }}
             ListEmptyComponent={
               searchQuery.length > 0
-                ? <EmptyState text="Không tìm thấy người dùng nào." />
-                : <EmptyState text="Nhập tên để tìm kiếm bạn bè." />
+                ? <EmptyState text="Không tìm thấy người dùng nào." colors={colors} />
+                : <EmptyState text="Nhập tên để tìm kiếm bạn bè." colors={colors} />
             }
           />
         )
       )}
       <FloatingTabBar />
-    </SafeAreaView>
+    </View>
   );
 };
 
-const EmptyState = ({ text }: { text: string }) => (
+const EmptyState = ({ text, colors }: { text: string; colors: any }) => (
   <View style={styles.emptyContainer}>
-    <Icon name="users" size={40} color={COLORS.textSecondary} style={{ marginBottom: 12 }} />
-    <Text style={styles.emptyText}>{text}</Text>
+    <Icon name="users" size={40} color={colors.textSecondary} style={{ marginBottom: 12 }} />
+    <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{text}</Text>
   </View>
 );
 
@@ -363,3 +360,5 @@ const styles = StyleSheet.create({
 });
 
 export default FriendManagementScreen;
+
+

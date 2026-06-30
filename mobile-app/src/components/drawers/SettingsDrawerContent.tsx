@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { useDispatch } from 'react-redux';
 import { COLORS, SPACING } from '../../constants/theme';
@@ -8,12 +9,31 @@ import { userService } from '../../services/user.service';
 import { profileApi } from '../../api/profileApi';
 import { logoutUser } from '../../redux/authSlice';
 import { AppDispatch } from '../../redux/store';
+import { useTheme } from '../../context/ThemeContext';
 
 const SettingsDrawerContent = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [menu, setMenu] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [pendingCount, setPendingCount] = useState<number>(0);
   const dispatch = useDispatch<AppDispatch>();
+  const { themeMode, setThemeMode, colors, isDarkMode } = useTheme();
+
+  const cycleTheme = () => {
+    if (themeMode === 'dark') {
+      setThemeMode('light');
+    } else {
+      setThemeMode('dark');
+    }
+  };
+
+  const getThemeLabel = () => {
+    return themeMode === 'light' ? 'Sáng' : 'Tối';
+  };
+
+  const getThemeIcon = () => {
+    return themeMode === 'light' ? 'sun' : 'moon';
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,40 +74,55 @@ const SettingsDrawerContent = ({ navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Header Profile Mini */}
       {user && (
         <View style={styles.profileHeader}>
            <Image source={{ uri: user.avatar }} style={styles.avatar} />
            <View>
-             <Text style={styles.displayName}>{user.displayName}</Text>
-             <Text style={styles.username}>@{user.username}</Text>
+             <Text style={[styles.displayName, { color: colors.text }]}>{user.displayName}</Text>
+             <Text style={[styles.username, { color: colors.textSecondary }]}>@{user.username}</Text>
            </View>
         </View>
       )}
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
       <View style={styles.list}>
-        {menu.map((item) => (
-          <TouchableOpacity 
-            key={item.id} 
-            style={styles.item}
-            onPress={() => handleItemPress(item)}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 16 }}>
-              <Icon name={item.icon} size={22} color={item.danger ? COLORS.danger : COLORS.text} />
-              <Text style={[styles.itemText, item.danger && { color: COLORS.danger }]}>{item.label}</Text>
-            </View>
-            {item.id === 'friends' && pendingCount > 0 && (
-              <View style={styles.badgeCount}>
-                <Text style={styles.badgeCountText}>{pendingCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
+        {menu.map((item) => {
+          const isLogout = item.id === 'logout';
+          return (
+            <React.Fragment key={item.id}>
+              {isLogout && (
+                <TouchableOpacity 
+                  style={styles.item}
+                  onPress={cycleTheme}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 16 }}>
+                    <Icon name={getThemeIcon()} size={22} color={colors.text} />
+                    <Text style={[styles.itemText, { color: colors.text }]}>Giao diện: {getThemeLabel()}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity 
+                style={styles.item}
+                onPress={() => handleItemPress(item)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 16 }}>
+                  <Icon name={item.icon} size={22} color={item.danger ? colors.danger : colors.text} />
+                  <Text style={[styles.itemText, { color: colors.text }, item.danger && { color: colors.danger }]}>{item.label}</Text>
+                </View>
+                {item.id === 'friends' && pendingCount > 0 && (
+                  <View style={styles.badgeCount}>
+                    <Text style={styles.badgeCountText}>{pendingCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </React.Fragment>
+          );
+        })}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

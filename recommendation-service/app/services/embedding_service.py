@@ -283,10 +283,9 @@ async def cbf_recommendations_for_user(user_book_ids: list[str], limit: int = 20
     hits = await client.search(
         collection_name=settings.QDRANT_COLLECTION_NAME,
         query_vector=profile.tolist(),
-        limit=limit + len(user_book_ids),  # over-fetch to filter interacted books
+        limit=limit,
         with_payload=True,
     )
 
-    already_seen = set(str(b) for b in user_book_ids)
-    results = [_get_original_id(h) for h in hits if _get_original_id(h) not in already_seen]
+    results = [_get_original_id(h) for h in hits]
     return results[:limit]

@@ -27,36 +27,36 @@ export default function StatisticsPage() {
   const { data: trending30 = [] } = useQuery({ queryKey: ['trending30'], queryFn: () => bookApi.getTrending(30, 20) });
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: () => bookApi.getAllCategories() });
 
-  // Top books by views (30 days)
+  // Top sách theo lượt xem (30 ngày)
   const topViews = trending30.slice(0, 8).map((b) => ({
     name: b.title.length > 14 ? b.title.slice(0, 14) + '…' : b.title,
-    Views: b.totalViews,
+    'Lượt xem': b.totalViews,
   }));
 
-  // Top books by rating
+  // Top sách theo đánh giá
   const topRated = [...trending30]
     .filter((b) => b.ratingCount > 0)
     .sort((a, b) => b.averageRating - a.averageRating)
     .slice(0, 8)
     .map((b) => ({
       name: b.title.length > 14 ? b.title.slice(0, 14) + '…' : b.title,
-      Rating: +b.averageRating.toFixed(2),
-      Reviews: b.ratingCount,
+      'Đánh giá': +b.averageRating.toFixed(2),
+      'Lượt đánh giá': b.ratingCount,
     }));
 
-  // Top books by favorites
+  // Top sách theo yêu thích
   const topFavs = [...trending30]
     .sort((a, b) => b.totalFavorites - a.totalFavorites)
     .slice(0, 8)
     .map((b) => ({
       name: b.title.length > 14 ? b.title.slice(0, 14) + '…' : b.title,
-      Favorites: b.totalFavorites,
+      'Yêu thích': b.totalFavorites,
     }));
 
-  // Category distribution (pie chart using category names from trending)
+  // Phân bố thể loại (biểu đồ tròn)
   const catMap: Record<string, number> = {};
   trending30.forEach((b) => {
-    const name = b.category?.name || 'Uncategorized';
+    const name = b.category?.name || 'Chưa phân loại';
     catMap[name] = (catMap[name] || 0) + 1;
   });
   const catPie = Object.entries(catMap).map(([name, value]) => ({ name, value }));
@@ -71,95 +71,116 @@ export default function StatisticsPage() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title"><BarChart3 size={22} color="var(--accent)" /> Statistics</h1>
-          <p className="page-subtitle">Insights from the last 30 days</p>
+          <h1 className="page-title"><BarChart3 size={22} color="var(--accent)" /> Thống kê</h1>
+          <p className="page-subtitle">Dữ liệu thống kê 30 ngày gần đây</p>
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* Thẻ tóm tắt */}
       <div className="stats-grid">
-        <StatCard label="Books in Top 30d" value={trending30.length} icon={<BookOpen size={18} color="var(--accent)" />} iconBg="var(--accent-glow)" />
-        <StatCard label="Total Views (30d)" value={totalViews.toLocaleString()} icon={<Eye size={18} color="var(--info)" />} iconBg="rgba(121,192,255,.15)" />
-        <StatCard label="Total Favorites (30d)" value={totalFavs.toLocaleString()} icon={<Heart size={18} color="var(--danger)" />} iconBg="rgba(248,81,73,.15)" />
-        <StatCard label="Avg Rating (30d)" value={avgRating} icon={<Star size={18} color="var(--warning)" />} iconBg="rgba(210,153,34,.15)" />
-        <StatCard label="Categories" value={categories.length} icon={<Tag size={18} color="var(--warning)" />} iconBg="rgba(210,153,34,.15)" />
+        <StatCard label="Sách trong top 30 ngày" value={trending30.length} icon={<BookOpen size={18} color="var(--accent)" />} iconBg="var(--accent-glow)" />
+        <StatCard label="Tổng lượt xem (30 ngày)" value={totalViews.toLocaleString()} icon={<Eye size={18} color="var(--info)" />} iconBg="rgba(121,192,255,.15)" />
+        <StatCard label="Tổng yêu thích (30 ngày)" value={totalFavs.toLocaleString()} icon={<Heart size={18} color="var(--danger)" />} iconBg="rgba(248,81,73,.15)" />
+        <StatCard label="Đánh giá TB (30 ngày)" value={avgRating} icon={<Star size={18} color="var(--warning)" />} iconBg="rgba(210,153,34,.15)" />
+        <StatCard label="Số thể loại" value={categories.length} icon={<Tag size={18} color="var(--warning)" />} iconBg="rgba(210,153,34,.15)" />
       </div>
 
-      {/* Charts */}
+      {/* Biểu đồ */}
       <div className="charts-grid">
         <div className="card">
-          <div className="card-title"><Eye size={15} /> Top Books by Views (30d)</div>
+          <div className="card-title"><Eye size={15} /> Top sách theo lượt xem (30 ngày)</div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={topViews} barSize={20}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="Views" fill="var(--accent-dim)" radius={[4,4,0,0]} />
+              <Bar dataKey="Lượt xem" fill="var(--accent-dim)" radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="card">
-          <div className="card-title"><Star size={15} /> Top Books by Rating</div>
+          <div className="card-title"><Star size={15} /> Top sách theo đánh giá</div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={topRated} barSize={20}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis domain={[0, 5]} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="Rating" fill="var(--warning)" radius={[4,4,0,0]} />
+              <Bar dataKey="Đánh giá" fill="var(--warning)" radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="card">
-          <div className="card-title"><Heart size={15} /> Top Books by Favorites</div>
+          <div className="card-title"><Heart size={15} /> Top sách theo yêu thích</div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={topFavs} barSize={20}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="Favorites" fill="var(--danger)" radius={[4,4,0,0]} />
+              <Bar dataKey="Yêu thích" fill="var(--danger)" radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="card">
-          <div className="card-title"><Tag size={15} /> Books by Category</div>
+          <div className="card-title"><Tag size={15} /> Phân bố thể loại sách</div>
           {catPie.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie data={catPie} cx="50%" cy="50%" outerRadius={80} dataKey="value" nameKey="name" label={(props: any) => `${props.name ?? ''} ${((props.percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
+                <Pie
+                  data={catPie}
+                  cx="50%"
+                  cy="45%"
+                  innerRadius={55}
+                  outerRadius={90}
+                  dataKey="value"
+                  nameKey="name"
+                  paddingAngle={3}
+                >
                   {catPie.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
                 <Tooltip content={<ChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-secondary)' }} />
+                <Legend
+                  layout="horizontal"
+                  verticalAlign="bottom"
+                  align="center"
+                  iconType="circle"
+                  iconSize={8}
+                  formatter={(value) => (
+                    <span style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500 }}>
+                      {value}
+                    </span>
+                  )}
+                  wrapperStyle={{ paddingTop: 12, lineHeight: '24px' }}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="loading-center text-muted">No category data</div>
+            <div className="loading-center text-muted">Chưa có dữ liệu thể loại</div>
           )}
         </div>
       </div>
 
-      {/* Books detailed table */}
+      {/* Bảng chi tiết sách */}
       <div className="card">
-        <div className="card-title"><BarChart3 size={15} /> All Books (30d trending, sorted by views)</div>
+        <div className="card-title"><BarChart3 size={15} /> Tất cả sách (30 ngày trending, sắp xếp theo lượt xem)</div>
         <div className="data-table-wrap">
           <table className="data-table">
             <thead>
               <tr>
                 <th>#</th>
-                <th>Cover</th>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Views</th>
-                <th>Favorites</th>
-                <th>Avg Rating</th>
-                <th>Reviews</th>
-                <th>Pages</th>
+                <th>Bìa sách</th>
+                <th>Tên sách</th>
+                <th>Thể loại</th>
+                <th>Lượt xem</th>
+                <th>Yêu thích</th>
+                <th>Đánh giá TB</th>
+                <th>Số đánh giá</th>
+                <th>Số trang</th>
               </tr>
             </thead>
             <tbody>

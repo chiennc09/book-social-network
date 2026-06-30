@@ -11,10 +11,10 @@ interface Props {
 }
 
 export default function ConfirmModal({
-  title = 'Confirm Action',
+  title = 'Xác nhận hành động',
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel = 'Xác nhận',
+  cancelLabel = 'Hủy',
   danger = false,
   onConfirm,
   onCancel,

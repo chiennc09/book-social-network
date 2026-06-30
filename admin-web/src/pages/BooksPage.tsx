@@ -108,22 +108,22 @@ export default function BooksPage() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title"><BookOpen size={22} color="var(--accent)" /> Books</h1>
-          <p className="page-subtitle">Manage book catalog</p>
+          <h1 className="page-title"><BookOpen size={22} color="var(--accent)" /> Sách</h1>
+          <p className="page-subtitle">Quản lý danh mục sách</p>
         </div>
         <button id="books-create-btn" className="btn btn-primary" onClick={openCreate}>
-          <Plus size={15} /> New Book
+          <Plus size={15} /> Thêm sách
         </button>
       </div>
 
-      {/* Search bar */}
+      {/* Thanh tìm kiếm */}
       <div className="card" style={{ marginBottom: 16, padding: '12px 16px' }}>
         <div className="search-bar">
           <Search size={14} />
           <input
             id="books-search"
             className="form-input"
-            placeholder="Search books (min 2 chars)…"
+            placeholder="Tìm sách (tối thiểu 2 ký tự)…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -135,14 +135,14 @@ export default function BooksPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: 48 }}>Cover</th>
-              <th>Title / Authors</th>
-              <th>Category</th>
-              <th><Eye size={12} /> Views</th>
-              <th><Heart size={12} /> Favs</th>
-              <th><Star size={12} /> Avg</th>
-              <th>Public</th>
-              <th style={{ width: 120 }}>Actions</th>
+              <th style={{ width: 48 }}>Bìa sách</th>
+              <th>Tên / Tác giả</th>
+              <th>Thể loại</th>
+              <th><Eye size={12} /> Xem</th>
+              <th><Heart size={12} /> Thích</th>
+              <th><Star size={12} /> Đánh giá</th>
+              <th>Hiển thị</th>
+              <th style={{ width: 120 }}>Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -174,7 +174,7 @@ export default function BooksPage() {
                 </td>
                 <td>
                   <span className={`badge ${b.isPublic ? 'badge-green' : 'badge-gray'}`}>
-                    {b.isPublic ? 'Public' : 'Private'}
+                    {b.isPublic ? 'Công khai' : 'Riêng tư'}
                   </span>
                 </td>
                 <td>
@@ -186,7 +186,7 @@ export default function BooksPage() {
               </tr>
             ))}
             {!isLoading && books.length === 0 && (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No books found</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>Không tìm thấy sách nào</td></tr>
             )}
           </tbody>
         </table>
@@ -195,9 +195,9 @@ export default function BooksPage() {
       {/* Create / Edit Modal */}
       {modal && (
         <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal" style={{ maxWidth: 600 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal"  style={{ maxWidth: 600 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{modal === 'create' ? 'New Book' : `Edit: ${selected?.title}`}</div>
+              <div className="modal-title">{modal === 'create' ? 'Thêm sách mới' : `Chỉnh sửa: ${selected?.title}`}</div>
               <button className="btn btn-ghost btn-icon btn-sm" onClick={closeModal}>✕</button>
             </div>
             <form onSubmit={handleSubmit}>
@@ -221,59 +221,59 @@ export default function BooksPage() {
 
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
-                      <label className="form-label">Title *</label>
+                      <label className="form-label">Tên sách *</label>
                       <input id="book-form-title" className="form-input" required value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Authors (comma-separated) *</label>
-                      <input id="book-form-authors" className="form-input" required value={form.authorsStr || ''} onChange={(e) => setForm({ ...form, authorsStr: e.target.value })} placeholder="Author 1, Author 2" />
+                      <label className="form-label">Tác giả (cách nhau bằng dấu phẩy) *</label>
+                      <input id="book-form-authors" className="form-input" required value={form.authorsStr || ''} onChange={(e) => setForm({ ...form, authorsStr: e.target.value })} placeholder="Tác giả 1, Tác giả 2" />
                     </div>
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Description</label>
+                  <label className="form-label">Mô tả</label>
                   <textarea id="book-form-desc" className="form-textarea" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div className="form-group">
-                    <label className="form-label">Category</label>
+                    <label className="form-label">Thể loại</label>
                     <select id="book-form-category" className="form-select" value={form.categoryId || ''} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
-                      <option value="">— None —</option>
+                      <option value="">— Không có —</option>
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Total Pages</label>
+                    <label className="form-label">Số trang</label>
                     <input id="book-form-pages" className="form-input" type="number" min={0} value={form.totalPages || ''} onChange={(e) => setForm({ ...form, totalPages: +e.target.value })} />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Visibility</label>
+                  <label className="form-label">Hiển thị</label>
                   <select id="book-form-public" className="form-select" value={form.isPublic ? 'true' : 'false'} onChange={(e) => setForm({ ...form, isPublic: e.target.value === 'true' })}>
-                    <option value="true">Public</option>
-                    <option value="false">Private</option>
+                    <option value="true">Công khai</option>
+                    <option value="false">Riêng tư</option>
                   </select>
                 </div>
 
                 {/* File uploads */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div className="form-group">
-                    <label className="form-label">PDF File</label>
+                    <label className="form-label">File PDF</label>
                     <input ref={pdfRef} type="file" accept=".pdf" style={{ display: 'none' }} id="book-pdf-input"
                       onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'pdfs')} />
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => pdfRef.current?.click()} disabled={uploading} id="book-pdf-btn">
-                      <Upload size={12} /> {uploadedKeys.pdfUrl ? '✓ Uploaded' : 'Upload PDF'}
+                      <Upload size={12} /> {uploadedKeys.pdfUrl ? '✓ Đã tải lên' : 'Tải lên PDF'}
                     </button>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">EPUB File</label>
+                    <label className="form-label">File EPUB</label>
                     <input ref={epubRef} type="file" accept=".epub" style={{ display: 'none' }} id="book-epub-input"
                       onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'epubs')} />
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => epubRef.current?.click()} disabled={uploading} id="book-epub-btn">
-                      <Upload size={12} /> {uploadedKeys.epubUrl ? '✓ Uploaded' : 'Upload EPUB'}
+                      <Upload size={12} /> {uploadedKeys.epubUrl ? '✓ Đã tải lên' : 'Tải lên EPUB'}
                     </button>
                   </div>
                 </div>
@@ -281,9 +281,9 @@ export default function BooksPage() {
                 {uploading && <div className="alert alert-info"><div className="spinner" style={{ width: 14, height: 14 }} /> Uploading…</div>}
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={closeModal}>Cancel</button>
+                <button type="button" className="btn btn-ghost" onClick={closeModal}>Hủy</button>
                 <button id="book-form-submit" type="submit" className="btn btn-primary" disabled={createMut.isPending || updateMut.isPending || uploading}>
-                  {createMut.isPending || updateMut.isPending ? 'Saving…' : 'Save'}
+                  {createMut.isPending || updateMut.isPending ? 'Đang lưu…' : 'Lưu'}
                 </button>
               </div>
             </form>
@@ -293,9 +293,9 @@ export default function BooksPage() {
 
       {deleteTarget && (
         <ConfirmModal
-          title="Delete Book"
-          message={`Delete "${deleteTarget.title}"? This will also remove it from Qdrant.`}
-          confirmLabel="Delete"
+          title="Xóa sách"
+          message={`Xóa sách "${deleteTarget.title}"? Thao tác này cũng xóa dữ liệu trong Qdrant.`}
+          confirmLabel="Xóa"
           danger
           onConfirm={() => { deleteMut.mutate(deleteTarget.id); setDeleteTarget(null); }}
           onCancel={() => setDeleteTarget(null)}

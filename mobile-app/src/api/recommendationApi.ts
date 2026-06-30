@@ -34,10 +34,16 @@ recommendationAxiosClient.interceptors.response.use(
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface BookList {
+  bookIds: string[];
+  source: string;
+}
+
 export interface RecommendationResponse {
   userId: string;
-  recommendedBookIds: string[];
-  source: 'hybrid-als-cbf' | 'cbf-only' | 'trending' | 'empty';
+  longTerm?: BookList;
+  shortTerm?: BookList;
+  trending?: BookList;
 }
 
 export interface SimilarBooksResponse {
@@ -45,19 +51,14 @@ export interface SimilarBooksResponse {
   similarBookIds: string[];
 }
 
-export interface TodayRecommendationResponse {
-  userId: string;
-  todayBookIds: string[];
-  /** 'session-cbf' | 'recency-cbf' | 'trending' | 'empty' */
-  source: string;
-}
-
 // ─── API Methods ──────────────────────────────────────────────────────────────
 
 export const recommendationApi = {
   /**
-   * Fetch personalised book IDs for a user.
-   * Returns an empty array for cold-start users.
+   * Fetch personalised book IDs for a user (Long Term ALS only).
+   * Returns an empty array for cold-start users or when the backend falls
+   * back to trending — trending books are displayed separately in the
+   * dedicated "Sách Trending" section so we must not duplicate them here.
    */
   getRecommendations: async (
     userId: string,
@@ -68,7 +69,15 @@ export const recommendationApi = {
         `/recommendations/${userId}`,
         { params: { limit } },
       );
-      return resp.recommendedBookIds ?? [];
+      // Only return personalised long-term recommendations.
+      // If the API falls back to trending (cold-start / no ALS data), we
+      // intentionally return [] so the "Có thể bạn cũng thích" section stays
+      // hidden — trending books are already shown in the dedicated
+      // "Sách Trending" section further down the screen.
+      if (resp.longTerm) {
+        return resp.longTerm.bookIds ?? [];
+      }
+      return [];
     } catch (error) {
       console.warn('[recommendationApi] Failed to fetch recommendations:', error);
       return [];
@@ -96,19 +105,24 @@ export const recommendationApi = {
   },
 
   /**
-   * Fetch Today's Picks based on user's recent session activity.
-   * Cached 24h on server; invalidated on each interaction event.
+   * Fetch Today's Picks (Short Term) based on user's recent session activity.
    */
   getTodayRecommendations: async (
     userId: string,
     limit = 10,
   ): Promise<{ ids: string[]; source: string }> => {
     try {
-      const resp: TodayRecommendationResponse = await recommendationAxiosClient.get(
-        `/recommendations/${userId}/today`,
+      const resp: RecommendationResponse = await recommendationAxiosClient.get(
+        `/recommendations/${userId}`,
         { params: { limit } },
       );
-      return { ids: resp.todayBookIds ?? [], source: resp.source ?? 'empty' };
+      if (resp.shortTerm) {
+        return {
+          ids: resp.shortTerm.bookIds ?? [],
+          source: resp.shortTerm.source ?? 'empty',
+        };
+      }
+      return { ids: [], source: 'empty' };
     } catch (error) {
       console.warn('[recommendationApi] Failed to fetch today recs:', error);
       return { ids: [], source: 'error' };

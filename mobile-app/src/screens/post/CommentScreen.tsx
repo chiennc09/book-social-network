@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { resolveMediaUrl } from '../../config/env';
@@ -9,12 +10,14 @@ import { RootState } from '../../redux/store';
 import FeedItem from '../../components/feed/FeedItem';
 import { userService } from '../../services/user.service';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
+import { useTheme } from '../../context/ThemeContext';
 
 // Sub-component cho mỗi Comment để có thể quản lý Replies riêng tư
 const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigation }: { item: any, level?: number, rootId?: string, onReplyClick: (username: string, parentId: string) => void, authUser?: any, navigation: any }) => {
   const [replies, setReplies] = useState<any[]>([]);
   const [showReplies, setShowReplies] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(false);
+  const { colors, isDarkMode } = useTheme();
 
   // ID gốc của thread này, nếu đang ở cấp 0 thì chính là item.id, nếu cấp 1 thì dùng rootId truyền xuống
   const currentRootId = level === 0 ? item.id : rootId;
@@ -50,12 +53,12 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigati
                   'avatars'
                 ) || DEFAULT_AVATAR 
               }} 
-              style={[styles.avatar, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
+              style={[styles.avatar, { backgroundColor: colors.border }, level > 0 && { width: 28, height: 28, borderRadius: 14 }]} 
            />
         </TouchableOpacity>
         {/* Draw vertical line for level 0 if it has replies */}
         {level === 0 && item.replyCount > 0 && (
-           <View style={styles.verticalLine} />
+           <View style={[styles.verticalLine, { backgroundColor: colors.border }]} />
         )}
       </View>
       
@@ -63,7 +66,7 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigati
       <View style={styles.rightCol}>
          <View style={styles.commentHeader}>
             <TouchableOpacity onPress={() => navigation.push('UserProfile', { userId: item.userId })} style={{flexDirection: 'row', alignItems: 'center'}}>
-               <Text style={styles.username}>{item.userDisplayName || item.username} {item.userId === rootId && <Text style={{color: COLORS.textSecondary, fontWeight: 'normal'}}>• Tác giả</Text>}</Text>
+               <Text style={[styles.username, { color: colors.text }]}>{item.userDisplayName || item.username} {item.userId === rootId && <Text style={{color: colors.textSecondary, fontWeight: 'normal'}}>• Tác giả</Text>}</Text>
                {item.userBadges && item.userBadges.length > 0 && (
                   <View style={styles.feedBadge}>
                      {item.userBadges[0].iconUrl ? (
@@ -75,37 +78,37 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigati
                )}
             </TouchableOpacity>
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
-              <Text style={styles.timestamp}>{item.created || 'Vừa xong'}</Text>
-              <Icon name="more-horizontal" size={16} color={COLORS.textSecondary} style={{marginLeft: 10}} />
+              <Text style={[styles.timestamp, { color: colors.textSecondary }]}>{item.created || 'Vừa xong'}</Text>
+              <Icon name="more-horizontal" size={16} color={colors.textSecondary} style={{marginLeft: 10}} />
             </View>
          </View>
-         <Text style={styles.text}>{item.content}</Text>
+         <Text style={[styles.text, { color: colors.text }]}>{item.content}</Text>
          
          <View style={styles.commentActions}>
             <TouchableOpacity style={styles.actionBtn}>
-               <Icon name="heart" size={16} color={COLORS.textSecondary} />
-               <Text style={styles.actionText}>0</Text>
+               <Icon name="heart" size={16} color={colors.textSecondary} />
+               <Text style={[styles.actionText, { color: colors.textSecondary }]}>0</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn} onPress={() => onReplyClick(item.username, currentRootId!)}>
-               <Icon name="message-circle" size={16} color={COLORS.textSecondary} />
-               {item.replyCount > 0 && level > 0 ? <Text style={styles.actionText}>{item.replyCount}</Text> : null}
+               <Icon name="message-circle" size={16} color={colors.textSecondary} />
+               {item.replyCount > 0 && level > 0 ? <Text style={[styles.actionText, { color: colors.textSecondary }]}>{item.replyCount}</Text> : null}
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn}>
-               <Icon name="repeat" size={16} color={COLORS.textSecondary} />
+               <Icon name="repeat" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn}>
-               <Icon name="send" size={16} color={COLORS.textSecondary} />
+               <Icon name="send" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
          </View>
 
          {/* Nút hiển thị phản hồi for Root Comment */}
          {item.replyCount > 0 && level === 0 && (
            <TouchableOpacity style={styles.showRepliesBtn} onPress={fetchReplies}>
-             <View style={styles.replyHorizontalLine} />
+             <View style={[styles.replyHorizontalLine, { backgroundColor: colors.border }]} />
              {loadingReplies ? (
-               <ActivityIndicator size="small" color={COLORS.textSecondary} />
+               <ActivityIndicator size="small" color={colors.textSecondary} />
              ) : (
-               <Text style={styles.showRepliesText}>
+               <Text style={[styles.showRepliesText, { color: colors.textSecondary }]}>
                  {showReplies ? 'Ẩn phản hồi' : `Hiển thị phản hồi`}
                </Text>
              )}
@@ -122,6 +125,7 @@ const CommentItem = ({ item, level = 0, rootId, onReplyClick, authUser, navigati
 };
 
 const CommentScreen = ({ route, navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const { postId, post } = route.params;
   const [comments, setComments] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
@@ -129,6 +133,7 @@ const CommentScreen = ({ route, navigation }: any) => {
   const [submitting, setSubmitting] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(post?.commentsCount || 0);
   const [replyParentId, setReplyParentId] = useState<string | null>(null);
+  const { colors, isDarkMode } = useTheme();
 
   // Redux auth user for display
   const { user } = useSelector((state: RootState) => state.auth);
@@ -189,24 +194,24 @@ const CommentScreen = ({ route, navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Header như app Threads */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerLeft}>
-          <Icon name="chevron-left" size={28} color={COLORS.text} />
-          <Text style={styles.backText}>Quay lại</Text>
+          <Icon name="chevron-left" size={28} color={colors.text} />
+          <Text style={[styles.backText, { color: colors.text }]}>Quay lại</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-           <Text style={styles.headerTitle}>Bài viết</Text>
+           <Text style={[styles.headerTitle, { color: colors.text }]}>Bài viết</Text>
         </View>
         <View style={styles.headerRight}>
-          <Icon name="bell" size={20} color={COLORS.text} />
-          <Icon name="more-horizontal" size={20} color={COLORS.text} style={{marginLeft: 15}} />
+          <Icon name="bell" size={20} color={colors.text} />
+          <Icon name="more-horizontal" size={20} color={colors.text} style={{marginLeft: 15}} />
         </View>
       </View>
 
       {loading && !post ? (
-         <ActivityIndicator color={COLORS.text} style={{marginTop: 20}} />
+         <ActivityIndicator color={colors.text} style={{marginTop: 20}} />
       ) : (
          <FlatList
            data={comments}
@@ -216,40 +221,40 @@ const CommentScreen = ({ route, navigation }: any) => {
            ListHeaderComponent={() => (
              <>
                 {post && <FeedItem post={post} isDetail={true} />}
-                <View style={styles.filterRow}>
-                   <Text style={styles.filterText}>Liên quan nhất ⌄</Text>
-                   <Text style={styles.filterAction}>Xem hoạt động {'>'}</Text>
+                <View style={[styles.filterRow, { borderBottomColor: colors.border }]}>
+                   <Text style={[styles.filterText, { color: colors.text }]}>Liên quan nhất ⌄</Text>
+                   <Text style={[styles.filterAction, { color: colors.textSecondary }]}>Xem hoạt động {'>'}</Text>
                 </View>
              </>
            )}
            ListEmptyComponent={
-             !loading ? <Text style={styles.emptyText}>Chưa có bình luận nào.</Text> : <ActivityIndicator color={COLORS.text} style={{marginTop: 20}} />
+             !loading ? <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Chưa có bình luận nào.</Text> : <ActivityIndicator color={colors.text} style={{marginTop: 20}} />
            }
          />
       )}
 
       {/* Input luôn ở dưới */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-         <View style={styles.inputContainer}>
+         <View style={[styles.inputContainer, { borderTopColor: colors.border, backgroundColor: colors.card }]}>
             <Image source={{ uri: myProfile?.avatar || resolveMediaUrl((user as any)?.avatarUrl || (user as any)?.avatar, 'avatars') || DEFAULT_AVATAR }} style={styles.inputAvatar} />
             <TextInput
-               style={styles.input}
+               style={[styles.input, { color: colors.text, backgroundColor: colors.background }]}
                placeholder={`Thêm câu trả lời...`}
-               placeholderTextColor={COLORS.textSecondary}
+               placeholderTextColor={colors.textSecondary}
                value={inputText}
                onChangeText={setInputText}
                multiline
             />
             <TouchableOpacity 
-               style={[styles.postButton, !inputText.trim() && { opacity: 0.5 }]} 
+               style={[styles.postButton, { backgroundColor: colors.primary }, !inputText.trim() && { opacity: 0.5 }]} 
                onPress={submitComment}
                disabled={!inputText.trim() || submitting}
             >
-               {submitting ? <ActivityIndicator size="small" color="black" /> : <Text style={styles.postButtonText}>Đăng</Text>}
+               {submitting ? <ActivityIndicator size="small" color={isDarkMode ? 'black' : 'white'} /> : <Text style={[styles.postButtonText, { color: isDarkMode ? 'black' : 'white' }]}>Đăng</Text>}
             </TouchableOpacity>
          </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

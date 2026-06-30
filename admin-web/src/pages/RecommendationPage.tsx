@@ -13,7 +13,7 @@ function useAction(fn: () => Promise<any>) {
     mutationFn: fn,
     onMutate: () => setResult({ status: 'loading' }),
     onSuccess: (d) => setResult({ status: 'success', message: JSON.stringify(d) }),
-    onError: (e: any) => setResult({ status: 'error', message: e?.response?.data?.message || 'Error occurred' }),
+    onError: (e: any) => setResult({ status: 'error', message: e?.response?.data?.message || 'Đã xảy ra lỗi' }),
   });
   return { result, trigger: () => mut.mutate(), reset: () => setResult({ status: 'idle' }) };
 }
@@ -36,7 +36,7 @@ function ActionCard({
       {action.result.status === 'success' && (
         <div className="alert alert-success flex gap-2">
           <CheckCircle size={14} />
-          <span>Done! {action.result.message && <code style={{ fontSize: 11 }}>{action.result.message}</code>}</span>
+          <span>Hoàn thành! {action.result.message && <code style={{ fontSize: 11 }}>{action.result.message}</code>}</span>
         </div>
       )}
       {action.result.status === 'error' && (
@@ -53,12 +53,12 @@ function ActionCard({
           onClick={action.trigger}
         >
           {action.result.status === 'loading'
-            ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Running…</>
+            ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Đang chạy…</>
             : <>{btnLabel}</>
           }
         </button>
         {action.result.status !== 'idle' && (
-          <button className="btn btn-ghost btn-sm" onClick={action.reset}>Reset</button>
+          <button className="btn btn-ghost btn-sm" onClick={action.reset}>Đặt lại</button>
         )}
       </div>
     </div>
@@ -75,17 +75,17 @@ export default function RecommendationPage() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title"><Brain size={22} color="var(--accent)" /> Recommendations</h1>
-          <p className="page-subtitle">Manage AI recommendation engine and vector search</p>
+          <h1 className="page-title"><Brain size={22} color="var(--accent)" /> Gợi ý sách</h1>
+          <p className="page-subtitle">Quản lý engine AI gợi ý và tìm kiếm vector</p>
         </div>
       </div>
 
-      {/* Info box */}
+      {/* Thông tin */}
       <div className="alert alert-info" style={{ marginBottom: 20 }}>
         <Brain size={14} />
         <span>
-          The recommendation engine uses <b>ALS collaborative filtering</b> + <b>content-based filtering (CBF)</b>
-          with <b>Qdrant</b> for vector search. Training runs asynchronously — check service logs for progress.
+          Engine gợi ý sử dụng <b>ALS lọc cộng tác</b> + <b>lọc theo nội dung (CBF)</b>
+          kết hợp <b>Qdrant</b> cho tìm kiếm vector. Quá trình huấn luyện chạy bất đồng bộ — kiểm tra log service để theo dõi tiến trình.
         </span>
       </div>
 
@@ -93,18 +93,18 @@ export default function RecommendationPage() {
         <ActionCard
           id="rec-trigger-training"
           icon={<Zap size={18} color="var(--accent)" />}
-          title="Trigger ALS Training"
-          description="Re-train the Alternating Least Squares (ALS) collaborative filtering model using all user behavior data in MongoDB. Runs in background — does not block."
-          btnLabel="Start Training"
+          title="Huấn luyện ALS"
+          description="Huấn luyện lại mô hình ALS (Alternating Least Squares) lọc cộng tác dựa trên toàn bộ dữ liệu hành vi người dùng trong MongoDB. Chạy nền — không chặn hệ thống."
+          btnLabel="Bắt đầu huấn luyện"
           action={trainAction}
         />
 
         <ActionCard
           id="rec-flush-cache"
           icon={<RefreshCw size={18} color="var(--warning)" />}
-          title="Flush Recommendation Cache"
-          description="Clear all cached recommendations from Redis (rec:*, today_rec:*, recent_views:*). Users will rebuild fresh recs on next request. Use after DB resets or major changes."
-          btnLabel="Flush Cache"
+          title="Xóa cache gợi ý"
+          description="Xóa toàn bộ cache gợi ý từ Redis (rec:*, today_rec:*, recent_views:*). Người dùng sẽ nhận gợi ý mới ở lần truy cập tiếp theo. Dùng sau khi reset DB hoặc có thay đổi lớn."
+          btnLabel="Xóa cache"
           btnClass="btn-success"
           action={flushAction}
         />
@@ -112,9 +112,9 @@ export default function RecommendationPage() {
         <ActionCard
           id="rec-purge-qdrant"
           icon={<Trash2 size={18} color="var(--danger)" />}
-          title="Purge Qdrant Orphans"
-          description="Scan Qdrant collection and remove vectors whose bookId no longer exists in MongoDB. Run after bulk deletions or data migrations. Runs as background job."
-          btnLabel="Purge Orphans"
+          title="Dọn dẹp Qdrant"
+          description="Quét collection Qdrant và xóa các vector có bookId không còn tồn tại trong MongoDB. Chạy sau khi xóa hàng loạt hoặc di chuyển dữ liệu. Chạy nền."
+          btnLabel="Dọn dẹp orphans"
           btnClass="btn-danger"
           action={orphanAction}
         />
@@ -122,21 +122,21 @@ export default function RecommendationPage() {
         <ActionCard
           id="rec-sync-qdrant"
           icon={<Database size={18} color="var(--info)" />}
-          title="Sync Books → Qdrant"
-          description="Fire BOOK_UPDATED Kafka events for all books to rebuild their vector embeddings in Qdrant. Use after a fresh install or embedding model change."
-          btnLabel="Sync All Books"
+          title="Đồng bộ Sách → Qdrant"
+          description="Gửi sự kiện BOOK_UPDATED Kafka cho tất cả sách để tái tạo vector embedding trong Qdrant. Dùng sau khi cài mới hoặc thay đổi mô hình embedding."
+          btnLabel="Đồng bộ tất cả sách"
           btnClass="btn-ghost"
           action={syncQdrantAction}
         />
       </div>
 
-      {/* Architecture reference */}
+      {/* Kiến trúc hệ thống */}
       <div className="card" style={{ marginTop: 24 }}>
-        <div className="card-title">System Architecture</div>
+        <div className="card-title">Kiến trúc hệ thống</div>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-          <p><b style={{ color: 'var(--accent)' }}>ALS Collaborative Filtering</b> — long-term recommendations based on user-item interaction matrix. Trained periodically via the training job above. Results cached in Redis (<code>rec:&#123;userId&#125;</code>).</p>
-          <p style={{ marginTop: 8 }}><b style={{ color: 'var(--accent)' }}>Content-Based Filtering (CBF)</b> — finds similar books using semantic embeddings in Qdrant. Runs for cold-start users and "Today's Picks". Uses recent view history from Redis (<code>recent_views:&#123;userId&#125;</code>).</p>
-          <p style={{ marginTop: 8 }}><b style={{ color: 'var(--accent)' }}>Hybrid</b> — ALS recs are supplemented by CBF when ALS data is sparse. Falls back to global trending if both are empty.</p>
+          <p><b style={{ color: 'var(--accent)' }}>ALS Lọc cộng tác</b> — gợi ý dài hạn dựa trên ma trận tương tác người dùng - sách. Được huấn luyện định kỳ qua tác vụ phía trên. Kết quả cache trong Redis (<code>rec:&#123;userId&#125;</code>).</p>
+          <p style={{ marginTop: 8 }}><b style={{ color: 'var(--accent)' }}>Lọc theo nội dung (CBF)</b> — tìm sách tương tự qua embedding ngữ nghĩa trong Qdrant. Chạy cho người dùng mới và "Gợi ý hôm nay". Sử dụng lịch sử xem gần đây từ Redis (<code>recent_views:&#123;userId&#125;</code>).</p>
+          <p style={{ marginTop: 8 }}><b style={{ color: 'var(--accent)' }}>Kết hợp</b> — gợi ý ALS được bổ sung bởi CBF khi dữ liệu ALS thưa. Fallback về trending toàn cục nếu cả hai đều trống.</p>
         </div>
       </div>
     </>

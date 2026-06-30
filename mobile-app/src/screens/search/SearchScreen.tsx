@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  FlatList, Image, ScrollView, SafeAreaView, Dimensions, ActivityIndicator
+  FlatList, Image, ScrollView, Dimensions, ActivityIndicator
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { searchService, Genre } from '../../services/search.service';
@@ -18,11 +19,13 @@ import { RootState } from '../../redux/store';
 import TodayRecsSection from '../../components/book/TodayRecsSection';
 import { resolveMediaUrl } from '../../config/env';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
+import { useTheme } from '../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 
 const SearchScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   // ── Auth ──────────────────────────────────────────────────────────────────
   const { user: authUser } = useSelector((state: RootState) => state.auth);
   const currentUserId: string = (authUser as any)?.id ?? (authUser as any)?.userId ?? '';
@@ -45,6 +48,7 @@ const SearchScreen = ({ navigation }: any) => {
 
   const inputRef = useRef<TextInput>(null);
   const { onScroll } = useTabBarScrollControl();
+  const { colors, isDarkMode } = useTheme();
   
   const searchTimeoutRef = useRef<any>(null);
   const latestSearchQuery = useRef<string>('');
@@ -172,24 +176,24 @@ const SearchScreen = ({ navigation }: any) => {
     >
       <Image
       source={{ uri: resolveMediaUrl(item.coverUrl || item.coverImage, 'covers') || 'https://via.placeholder.com/100x150.png?text=No+Cover' }}
-        style={styles.bookCover}
+        style={[styles.bookCover, { backgroundColor: colors.border }]}
       />
-      <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
-      <Text style={styles.bookAuthor} numberOfLines={1}>{item.author}</Text>
+      <Text style={[styles.bookTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
+      <Text style={[styles.bookAuthor, { color: colors.textSecondary }]} numberOfLines={1}>{item.author}</Text>
     </TouchableOpacity>
   );
 
 
   // ── 1. Header Search Input ────────────────────────────────────────────────
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <View style={styles.searchBox}>
-        <Icon name="search" size={20} color={COLORS.textSecondary} style={{ marginLeft: 10 }} />
+    <View style={[styles.headerContainer, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+      <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
+        <Icon name="search" size={20} color={colors.textSecondary} style={{ marginLeft: 10 }} />
         <TextInput
           ref={inputRef}
           placeholder="Tên sách, tác giả hoặc ISBN"
-          placeholderTextColor="#666"
-          style={styles.input}
+          placeholderTextColor={colors.textSecondary}
+          style={[styles.input, { color: colors.text }]}
           value={searchText}
           onFocus={() => setIsSearching(true)}
           onChangeText={handleSearch}
@@ -205,7 +209,7 @@ const SearchScreen = ({ navigation }: any) => {
             }
             setLoadingSearch(false);
           }}>
-            <Icon name="x-circle" size={18} color={COLORS.textSecondary} style={{ marginRight: 10 }} />
+            <Icon name="x-circle" size={18} color={colors.textSecondary} style={{ marginRight: 10 }} />
           </TouchableOpacity>
         )}
       </View>
@@ -216,7 +220,7 @@ const SearchScreen = ({ navigation }: any) => {
           setSearchText('');
           inputRef.current?.blur();
         }}>
-          <Text style={styles.cancelText}>Hủy</Text>
+          <Text style={[styles.cancelText, { color: colors.text }]}>Hủy</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -227,7 +231,7 @@ const SearchScreen = ({ navigation }: any) => {
     if (loadingExplore) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={COLORS.text} />
+          <ActivityIndicator size="large" color={colors.text} />
         </View>
       );
     }
@@ -240,9 +244,9 @@ const SearchScreen = ({ navigation }: any) => {
 
         {/* ── Genres — show only top 6 ───────────────────────────────── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>KHÁM PHÁ THỂ LOẠI</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>KHÁM PHÁ THỂ LOẠI</Text>
           <TouchableOpacity onPress={() => navigation.navigate('AllGenres')}>
-            <Text style={styles.viewAllText}>Xem tất cả</Text>
+            <Text style={[styles.viewAllText, { borderColor: colors.border, color: colors.text }]}>Xem tất cả</Text>
           </TouchableOpacity>
         </View>
 
@@ -288,9 +292,9 @@ const SearchScreen = ({ navigation }: any) => {
         {recommendedBooks.length > 0 && (
           <>
             <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-              <Text style={styles.sectionTitle}>CÓ THỂ BẠN CŨNG THÍCH</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>CÓ THỂ BẠN CŨNG THÍCH</Text>
               <TouchableOpacity>
-                <Icon name="chevron-right" size={24} color={COLORS.text} />
+                <Icon name="chevron-right" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -308,9 +312,9 @@ const SearchScreen = ({ navigation }: any) => {
 
         {/* ── Trending Books — always shown ────────────────────────────── */}
         <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-          <Text style={styles.sectionTitle}>SÁCH TRENDING</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>SÁCH TRENDING</Text>
           <TouchableOpacity>
-            <Icon name="chevron-right" size={24} color={COLORS.text} />
+            <Icon name="chevron-right" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -340,21 +344,21 @@ const SearchScreen = ({ navigation }: any) => {
           return (
             <TouchableOpacity
               key={tab}
-              style={[styles.tabItem, isActive && styles.activeTabItem]}
+              style={[styles.tabItem, { backgroundColor: colors.card }, isActive && styles.activeTabItem, isActive && { backgroundColor: colors.text }]}
               onPress={() => setSearchTab(tab)}
             >
-              <Text style={[styles.tabText, isActive && styles.activeTabText]}>{labels[tab]}</Text>
+              <Text style={[styles.tabText, { color: colors.textSecondary }, isActive && styles.activeTabText, isActive && { color: isDarkMode ? 'black' : 'white' }]}>{labels[tab]}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      <Text style={styles.resultCount}>
+      <Text style={[styles.resultCount, { color: colors.textSecondary }]}>
         Hiển thị {searchTab === 'user' ? searchUserResults.length : searchResults.length} kết quả
       </Text>
 
       {loadingSearch ? (
-        <ActivityIndicator color={COLORS.text} style={{ marginTop: 20 }} />
+        <ActivityIndicator color={colors.text} style={{ marginTop: 20 }} />
       ) : searchTab === 'user' ? (
         <FlatList
           data={searchUserResults}
@@ -362,7 +366,7 @@ const SearchScreen = ({ navigation }: any) => {
           contentContainerStyle={{ paddingHorizontal: SPACING.m, paddingBottom: 50 }}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.resultItem}
+              style={[styles.resultItem, { backgroundColor: colors.background }]}
               onPress={() => navigation.navigate('UserProfile', { userId: item.userId || item.id })}
             >
               <Image
@@ -370,14 +374,14 @@ const SearchScreen = ({ navigation }: any) => {
                 style={[styles.resultCover, { width: 50, height: 50, borderRadius: 25 }]}
               />
               <View style={styles.resultInfo}>
-                <Text style={styles.resultTitle}>{item.displayName || item.username}</Text>
-                <Text style={styles.resultAuthor}>@{item.username}</Text>
+                <Text style={[styles.resultTitle, { color: colors.text }]}>{item.displayName || item.username}</Text>
+                <Text style={[styles.resultAuthor, { color: colors.textSecondary }]}>@{item.username}</Text>
               </View>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={{ alignItems: 'center', marginTop: 40 }}>
-              <Text style={{ color: '#555' }}>Không tìm thấy người dùng nào.</Text>
+              <Text style={{ color: colors.textSecondary }}>Không tìm thấy người dùng nào.</Text>
             </View>
           }
         />
@@ -388,7 +392,7 @@ const SearchScreen = ({ navigation }: any) => {
           contentContainerStyle={{ paddingHorizontal: SPACING.m, paddingBottom: 50 }}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.resultItem}
+              style={[styles.resultItem, { backgroundColor: colors.background }]}
               onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
             >
               <Image
@@ -396,11 +400,11 @@ const SearchScreen = ({ navigation }: any) => {
                 style={styles.resultCover}
               />
               <View style={styles.resultInfo}>
-                <Text style={styles.resultTitle}>{item.title}</Text>
-                <Text style={styles.resultAuthor}>bởi {item.author}</Text>
+                <Text style={[styles.resultTitle, { color: colors.text }]}>{item.title}</Text>
+                <Text style={[styles.resultAuthor, { color: colors.textSecondary }]}>bởi {item.author}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                  <Icon name="star" size={12} color="#FFD700" />
-                  <Text style={{ color: '#777', fontSize: 12, marginLeft: 4 }}>
+                  <Icon name="star" size={12} color={isDarkMode ? '#FFD700' : '#D97706'} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginLeft: 4 }}>
                     {item.averageRating && item.averageRating > 0
                       ? item.averageRating.toFixed(1)
                       : 'Chưa có đánh giá'}
@@ -408,13 +412,13 @@ const SearchScreen = ({ navigation }: any) => {
                 </View>
               </View>
               <TouchableOpacity>
-                <Icon name="plus-circle" size={24} color={COLORS.textSecondary} />
+                <Icon name="plus-circle" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={{ alignItems: 'center', marginTop: 40 }}>
-              <Text style={{ color: '#555' }}>Không tìm thấy sách nào.</Text>
+              <Text style={{ color: colors.textSecondary }}>Không tìm thấy sách nào.</Text>
             </View>
           }
         />
@@ -424,10 +428,10 @@ const SearchScreen = ({ navigation }: any) => {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {renderHeader()}
       {isSearching ? renderSearchView() : renderExploreView()}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -515,3 +519,4 @@ const styles = StyleSheet.create({
 });
 
 export default SearchScreen;
+

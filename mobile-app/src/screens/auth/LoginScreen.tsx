@@ -16,6 +16,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { COLORS, SPACING } from '../../constants/theme';
 import { loginUser } from '../../redux/authSlice';
 import { RootState, AppDispatch } from '../../redux/store';
+import { useTheme } from '../../context/ThemeContext';
 
 const LoginScreen = ({ navigation }: any) => {
   const [username, setUsername] = useState('');
@@ -23,6 +24,7 @@ const LoginScreen = ({ navigation }: any) => {
   
   const dispatch = useDispatch<AppDispatch>();
   const { isLoading, error } = useSelector((state: RootState) => state.auth);
+  const { colors, isDarkMode } = useTheme();
 
   // Lắng nghe lỗi từ Redux store
   useEffect(() => {
@@ -48,40 +50,40 @@ const LoginScreen = ({ navigation }: any) => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView 
-        style={styles.container} 
+        style={[styles.container, { backgroundColor: colors.background }]} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.inner}>
-          <Text style={styles.title}>Đăng nhập</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Đăng nhập</Text>
           
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
             placeholder="Tên đăng nhập"
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={colors.textSecondary}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
           />
           
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
             placeholder="Mật khẩu"
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={colors.textSecondary}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
           />
 
-          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={isLoading}>
+          <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={handleLogin} disabled={isLoading}>
             {isLoading ? (
-              <ActivityIndicator color="black" />
+              <ActivityIndicator color={isDarkMode ? 'black' : 'white'} />
             ) : (
-              <Text style={styles.buttonText}>Đăng nhập</Text>
+              <Text style={[styles.buttonText, { color: isDarkMode ? 'black' : 'white' }]}>Đăng nhập</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.linkText}>Chưa có tài khoản? Đăng ký</Text>
+            <Text style={[styles.linkText, { color: colors.textSecondary }]}>Chưa có tài khoản? Đăng ký</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

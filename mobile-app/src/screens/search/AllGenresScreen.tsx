@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TouchableOpacity, SafeAreaView, ActivityIndicator, Dimensions,
+  TouchableOpacity, ActivityIndicator, Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING } from '../../constants/theme';
@@ -11,12 +12,13 @@ import { searchService, Genre } from '../../services/search.service';
 import { RootStackParamList } from '../../types/navigation';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
+import { useTheme } from '../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AllGenres'>;
 
-// ── Curated color palette — same system as SearchScreen (6 colors cycling) ────
+// ── Curated color palette — same system as SearchScreen (6 colors cycling system) ────
 const PALETTE = [
   { bg: '#E94057', icon: 'heart'   },
   { bg: '#6C63FF', icon: 'zap'     },
@@ -33,9 +35,11 @@ const PALETTE = [
 ] as const;
 
 const AllGenresScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const [genres, setGenres]   = useState<Genre[]>([]);
   const [loading, setLoading] = useState(true);
   const { onScroll } = useTabBarScrollControl();
+  const { colors } = useTheme();
 
   useEffect(() => {
     const fetchGenres = async () => {
@@ -70,19 +74,19 @@ const AllGenresScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Icon name="arrow-left" size={24} color={COLORS.text} />
+          <Icon name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tất cả Thể loại</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Tất cả Thể loại</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.text} />
+          <ActivityIndicator size="large" color={colors.text} />
         </View>
       ) : (
         <FlatList
@@ -99,7 +103,7 @@ const AllGenresScreen = ({ navigation }: Props) => {
       )}
 
       <FloatingTabBar activeTab="Search" />
-    </SafeAreaView>
+    </View>
   );
 };
 

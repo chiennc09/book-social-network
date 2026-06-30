@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, Image,
-  TouchableOpacity, SafeAreaView, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING } from '../../constants/theme';
@@ -13,6 +14,7 @@ import { RootStackParamList } from '../../types/navigation';
 import { resolveMediaUrl } from '../../config/env';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 import { useTabBarScrollControl } from '../../navigation/BottomTabNavigator';
+import { useTheme } from '../../context/ThemeContext';
 
 const mapBookResponse = (item: any): Book => {
   const coverUrl = resolveMediaUrl(item.coverImage ?? item.coverUrl, 'covers');
@@ -37,12 +39,14 @@ const mapBookResponse = (item: any): Book => {
 type Props = NativeStackScreenProps<RootStackParamList, 'GenreBooks'>;
 
 const GenreBooksScreen = ({ route, navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const { genreId, genreName } = route.params;
 
   const [books, setBooks]     = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const { onScroll } = useTabBarScrollControl();
+  const { colors, isDarkMode } = useTheme();
 
   const fetchBooks = useCallback(async () => {
     setLoading(true);
@@ -63,63 +67,63 @@ const GenreBooksScreen = ({ route, navigation }: Props) => {
 
   const renderBook = ({ item }: { item: Book }) => (
     <TouchableOpacity
-      style={styles.bookItem}
+      style={[styles.bookItem, { backgroundColor: colors.background }]}
       onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
     >
       <Image
         source={{
           uri: item.coverUrl || 'https://via.placeholder.com/70x105.png?text=No+Cover',
         }}
-        style={styles.cover}
+        style={[styles.cover, { backgroundColor: colors.border }]}
       />
       <View style={styles.bookInfo}>
-        <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.author} numberOfLines={1}>bởi {item.author}</Text>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
+        <Text style={[styles.author, { color: colors.textSecondary }]} numberOfLines={1}>bởi {item.author}</Text>
         {(item.averageRating ?? 0) > 0 && (
           <View style={styles.ratingRow}>
-            <Icon name="star" size={13} color="#FFD700" />
-            <Text style={styles.rating}>{(item.averageRating ?? 0).toFixed(1)}</Text>
+            <Icon name="star" size={13} color={isDarkMode ? '#FFD700' : '#D97706'} />
+            <Text style={[styles.rating, { color: isDarkMode ? '#FFD700' : '#D97706' }]}>{(item.averageRating ?? 0).toFixed(1)}</Text>
           </View>
         )}
         {(item.totalViews ?? 0) > 0 && (
           <View style={styles.ratingRow}>
-            <Icon name="eye" size={13} color={COLORS.textSecondary} />
-            <Text style={styles.views}>{item.totalViews} lượt đọc</Text>
+            <Icon name="eye" size={13} color={colors.textSecondary} />
+            <Text style={[styles.views, { color: colors.textSecondary }]}>{item.totalViews} lượt đọc</Text>
           </View>
         )}
       </View>
-      <Icon name="chevron-right" size={20} color={COLORS.textSecondary} />
+      <Icon name="chevron-right" size={20} color={colors.textSecondary} />
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Icon name="arrow-left" size={24} color={COLORS.text} />
+          <Icon name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{genreName}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{genreName}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.text} />
-          <Text style={styles.hint}>Đang tải sách...</Text>
+          <ActivityIndicator size="large" color={colors.text} />
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>Đang tải sách...</Text>
         </View>
       ) : error ? (
         <View style={styles.centered}>
           <Icon name="alert-circle" size={40} color="#E94057" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={fetchBooks}>
-            <Text style={styles.retryText}>Thử lại</Text>
+          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.card }]} onPress={fetchBooks}>
+            <Text style={[styles.retryText, { color: colors.text }]}>Thử lại</Text>
           </TouchableOpacity>
         </View>
       ) : books.length === 0 ? (
         <View style={styles.centered}>
-          <Icon name="book-open" size={48} color={COLORS.textSecondary} />
-          <Text style={styles.hint}>Chưa có sách nào trong thể loại này.</Text>
+          <Icon name="book-open" size={48} color={colors.textSecondary} />
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>Chưa có sách nào trong thể loại này.</Text>
         </View>
       ) : (
         <FlatList
@@ -127,14 +131,14 @@ const GenreBooksScreen = ({ route, navigation }: Props) => {
           keyExtractor={(item) => item.id}
           renderItem={renderBook}
           contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.border }]} />}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
         />
       )}
       <FloatingTabBar activeTab="Search" />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -179,3 +183,5 @@ const styles = StyleSheet.create({
 });
 
 export default GenreBooksScreen;
+
+

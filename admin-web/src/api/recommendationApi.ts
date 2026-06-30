@@ -4,15 +4,25 @@ export const recommendationApi = {
   /** Get long-term ALS+CBF recommendations for a user */
   getForUser: async (userId: string) => {
     const res = await api.get(`/recommendation/api/v1/recommendations/${userId}`);
-    return res.data;
+    const data = res.data;
+    return {
+      userId: data.userId,
+      recommendedBookIds: data.longTerm?.bookIds ?? data.trending?.bookIds ?? [],
+      source: data.longTerm?.source ?? data.trending?.source ?? 'empty',
+    };
   },
 
   /** Get today's session-based picks */
   getTodayForUser: async (userId: string, limit = 10) => {
-    const res = await api.get(`/recommendation/api/v1/recommendations/${userId}/today`, {
+    const res = await api.get(`/recommendation/api/v1/recommendations/${userId}`, {
       params: { limit },
     });
-    return res.data;
+    const data = res.data;
+    return {
+      userId: data.userId,
+      todayBookIds: data.shortTerm?.bookIds ?? [],
+      source: data.shortTerm?.source ?? 'empty',
+    };
   },
 
   /** Get similar books */

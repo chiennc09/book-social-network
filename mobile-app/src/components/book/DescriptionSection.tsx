@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, SPACING } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 const DescriptionSection = ({ description }: { description: string }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { colors } = useTheme();
 
   return (
     <View style={styles.section}>
-      <Text style={styles.header}>MÔ TẢ</Text>
+      <Text style={[styles.header, { color: colors.text }]}>MÔ TẢ</Text>
       <Text 
-        style={styles.text} 
+        style={[styles.text, { color: colors.textSecondary }]} 
         numberOfLines={isExpanded ? undefined : 4} // Nếu chưa mở rộng thì chỉ hiện 4 dòng
       >
         {description}

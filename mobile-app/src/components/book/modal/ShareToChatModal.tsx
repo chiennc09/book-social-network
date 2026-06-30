@@ -8,13 +8,14 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { chatApi } from '../../../api/chatApi';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../../constants/theme';
 import { resolveMediaUrl } from '../../../config/env';
 import { UserAvatar } from '../../common/UserAvatar';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface BookAttachmentData {
   bookId: string;
@@ -37,9 +38,11 @@ const ShareToChatModal = ({
   navigation,
   bookAttachment,
 }: ShareToChatModalProps) => {
+  const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const { colors, isDarkMode } = useTheme();
 
   useEffect(() => {
     if (visible) {
@@ -86,7 +89,7 @@ const ShareToChatModal = ({
     const isSending = sendingId === item.id;
     return (
       <TouchableOpacity
-        style={[styles.convRow, isSending && { opacity: 0.6 }]}
+        style={[styles.convRow, { borderBottomColor: colors.border }, isSending && { opacity: 0.6 }]}
         onPress={() => handleSelect(item)}
         disabled={isSending}>
         <UserAvatar
@@ -95,19 +98,19 @@ const ShareToChatModal = ({
           style={styles.avatar}
         />
         <View style={styles.convInfo}>
-          <Text style={styles.convName} numberOfLines={1}>
+          <Text style={[styles.convName, { color: colors.text }]} numberOfLines={1}>
             {item.conversationName || 'Cuộc trò chuyện'}
           </Text>
           {item.lastMessage ? (
-            <Text style={styles.convPreview} numberOfLines={1}>
+            <Text style={[styles.convPreview, { color: colors.textSecondary }]} numberOfLines={1}>
               {item.lastMessage}
             </Text>
           ) : null}
         </View>
         {isSending ? (
-          <ActivityIndicator size="small" color={COLORS.textSecondary} />
+          <ActivityIndicator size="small" color={colors.textSecondary} />
         ) : (
-          <Icon name="chevron-right" size={18} color={COLORS.textSecondary} />
+          <Icon name="chevron-right" size={18} color={colors.textSecondary} />
         )}
       </TouchableOpacity>
     );
@@ -120,50 +123,50 @@ const ShareToChatModal = ({
       transparent
       onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <SafeAreaView style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 12) }]}>
           {/* Book preview card */}
-          <View style={styles.bookPreview}>
+          <View style={[styles.bookPreview, { borderBottomColor: colors.border }]}>
             {bookAttachment.coverUrl ? (
               <Image
                 source={{ uri: bookAttachment.coverUrl }}
                 style={styles.bookCover}
               />
             ) : (
-              <View style={[styles.bookCover, styles.bookCoverPlaceholder]}>
-                <Icon name="book" size={24} color={COLORS.textSecondary} />
+              <View style={[styles.bookCover, styles.bookCoverPlaceholder, { backgroundColor: isDarkMode ? '#222' : '#F0F0F0' }]}>
+                <Icon name="book" size={24} color={colors.textSecondary} />
               </View>
             )}
             <View style={styles.bookInfo}>
-              <Text style={styles.bookLabel}>Chia sẻ sách</Text>
-              <Text style={styles.bookTitle} numberOfLines={2}>
+              <Text style={[styles.bookLabel, { color: colors.textSecondary }]}>Chia sẻ sách</Text>
+              <Text style={[styles.bookTitle, { color: colors.text }]} numberOfLines={2}>
                 {bookAttachment.title}
               </Text>
               {bookAttachment.author ? (
-                <Text style={styles.bookAuthor} numberOfLines={1}>
+                <Text style={[styles.bookAuthor, { color: colors.textSecondary }]} numberOfLines={1}>
                   {bookAttachment.author}
                 </Text>
               ) : null}
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Icon name="x" size={22} color={COLORS.text} />
+              <Icon name="x" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.sectionLabel}>Gửi đến…</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Gửi đến…</Text>
 
           {loading ? (
-            <ActivityIndicator color={COLORS.text} style={{ marginTop: 30 }} />
+            <ActivityIndicator color={colors.text} style={{ marginTop: 30 }} />
           ) : (
             <FlatList
               data={conversations}
               keyExtractor={i => i.id}
               renderItem={renderItem}
               ListEmptyComponent={
-                <Text style={styles.empty}>Chưa có cuộc trò chuyện nào</Text>
+                <Text style={[styles.empty, { color: colors.textSecondary }]}>Chưa có cuộc trò chuyện nào</Text>
               }
             />
           )}
-        </SafeAreaView>
+        </View>
       </View>
     </Modal>
   );
@@ -176,7 +179,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: COLORS.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '75%',
@@ -187,21 +189,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.m,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   bookCover: { width: 48, height: 64, borderRadius: 6, marginRight: SPACING.m },
   bookCoverPlaceholder: {
-    backgroundColor: '#222',
     justifyContent: 'center',
     alignItems: 'center',
   },
   bookInfo: { flex: 1 },
-  bookLabel: { color: COLORS.textSecondary, fontSize: 12, marginBottom: 2 },
-  bookTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
-  bookAuthor: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
+  bookLabel: { fontSize: 12, marginBottom: 2 },
+  bookTitle: { fontSize: 15, fontWeight: 'bold' },
+  bookAuthor: { fontSize: 13, marginTop: 2 },
   closeBtn: { padding: 6 },
   sectionLabel: {
-    color: COLORS.textSecondary,
     fontSize: 13,
     paddingHorizontal: SPACING.m,
     paddingVertical: 10,
@@ -213,13 +212,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.m,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   avatar: { width: 46, height: 46, borderRadius: 23, marginRight: SPACING.m },
   convInfo: { flex: 1 },
-  convName: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
-  convPreview: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
-  empty: { textAlign: 'center', color: COLORS.textSecondary, marginTop: 24 },
+  convName: { fontSize: 15, fontWeight: '600' },
+  convPreview: { fontSize: 13, marginTop: 2 },
+  empty: { textAlign: 'center', marginTop: 24 },
 });
 
 export default ShareToChatModal;

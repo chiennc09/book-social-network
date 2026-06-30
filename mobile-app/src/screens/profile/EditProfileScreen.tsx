@@ -1,5 +1,7 @@
+// src/screens/profile/EditProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Switch, Image, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Switch, Image, ActivityIndicator, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING } from '../../constants/theme';
 import { resolveMediaUrl } from '../../config/env';
 import { userService } from '../../services/user.service';
@@ -7,10 +9,11 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import { fileApi } from '../../api/fileApi';
 import { useDispatch } from 'react-redux';
 import { updateUserAvatar } from '../../redux/authSlice';
+import { useTheme } from '../../context/ThemeContext';
 
 const EditProfileScreen = ({ navigation, route }: any) => {
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
-  // Lấy data user được truyền từ màn hình trước (nếu có)
   const currentUser = route.params?.user || {};
 
   const [bio, setBio] = useState(currentUser.bio || '');
@@ -21,6 +24,7 @@ const EditProfileScreen = ({ navigation, route }: any) => {
   const [selectedAsset, setSelectedAsset] = useState<any>(null); // full image picker asset
   const [firstName, setFirstName] = useState(currentUser.firstName || '');
   const [lastName, setLastName] = useState(currentUser.lastName || '');
+  const { colors, isDarkMode } = useTheme();
 
   const handleSelectImage = async () => {
     try {
@@ -52,7 +56,6 @@ const EditProfileScreen = ({ navigation, route }: any) => {
         let uploadedAvatarUrl = currentUser.avatar;
 
         if (avatarUri && avatarUri !== currentUser.avatar) {
-           // Use the stored asset object for proper RN multipart upload
            const asset = selectedAsset ?? { uri: avatarUri, fileName: 'avatar.jpg', type: 'image/jpeg' };
            try {
               const uploaded = await fileApi.uploadFromImagePicker(asset, 'avatars');
@@ -65,7 +68,6 @@ const EditProfileScreen = ({ navigation, route }: any) => {
            }
         }
 
-        // Gọi Service
         await userService.updateProfile({ 
           bio, 
           link, 
@@ -75,12 +77,10 @@ const EditProfileScreen = ({ navigation, route }: any) => {
           lastName,
         });
         
-        // Cần dispatch action update Redux store nếu thực tế
         if (uploadedAvatarUrl) {
             dispatch(updateUserAvatar(resolveMediaUrl(uploadedAvatarUrl, 'avatars')));
         }
         
-        // Thành công thì back về
         navigation.goBack();
       } catch (error) {
         console.error(error);
@@ -91,32 +91,31 @@ const EditProfileScreen = ({ navigation, route }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.cancelText}>Hủy</Text>
+            <Text style={[styles.cancelText, { color: colors.text }]}>Hủy</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chỉnh sửa trang cá nhân</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Chỉnh sửa trang cá nhân</Text>
         
         <TouchableOpacity onPress={handleSave} disabled={saving}>
-            {saving ? <ActivityIndicator size="small" color={COLORS.text} /> : <Text style={styles.doneText}>Xong</Text>}
+            {saving ? <ActivityIndicator size="small" color={colors.text} /> : <Text style={[styles.doneText, { color: colors.text }]}>Xong</Text>}
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
+      <View style={[styles.content, { borderColor: colors.border }]}>
         {/* Form Group: Username & Avatar (Read-only) */}
         <View style={styles.formGroup}>
             <View style={{flex: 1}}>
-                <Text style={styles.label}>Tên đăng nhập</Text>
-                <Text style={styles.valueLocked}>@{currentUser.username}</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Tên đăng nhập</Text>
+                <Text style={[styles.valueLocked, { color: colors.textSecondary }]}>@{currentUser.username}</Text>
             </View>
-            {/* Nếu có ảnh thì hiện, ko thì placeholder */}
             <View style={{alignItems: 'center'}}>
               <TouchableOpacity onPress={handleSelectImage}>
                   <Image 
                       source={{ uri: avatarUri || resolveMediaUrl(currentUser.avatar, 'avatars') || 'https://via.placeholder.com/150' }} 
-                      style={styles.avatarMini} 
+                      style={[styles.avatarMini, { backgroundColor: colors.border }]} 
                   />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSelectImage} style={{marginTop: 6}}>
@@ -124,77 +123,76 @@ const EditProfileScreen = ({ navigation, route }: any) => {
               </TouchableOpacity>
             </View>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* Họ & Tên đệm Input */}
         <View style={styles.formGroupVertical}>
-            <Text style={styles.label}>Họ</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Họ</Text>
             <TextInput 
                 placeholder="Nhập họ và tên đệm" 
-                placeholderTextColor={COLORS.textSecondary} 
-                style={styles.input} 
+                placeholderTextColor={colors.textSecondary} 
+                style={[styles.input, { color: colors.text }]} 
                 value={lastName}
                 onChangeText={setLastName}
             />
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* Tên Input */}
         <View style={styles.formGroupVertical}>
-            <Text style={styles.label}>Tên</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Tên</Text>
             <TextInput 
                 placeholder="Nhập tên" 
-                placeholderTextColor={COLORS.textSecondary} 
-                style={styles.input} 
+                placeholderTextColor={colors.textSecondary} 
+                style={[styles.input, { color: colors.text }]} 
                 value={firstName}
                 onChangeText={setFirstName}
             />
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* Bio Input */}
         <View style={styles.formGroupVertical}>
-            <Text style={styles.label}>Tiểu sử</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Tiểu sử</Text>
             <TextInput 
                 placeholder="+ Viết tiểu sử" 
-                placeholderTextColor={COLORS.textSecondary} 
-                style={styles.input} 
+                placeholderTextColor={colors.textSecondary} 
+                style={[styles.input, { color: colors.text }]} 
                 value={bio}
                 onChangeText={setBio}
                 multiline
             />
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* Link Input */}
         <View style={styles.formGroupVertical}>
-            <Text style={styles.label}>Liên kết</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Liên kết</Text>
             <TextInput 
                 placeholder="+ Thêm liên kết" 
-                placeholderTextColor={COLORS.textSecondary} 
-                style={styles.input}
+                placeholderTextColor={colors.textSecondary} 
+                style={[styles.input, { color: colors.text }]}
                 value={link}
                 onChangeText={setLink}
             />
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
         
         {/* Private Toggle */}
         <View style={[styles.formGroup, {marginTop: SPACING.m}]}>
-            <Text style={styles.label}>Trang cá nhân riêng tư</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Trang cá nhân riêng tư</Text>
             <Switch 
                 value={isPrivate} 
                 onValueChange={setIsPrivate} 
-                trackColor={{false: '#333', true: COLORS.text}}
-                thumbColor={'black'}
+                trackColor={{false: colors.border, true: colors.text}}
+                thumbColor={isDarkMode ? 'black' : 'white'}
             />
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
-// ... Styles giữ nguyên như file cũ ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: { flexDirection: 'row', justifyContent: 'space-between', padding: SPACING.m, alignItems: 'center' },
@@ -212,3 +210,5 @@ const styles = StyleSheet.create({
 });
 
 export default EditProfileScreen;
+
+

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import Icon from 'react-native-vector-icons/Feather';
 import { userService } from '../../services/user.service';
@@ -12,14 +13,17 @@ import { profileApi } from '../../api/profileApi';
 import { EventNames, eventEmitter } from '../../utils/eventEmitter';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
+import { useTheme } from '../../context/ThemeContext';
 
 const ProfileScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'posts' | 'reposts'>('posts');
   const [friendsCount, setFriendsCount] = useState<number>(0);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const { colors, isDarkMode } = useTheme();
   
   // Dùng Redux user để cập nhật realtime ảnh đại diện
   const { user: authUser } = useSelector((state: RootState) => state.auth);
@@ -43,11 +47,10 @@ const ProfileScreen = ({ navigation }: any) => {
       if (pageNum === 1) {
          if (userData) setUser(userData);
          setPosts(postsData);
-         
-         const friendsList = friendsData?.result || friendsData?.data?.result || friendsData?.data || [];
+         const friendsList = (friendsData as any)?.result || (friendsData as any)?.data?.result || (friendsData as any)?.data || [];
          setFriendsCount(friendsList.length);
          
-         const incomingList = incomingData?.result || incomingData?.data?.result || incomingData?.data || [];
+         const incomingList = (incomingData as any)?.result || (incomingData as any)?.data?.result || (incomingData as any)?.data || [];
          setPendingCount(incomingList.length);
       } else {
          setPosts(prev => {
@@ -85,8 +88,8 @@ const ProfileScreen = ({ navigation }: any) => {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }]}>
-        <ActivityIndicator size="large" color={COLORS.text} />
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
@@ -113,10 +116,10 @@ const ProfileScreen = ({ navigation }: any) => {
     <View style={{ marginBottom: 10 }}>
         {/* Header */}
         <View style={styles.header}>
-          <Icon name="globe" size={24} color={COLORS.text} />
+          <Icon name="globe" size={24} color={colors.text} />
           <View style={styles.headerRight}>
              <TouchableOpacity onPress={() => navigation.openDrawer()} style={{ position: 'relative', padding: 2 }}>
-                <Icon name="menu" size={28} color={COLORS.text} />
+                <Icon name="menu" size={28} color={colors.text} />
                 {pendingCount > 0 && (
                    <View style={styles.menuBadge}>
                       <Text style={styles.menuBadgeText}>{pendingCount}</Text>
@@ -129,10 +132,10 @@ const ProfileScreen = ({ navigation }: any) => {
         {/* Profile Info - Data from API */}
         <View style={styles.infoContainer}>
           <View style={styles.textContainer}>
-            <Text style={styles.displayName}>{user?.displayName}</Text>
+            <Text style={[styles.displayName, { color: colors.text }]}>{user?.displayName}</Text>
             <View style={styles.usernameRow}>
-               <Text style={styles.username}>@{user?.username}</Text>
-               <View style={styles.badge}><Text style={styles.badgeText}>reads.net</Text></View>
+               <Text style={[styles.username, { color: colors.text }]}>@{user?.username}</Text>
+               <View style={[styles.badge, { backgroundColor: colors.card }]}><Text style={styles.badgeText}>reads.net</Text></View>
                
                {/* Render Badges with Animation */}
                {user?.badges && user.badges.length > 0 && user.badges.map((b, index) => (
@@ -140,7 +143,7 @@ const ProfileScreen = ({ navigation }: any) => {
                ))}
             </View>
             {/* Hiển thị Bio */}
-            {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+            {user?.bio ? <Text style={[styles.bio, { color: colors.text }]}>{user.bio}</Text> : null}
           </View>
           <Image source={{ uri: (authUser as any)?.avatar || user?.avatar || DEFAULT_AVATAR }} style={styles.avatar} />
         </View>
@@ -150,44 +153,44 @@ const ProfileScreen = ({ navigation }: any) => {
            onPress={() => navigation.navigate('FriendManagement')}
            style={styles.followersRow}
         >
-           <Icon name="users" size={15} color={COLORS.textSecondary} style={{ marginRight: 6 }} />
-           <Text style={styles.followers}>{friendsCount} bạn bè</Text>
+           <Icon name="users" size={15} color={colors.textSecondary} style={{ marginRight: 6 }} />
+           <Text style={[styles.followers, { color: colors.textSecondary }]}>{friendsCount} bạn bè</Text>
         </TouchableOpacity>
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity 
-            style={[styles.btnOutline, { backgroundColor: COLORS.text, borderColor: COLORS.text }]}
+            style={[styles.btnOutline, { backgroundColor: colors.text, borderColor: colors.text }]}
             onPress={() => navigation.navigate('EditProfile', { user })}
           >
-            <Text style={[styles.btnText, { color: COLORS.background }]}>Chỉnh sửa trang cá nhân</Text>
+            <Text style={[styles.btnText, { color: colors.background }]}>Chỉnh sửa trang cá nhân</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.btnOutline}>
-            <Text style={styles.btnText}>Chia sẻ trang cá nhân</Text>
+          <TouchableOpacity style={[styles.btnOutline, { borderColor: colors.border }]}>
+            <Text style={[styles.btnText, { color: colors.text }]}>Chia sẻ trang cá nhân</Text>
           </TouchableOpacity>
         </View>
 
         {/* Tabs & Content */}
-        <View style={styles.tabs}>
+        <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
            <TouchableOpacity 
-             style={[styles.tabItem, activeTab === 'posts' && styles.activeTab]}
+             style={[styles.tabItem, activeTab === 'posts' && [styles.activeTab, { borderBottomColor: colors.text }]]}
              onPress={() => setActiveTab('posts')}
            >
-             <Text style={activeTab === 'posts' ? styles.activeTabText : styles.tabText}>Bài viết</Text>
+             <Text style={activeTab === 'posts' ? [styles.activeTabText, { color: colors.text }] : [styles.tabText, { color: colors.textSecondary }]}>Bài viết</Text>
            </TouchableOpacity>
            <TouchableOpacity 
-             style={[styles.tabItem, activeTab === 'reposts' && styles.activeTab]}
+             style={[styles.tabItem, activeTab === 'reposts' && [styles.activeTab, { borderBottomColor: colors.text }]]}
              onPress={() => setActiveTab('reposts')}
            >
-             <Text style={activeTab === 'reposts' ? styles.activeTabText : styles.tabText}>Đăng lại</Text>
+             <Text style={activeTab === 'reposts' ? [styles.activeTabText, { color: colors.text }] : [styles.tabText, { color: colors.textSecondary }]}>Đăng lại</Text>
            </TouchableOpacity>
         </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       <FlatList
         data={displayedPosts}
         keyExtractor={(item) => item.id || String(Math.random())}
@@ -195,16 +198,16 @@ const ProfileScreen = ({ navigation }: any) => {
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           <View style={styles.feedPlaceholder}>
-              <Text style={styles.placeholderText}>Chưa có bài đăng nào.</Text>
+              <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>Chưa có bài đăng nào.</Text>
           </View>
         }
         refreshing={refreshing}
         onRefresh={onRefresh}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={COLORS.text} /> : null}
+        ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 20 }} color={colors.text} /> : null}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

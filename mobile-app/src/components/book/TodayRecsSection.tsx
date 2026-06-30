@@ -20,6 +20,7 @@ import { COLORS, SPACING } from '../../constants/theme';
 import { useTodayRecommendations } from '../../hooks/useTodayRecommendations';
 import { Book } from '../../types';
 import { resolveMediaUrl } from '../../config/env';
+import { useTheme } from '../../context/ThemeContext';
 
 
 // Map source value to a human-readable badge label
@@ -41,6 +42,7 @@ interface Props {
 
 const TodayRecsSection = ({ userId, onBookPress, limit = 10 }: Props) => {
   const { books, source, loading } = useTodayRecommendations(userId, limit);
+  const { colors } = useTheme();
 
   // Don't render anything during load if there's nothing cached yet
   if (!loading && books.length === 0) return null;
@@ -50,9 +52,9 @@ const TodayRecsSection = ({ userId, onBookPress, limit = 10 }: Props) => {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <View style={styles.sectionHeader}>
         <View>
-          <Text style={styles.sectionTitle}>GỢI Ý HÔM NAY</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>GỢI Ý HÔM NAY</Text>
           {sourceLabel[source] && (
-            <Text style={styles.sourceSubtitle}>{sourceLabel[source]}</Text>
+            <Text style={[styles.sourceSubtitle, { color: colors.textSecondary }]}>{sourceLabel[source]}</Text>
           )}
         </View>
       </View>
@@ -61,7 +63,7 @@ const TodayRecsSection = ({ userId, onBookPress, limit = 10 }: Props) => {
       {loading ? (
         <ActivityIndicator
           style={styles.loader}
-          color={COLORS.textSecondary}
+          color={colors.textSecondary}
           size="small"
         />
       ) : (
@@ -83,13 +85,13 @@ const TodayRecsSection = ({ userId, onBookPress, limit = 10 }: Props) => {
                     resolveMediaUrl(item.coverUrl || (item as any).coverImage, 'covers') ||
                     'https://via.placeholder.com/100x150.png?text=No+Cover',
                 }}
-                style={styles.cover}
+                style={[styles.cover, { backgroundColor: colors.border }]}
                 resizeMode="cover"
               />
-              <Text style={styles.title} numberOfLines={2}>
+              <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
                 {item.title}
               </Text>
-              <Text style={styles.author} numberOfLines={1}>
+              <Text style={[styles.author, { color: colors.textSecondary }]} numberOfLines={1}>
                 {item.author}
               </Text>
             </TouchableOpacity>

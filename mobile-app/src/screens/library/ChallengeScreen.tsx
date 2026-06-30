@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Image, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, ActivityIndicator, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { COLORS, SPACING, DEFAULT_AVATAR } from '../../constants/theme';
 import { resolveMediaUrl } from '../../config/env';
@@ -10,13 +11,16 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import FloatingTabBar from '../../components/navigation/FloatingTabBar';
 import { RankBadge } from '../../components/common/RankBadge';
+import { useTheme } from '../../context/ThemeContext';
 
 const ChallengeScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'badges' | 'leaderboard'>('badges');
   const [badges, setBadges] = useState<Badge[]>([]);
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const { colors, isDarkMode } = useTheme();
 
   // Redux auth user để lấy ảnh avatar realtime
   const { user: authUser } = useSelector((state: RootState) => state.auth);
@@ -47,7 +51,16 @@ const ChallengeScreen = ({ navigation }: any) => {
         setBadges(badgesData.sort((a: Badge, b: Badge) => a.requiredBooks - b.requiredBooks));
 
         const lbData = (leaderboardRes as any).result || (leaderboardRes as any).data?.result || [];
-        setLeaderboard(lbData);
+        // Sort client-side: users with books read first (DESC), then 0-read users at bottom
+        const sorted = [...lbData].sort((a: any, b: any) => {
+          const aBooks = a.totalBooksRead ?? 0;
+          const bBooks = b.totalBooksRead ?? 0;
+          if (aBooks === 0 && bBooks === 0) return 0;
+          if (aBooks === 0) return 1;   // a goes after b
+          if (bBooks === 0) return -1;  // b goes after a
+          return bBooks - aBooks;       // both > 0: sort DESC
+        });
+        setLeaderboard(sorted);
 
         setCurrentUser(userProf);
       } catch (e) {
@@ -102,18 +115,20 @@ const ChallengeScreen = ({ navigation }: any) => {
     const themeColors = BADGE_COLORS[item.code] || {
       border: '#FFD700',
       bg: 'rgba(255, 215, 0, 0.05)',
-      iconBg: '#222',
+      iconBg: isDarkMode ? '#222' : '#F0F0F0',
       text: '#FFD700',
     };
 
     return (
       <View style={[
         styles.badgeCard, 
+        { backgroundColor: colors.card, borderColor: colors.border },
         isOwned && { borderColor: themeColors.border, backgroundColor: themeColors.bg }
       ]}>
         <View style={styles.badgeLeft}>
            <Animated.View style={[
               styles.iconWrapper, 
+              { backgroundColor: isDarkMode ? '#222' : '#F0F0F0', borderColor: colors.border },
               isOwned && { 
                 transform: [{ scale: pulseAnim }], 
                 borderColor: themeColors.border, 
@@ -127,7 +142,7 @@ const ChallengeScreen = ({ navigation }: any) => {
                  <Icon 
                     name={item.code === 'BOOKWORM' ? 'book-open' : (item.code === 'SCHOLAR' ? 'shield' : (item.code === 'MASTER' ? 'zap' : 'award'))} 
                     size={30} 
-                    color={isOwned ? themeColors.text : '#555'} 
+                    color={isOwned ? themeColors.text : colors.textSecondary} 
                  />
               )}
            </Animated.View>
@@ -136,9 +151,10 @@ const ChallengeScreen = ({ navigation }: any) => {
         <View style={styles.badgeInfo}>
            <Text style={[
               styles.badgeName, 
+              { color: colors.text },
               isOwned && { color: themeColors.text }
            ]}>{item.name}</Text>
-           <Text style={styles.badgeDescription}>{item.description}</Text>
+           <Text style={[styles.badgeDescription, { color: colors.textSecondary }]}>{item.description}</Text>
            <Text style={[
               styles.badgeReq, 
               isOwned && { color: themeColors.text }
@@ -163,15 +179,15 @@ const ChallengeScreen = ({ navigation }: any) => {
     const isMe = currentUser?.id === item.userId;
 
     return (
-      <View style={[styles.lbCard, isMe && styles.lbCardMe]}>
+      <View style={[styles.lbCard, { backgroundColor: colors.card, borderColor: colors.border }, isMe && styles.lbCardMe]}>
         <Text style={[styles.lbRank, { color: rankColor }]}>{index + 1}</Text>
         <Image source={{ uri: (isMe && (authUser as any)?.avatar) ? (authUser as any).avatar : (resolveMediaUrl(item.avatar, 'avatars') || DEFAULT_AVATAR) }} style={styles.lbAvatar} />
         
         <View style={styles.lbInfo}>
-           <Text style={[styles.lbName, isMe && { color: '#FFD700' }]} numberOfLines={1}>{item.displayName || item.username}</Text>
+           <Text style={[styles.lbName, { color: colors.text }, isMe && { color: '#FFD700' }]} numberOfLines={1}>{item.displayName || item.username}</Text>
            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-              <Icon name="book" size={12} color={COLORS.textSecondary} style={{ marginRight: 4 }} />
-              <Text style={styles.lbBooksRead}>{item.totalBooksRead || 0} sách đã đọc</Text>
+              <Icon name="book" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+              <Text style={[styles.lbBooksRead, { color: colors.textSecondary }]}>{item.totalBooksRead || 0} sách đã đọc</Text>
            </View>
         </View>
 
@@ -188,31 +204,31 @@ const ChallengeScreen = ({ navigation }: any) => {
   };
 
   const renderTabs = () => (
-    <View style={styles.tabContainer}>
+    <View style={[styles.tabContainer, { borderBottomColor: colors.border }]}>
       <TouchableOpacity 
         style={[styles.tabItem, activeTab === 'badges' && styles.activeTabItem]}
         onPress={() => setActiveTab('badges')}
       >
-        <Text style={[styles.tabText, activeTab === 'badges' && styles.activeTabText]}>Danh Hiệu</Text>
+        <Text style={[styles.tabText, { color: colors.textSecondary }, activeTab === 'badges' && styles.activeTabText]}>Danh Hiệu</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={[styles.tabItem, activeTab === 'leaderboard' && styles.activeTabItem]}
         onPress={() => setActiveTab('leaderboard')}
       >
-        <Text style={[styles.tabText, activeTab === 'leaderboard' && styles.activeTabText]}>Bảng Xếp Hạng</Text>
+        <Text style={[styles.tabText, { color: colors.textSecondary }, activeTab === 'leaderboard' && styles.activeTabText]}>Bảng Xếp Hạng</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top - 6, 0) }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-           <Icon name="x" size={24} color={COLORS.text} />
+           <Icon name="x" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bảng Xếp Hạng & Danh Hiệu</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Bảng Xếp Hạng & Danh Hiệu</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -222,11 +238,11 @@ const ChallengeScreen = ({ navigation }: any) => {
       {/* Content */}
       <View style={styles.content}>
         {activeTab === 'badges' && (
-           <Text style={styles.slogan}>Đọc sách mỗi ngày để mở khóa danh hiệu mới!</Text>
+           <Text style={[styles.slogan, { color: colors.textSecondary }]}>Đọc sách mỗi ngày để mở khóa danh hiệu mới!</Text>
         )}
         
         {loading ? (
-           <ActivityIndicator size="large" color={COLORS.text} style={{marginTop: 50}} />
+           <ActivityIndicator size="large" color={colors.text} style={{marginTop: 50}} />
         ) : (
            activeTab === 'badges' ? (
               <FlatList
@@ -243,13 +259,13 @@ const ChallengeScreen = ({ navigation }: any) => {
                 renderItem={renderLeaderboardItem}
                 contentContainerStyle={{ paddingBottom: 90 }}
                 showsVerticalScrollIndicator={false}
-                ListEmptyComponent={<Text style={{ color: COLORS.textSecondary, textAlign: 'center', marginTop: 20 }}>Chưa có dữ liệu xếp hạng</Text>}
+                ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 20 }}>Chưa có dữ liệu xếp hạng</Text>}
               />
            )
         )}
       </View>
       <FloatingTabBar activeTab="Library" />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -307,3 +323,5 @@ const styles = StyleSheet.create({
 });
 
 export default ChallengeScreen;
+
+
